@@ -126,6 +126,7 @@ Notice that although there is dynamic execution in the pipeline forwarding circu
 The logic in the pipeline controller that enables and selects the correct forwarding bits only needs to check a small set of previous instructions to detect data-dependencies. 
 Thus, static execution time analysis can detect forwarding by simply checking a short window of previous instructions to account for stalls accordingly. \todo{find papers to back this up}
 The internal state of the branch predictor on the other hand is dependent on branch histories which may have happened arbitrarily long ago in the execution sequence,
+\todo{more complicated ways of handling data hazards include out-of-order execution\ldots} 
 
 \todo{Talk about caches here}
 Stalls are still inserted for the the second \emph{sub} instruction, as it is waiting upon the results of a memory operation. 
@@ -180,6 +181,7 @@ This is not to be confused the common notion of ``threads'', which is assumed to
 
 \subsection{Thread-Interleaved Pipelines}
 \label{subsection:pret_thread_pipeline}
+
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -202,22 +204,37 @@ Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example executio
 The thread-interleaved pipelines shown and presented in this thesis are all of single width.
 The same code segments from figure~\ref{fig:sample_gcd_code} and figure~\ref{fig:sample_data_dependent_code} are being executed in this pipeline. 
 Threads 0, 2 and 4 execute GCD (figure~\ref{fig:sample_gcd_code}) and threads 1 and 3 execute the data dependent code segment (figure~\ref{fig:sample_data_dependent_code}).
-Each hardware thread executes as an independent context.
-Their progress is shown in figure~\ref{fig:execution_thread_interleaved_pipeline} with thick arrows pointing to the execution location of each thread at t0.    
+Each hardware thread executes as an independent context and their progress is shown in figure~\ref{fig:execution_thread_interleaved_pipeline} with thick arrows pointing to the execution location of each thread at t0.
 We can observe from the figure that each time step an instruction from a different hardware thread is fetched into execution and the hardware threads are fetched in a round robin order.
-At time step 4, the processor is completely filled, and each pipeline stage is occupied by a different hardware thread.
-This remains the same for time step 5, 6, 7 and so on. 
+At time step 4 we begin to visually see that each time step, each pipeline stage is occupied by a different hardware thread.
 The fine-grained thread interleaving and the round robin scheduling combine to form this unique property of thread-interleaved pipelines, which provides the basis for a timing predictable architecture design.
 
-For thread-interleaved pipelines, if there are, at a minimum, the same number of threads as there are pipeline stages, then the data-dependencies that were caused from pipelining no longer exist. 
-We will use the term ``full'' thread-interleaved pipelines if there exists at least the same number of threads in the pipeline as pipeline stages.  
+For thread-interleaved pipelines, if there are, at a minimum, the same number of threads as there are pipeline stages, then at each time step no dependency exists between the pipeline stages since they are each executing on a different thread. 
+As a result, data and control pipeline hazards, the results of dependencies between stages within the pipelines, no longer exist in the thread-interleaved pipeline.    
+We've already shown from figure~\ref{fig:branch_execution_non_interleaved_pipeline} that when executing the GCD code segment on a single-threaded pipeline, control hazards stem from branch instructions because of the address calculation for the instruction after the branch.
+However, in a thread-interleaved pipeline, the instruction after the branch from the same thread is not fetched into the pipeline until the branch instruction is committed.
+Before that time, instructions from other threads are fetched so the pipeline is not stalled, but simply executing other thread contexts.
+This can be seen in figure~\ref{fig:execution_thread_interleaved_pipeline} for thread 0, which is represented with instructions with white backgrounds.
+The \emph{cmp} instructions, which determines whether next conditional branch \emph{beq} is taken or not, completes before the \emph{beq} is fetched at time step 5.
+The \emph{blt} instruction from thread 0, fetched at time step 10, also causes no hazard because the \emph{beq} is completed before \emph{blt} is fetched.
+The code in figure~\ref{fig:sample_data_dependent_code} is executed on thread 1 of the thread interleave pipeline in figure~\ref{fig:execution_thread_interleaved_pipeline}.
+The pipeline stalls inserted from top of figure~\ref{fig:data_depend_execution_non_interleaved} are no longer needed even without a forwarding circuitry because the data-dependent instructions are fetched after the completion of its previous instruction.
+
+For memory operations that have longer latencies, thread-interleaved pipelines can hide the latency with its execution of other threads. 
+Thread 3 in figure~\ref{fig:execution_thread_interleaved_pipeline} shows the execution of a \emph{ld} instruction that takes 
+
+
+In fact, because no instruction in the pipeline is dependent on another, because each pipeline stage is executing on a separate hardware thread context, the pipeline does not need to include any extra logic or hardware for handling data and control hazards in the pipeline. 
+Without the extra logic used for handling hazards, we get increased clock speeds as less logic is in each pipeline stage.
+In fact, most of the logic in a pipeline is dedicated to handling these pipeline hazards, so this also potentially shrinks the processor footprint\todo{need to find support}.
+
+
+%We will use the term ``full'' thread-interleaved pipelines if there exists at least the same number of threads in the pipeline as pipeline stages.  
 %With $n$ threads occupying a $n$ stage pipeline, we remove the data-dependencies caused by the pipeline.
-Dependencies arise when an instruction needs data from another instruction that is currently executing in the pipeline and has not yet completed its execution.
-As illustrated in figure~\ref{fig:execution_thread_interleaved_pipeline}, instructions in a full thread-interleaved pipeline can never be dependent upon any other instruction that's currently in executing in the pipeline, because each stage of the pipeline is occupied by an instruction from a different thread.
-In other words, an instruction will always commit before the next instruction from the same thread is fetched, thus no data-dependency within instructions can occur. 
+%Dependencies arise when an instruction needs data from another instruction that is currently executing in the pipeline and has not yet completed its execution.
+%As illustrated in figure~\ref{fig:execution_thread_interleaved_pipeline}, instructions in a full thread-interleaved pipeline can never be dependent upon any other instruction that's %currently in executing in the pipeline, because each stage of the pipeline is occupied by an instruction from a different thread.
+%In other words, an instruction will always commit before the next instruction from the same thread is fetched, thus no data-dependency within instructions can occur. 
 
-
-For instructions that take multiple cycles, a replay mechanism is used so the round robin thread scheduling is preserved and no interference is introduced between the threads.
 When a multi-cycle instruction is fetched into the pipeline from a thread, it executes as any instruction.
 As the instruction goes through the pipeline, no results are committed, but instead its state is saved in a hardware thread control block and does not increment the program counter for this thread. 
 When an instruction fetch from this thread occurs, the same instruction is dispatched into the pipeline to continue its execution. 
@@ -261,12 +278,3 @@ In summary, blah blah blah\ldots
 \label{subsection:memory_system}
 
 
-\section{Implementation}
-\subsection{PTARM Simulator}
-\label{subsection:ptarm_sim}
-
-\subsection{PTARM VHDL Softcore}
-\label{subsection:ptarm_vhdl_softcore}
-
-\subsection{Worst Case Execution Time Analysis}
-\label{sec:wcet}
