@@ -1,58 +1,24 @@
-The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on an ARM ISA architecture\todo{Citation}. 
-In this chapter we will describe in detail the implementation details of the timing-predictable ARM processor and discuss the worst-case execution time analysis of code running on it.
-We show that with the architectural design principles of PRET, the PTARM architecture is easy analyzable with repeatable timing.
-  
-The architecture of PTARM closely follows the principles discussed in chapter~\ref{chapter:pret}.
-This includes a thread-interleaved pipeline with scratchpads along with the timing predictable memory controller.
-The ARM ISA was chosen not only for its popularity in the embedded community, but also because it is a Reduced Instruction Set Computer(RISC), which has simpler instructions that allow more precise timing analysis. 
-Complex Instruction Set Computers(CSIC) on the other hand adds un-needed complexity to the hardware and timing analysis.
-RISC architectures typically features a large uniform register file, a load/store architecture, and fixed-length instructions.
-In addition to these, ARM also contains several unique features.
-ARM's ISA requires build a single cycle hardware shifter along with an arithmetic logic unit(ALU), as all of its data-processing instructions can shift its operands before passed onto the ALU. 
-ARM's load/store instructions also contain auto-increment capabilities that can increment or decrement the base address. 
-This is useful to compact code that is reading through an array in a loop, as one instruction can load the contents and prepare for the next read in one instruction.
-In addition, almost all of the ARM instructions are conditionally executed.
-The conditional execution improves architecture throughput with potential added benefits of code compaction\todo{Citation}.     
-ARM programmer's model specifies 16 registers (R0 to R15) to be accessed with its instructions, with register 15 being the program counter. 
-Any data-operation done on register 15 triggers a branch.  
-
-ARM has a rich history of versions for their ISA, and PTARM implements the ARMv4 ISA, currently without support for the thumb mode.
-PTARM uses scratchpads instead of caches, and a DDR2 DRAM for main memory managed by the timing predictable memory controller.
-PTARM includes hardware support for several floating point operations, and implements the timing instructions introduced in chapter~\ref{chapter:programming_models}.   
-We will first discuss the architectural details of PTARM, then present the C++ software simulator of PTARM.   
-   
-\section{PTARM Architecture}
+\section{PTARM 6 stage Architecture}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
-    \includegraphics[scale=.6]{figs/ptarm_pipeline_five_stage}
+    \includegraphics[scale=.6]{figs/ptarm_pipeline_six_stage}
   \end{center}
   \vspace{-20pt}
-  \caption{Block Level View of the PTARM 5 stage pipeline}
-  \label{fig:ptarm_pipeline_five_stage}
+  \caption{Block Level View of the PTARM 6 stage pipeline}
+  \label{fig:ptarm_pipeline_six_stage}
 \end{figure}
 
 The pipeline of PTARM implements a thread-interleaved pipeline for the ARM instruction set.
 PTARM is written in VHDL and targets Xilinx Virtex-5 Family FPGAs, thus a the design decisions made tailored the PTARM architecture towards optimizing the design for the Xilinx V5 FPGA.
-It has a 32 bit datapath and consists of a five stage pipeline with four threads interleaving through the pipeline. 
-In chapter~\ref{chapter:pret} we discussed the timing and hardware benefits of a typical thread-interleaved pipeline that has at least as many threads as pipeline stages. 
-However, have more threads in the pipeline means decreased performance for each thread, since the more threads are utilizing the same pipeline resources. 
-Thus, we design our pipeline to support a minimum of one less thread than the number of pipeline stages, and create a four thread five stage thread interleaved pipeline. 
-As discussed in chapter~\ref{chapter:pret}, interleaving $N$ threads through the an $N$ stage pipeline helps remove data and control hazards in the pipeline. 
-With $N-1$ threads interleaving through the $N$ stage pipeline, data hazards are removed because the data committed at the last stage is not used for the next thread until the decode stage of the pipeline. 
-%TODO: show this is an image
-However, control hazards are present if the PC is committed at the writeback stage, because the PC needed for the thread in the fetch stage has not been committed yet.
-In most cases, the next PC can be determined as early as the decode stage (data-processing and load/store instructions).
-For branch instructions, the address calculation is completed after the execute stage. 
-The only case 
-
-
- 
+It has a 32 bit datapath and consists of a six stage pipeline and can support a minimum of six threads interleaving through the pipeline.
+The pipeline can be clocked up to $180MHz$ on a Virtex-5 lx110t FPGA.  
 Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
 The multiplexers within the pipeline have been omitted in the figure for a simplified view of the hardware components that make up the pipeline.
-There contains four copies of the Program Counter(PC), Thread States, and Register File, which are not shown in the figure.
-Most of the pipeline design follows a typical Hennessy and Patterson\todo{citation} five stage pipeline, with the five stages in the pipeline being -- Fetch, Decode, Execute, Memory, Writeback.
-
+There contains multiple copies of the Program Counter(PC), Thread States, and Register File, which are not shown in the figure.
+Most of the pipeline design follows a typical Hennesy and Patterson\todo{citation} 5 stage pipeline, but the thread interleaved pipeline also allows us to strip away the branch predictor and the data forwarding logic used to handle data-hazards.
+The six stages in the pipeline are -- Fetch, Decode, Shift, Execute, Memory, Writeback.
+We will briefly describe the functional blocks of each stage, and later show how most instruction types are implemented in the pipeline.  
 %TODO: Talk about register file, 3 read and 1 write port
 
 The fetch stage of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction scratchpad.
@@ -149,14 +115,11 @@ As a result,
 
 \subsection{Timing Instructions}
 
-\subsection{Synthesis Results}
-Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.  
 \section{PTARM Simulator}
 \label{sec:ptarm_sim}
 
 \section{Worst Case Execution Time Analysis}
 \label{sec:wcet}
-
 
 
 
