@@ -5,6 +5,123 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam eu est neque. Suspe
 \section{Architecture Design\todo{Use repeatability? predictability? analyzability?}}
 %Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
 %The thread interleaving pipeline design allows for predictable timing analysis for all threads within the pipeline. 
+It is important to understand why and how current architectures fall short of timing predictability and repeatability.
+Thus, before we preset the PRET architecture, we briefly discuss common architectural designs and their effects on execution time, and point out some key issues and trade-offs when designing architectures for predictable and repeatable timing.
+The introduction of pipelining vastly improved architecture average-case performance.
+It allowed faster clock speeds for processors, and improved the instruction throughput compared to single cycle architectures.
+Pipelining the datapath allowed subsequent instructions to begin execution while prior instructions were still being completed. 
+Ideally each processor cycle one instruction completes and leaves the pipeline as another enters and begins execution. 
+In reality, different pipeline hazards occur which reduce the throughput and create stalls in the pipeline.
+The handling of these hazards an important factor to the timing predictability and repeatability of the architecture design.     
+To illustrate this point, we discuss basic hardware additions proposed to reduce performance penalty from hazards, and their effects on execution time and predictability. 
+  
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/sample_gcd_code}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Sample code for GCD with conditional branches}
+  \label{fig:sample_gcd_code}
+\end{wrapfigure}
+We began by looking at how control-flow changes are handled in pipelines.
+Branches cause control-flow hazards in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
+Conditional branches adds more complexity\todo{?}, as whether or not the branch is taken depends on an additional condition bit. 
+The code segment in figure~\ref{fig:sample_gcd_code} shows assembly instructions from the ARM instruction set architecture (ISA) that implement the Greatest Common Divisor (GCD) algorithm using conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than).  
+Conditional branch instructions in ARM branch based on conditional flags that are set with special compare instructions\todo{citation}.
+The \emph{cmp} instruction is one such compare instruction that subtracts two registers and updates the conditional flags according to the results.
+The GCD implementation shown in the code uses this mechanism to determine whether to continue or end the algorithm.
+Figure~\ref{fig:branch_execution_non_interleaved_pipeline} show two ways branches are commonly handled in a single-threaded pipeline. 
+
+A simple but effective way of handling control-flow hazards is by simply stalling the pipeline until the branch is resolved.
+This is shown on the left of the figure. 
+Two pipeline delays (or bubbles) are inserted after each branch instruction to wait until address calculation is completed.
+The dependencies between instructions are also drawn out to make clear why the pipeline bubbles are necessary.
+In order for the \emph{blt} instruction to be fetched, its address must be calculated during the execution stage of the \emph{beq} instruction.
+At the same time, because \emph{beq} is a conditional branch, whether or not the branch is taken depends on the \emph{cmp} instruction.
+It is assumed that the architecture contains some forwarding circuitry, so the address calculations could be used before the branch instruction is committed.        
+The performance penalty associated with this method is the pipeline delays inserted to wait for the branch address calculation to complete. 
+Some architectures enforce the compiler to insert one or more non-dependent instructions after a branch that is always executed before the change in control-flow of the program. 
+These are called branch delay slots and can mitigate the branch penalty, but become less effective as pipelines grow deeper (have more pipeline stages) in design. 
+In attempt to remove the need of inserting pipeline bubbles, branch predictors were invented to predict the results of a conditional branch before it is resolved\todo{citation}.
+Branch predictors have been heavily researched.
+Many clever branch predictors have been proposed, and they can accurately predict branches up to 93.5\%\todo{citation}.
+With a branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively. 
+If the prediction was correct, no penalty occurs for the conditional branch, and execution simply continues. 
+However, when a mispredict occurs, then the misfetched instructions need to be voided and the correct instructions need to be refetched into the pipeline for execution.
+The right subfigure of figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of GCD with a branch misprediction.
+After the \emph{beq} instruction, the branch is predicted to be taken, and the \emph{add} and \emph{mov} instructions from the label \emph{end} is directly fetched into execution. 
+When the \emph{cmp} instruction is completed, a misprediction is detected, so the \emph{add} and \emph{mov} instruction are flushed out of the pipeline while the correct instruction \emph{blt} is immediately re-fetched and execution continues.
+The misprediction penalty is typically the number of stages between fetch and execute, as those cycles are wasted executing instructions from an incorrect execution path.
+This penalty only occurs on a mispredict, thus branch prediction typically yields better average performance and is preferred for modern architectures.
+%However, for more complex architectures with caches or other hardware states, the effects of incorrectly fetched instructions on the state of the processor less well-known and studied. 
+Nonetheless, it is important to understand the effects of branch prediction on execution time. 
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.58]{figs/branch_execution_non_interleaved_pipeline}
+\end{center}
+\vspace{-10pt}
+\caption{Handling of conditional branches in single threaded pipelines}
+\label{fig:branch_execution_non_interleaved_pipeline}
+\end{figure}
+
+Typically branch predictors predict branches based upon the history of previous branches encountered.  
+As each branch instruction is resolved, the internal state of the predictor, which stores the branch histories, is updated and used to predict the next branch.
+This implicitly creates a dependency between branch instructions and their execution history, as the prediction is affected by its history.
+In other words, the execution time of a branch instruction will depend on the branch results of previous branch instructions.
+During static execution timing analysis, the state of the branch predictor is unknown because is it often infeasible to keep track of the execution history so far back.   
+There has been work on explicitly modeling branch predictors for execution time analysis\todo{citation}, but the results are \todo{the results of branch predictor modeling for execution time analysis}.
+As a result, the analysis needs to conservatively account for the potential branch mispredict penalty for each branch, which leads to overestimated execution times.
+To make matters worse, as architectures grow in complexity, more internal states exist in architectures that could be affected by the speculative execution. 
+For example, cache lines could be evicted when speculatively executing instructions from a mispredicted path, changing the state of the cache.  
+%When instructions from the correct execution path are re-fetched at branch resolution, a cache miss could be resulted from the change in cache because of the branch misprediction.    
+This makes a tight static execution time analysis extremely difficult, if not impossible; explicitly modeling all hardware states and their effects together often lead to an infeasible explosion in state space. 
+On the other hand, although the simple method of inserting pipeline bubbles for branches could lead to more branch penalties, the static timing analysis is precise and straight forward, as no prediction and speculative execution occur. 
+In the case of the ARM ISA, the analysis simply accounts for the branch penalty after every branch. 
+Additional penalties from a conditional branch can be accounted for by simply checking for instructions that modify the conditional flag above the conditional branch.
+There is a trade-off in this situation between speculative execution for better average performance, or consistent stalling for better predictability.
+We explicitly showed the simple method of handling branches for the purpose of pointing out this trade-off.
+Predictability can be achieved if performance is sacrificed. 
+At the same time, average performance can be improved if predictability is sacrificed. 
+The challenge remains to maintain predictability while improving performance, and how pipeline hazards are handled play an integral part of tackling this challenge.           
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/sample_data_dependent_code}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Sample code with read-after-write dependencies}
+  \label{fig:sample_data_dependent_code}
+\end{wrapfigure}
+Some data-hazards can be handled by inserting extra hardware into the pipeline without speculation.
+For example, figure~\ref{fig:data_depend_execution_non_interleaved} shows the execution of the right code segment from figure~\ref{fig:sample_code_for_pipeline_hazards} on pipelines with and without forwarding.
+Each instruction in this code segment is data-dependent on its previous instruction.   
+Shown in the top of figure~\ref{fig:data_depend_execution_non_interleaved}, without any special circuitry, pipeline bubbles are inserted to ensure read-after-write hazards are handled correctly. 
+The pipeline forwarding circuitry consists of backwards paths for data from different pipeline stages to the inputs of arithmetic units, and multiplexers to select amongst them. 
+They provide a way to directly access computation results from the previous instruction before it commits. 
+The pipeline controller dynamically detects whether a data-dependency exists, and changes the selection bits to the multiplexers accordingly so the correct operands are used.
+The bottom of figure~\ref{fig:data_depend_execution_non_interleaved} shows the execution with forwarding in the pipeline.
+No pipeline bubbles are needed for the first \emph{sub} instruction and \emph{ld} instruction, as the results they depend on can be computed in one cycle by the ALU, and forwarded through the forwarding paths.
+Stalls are still inserted for the the second \emph{sub} instruction, as it is waiting upon the results of a memory operation. 
+The memory access latency in the figure is arbitrarily chosen to be 5 cycles for illustrative purposes, but obtaining the actual access latencies of memory operations is a complicated subject which is addressed in section~\ref{subsection:memory_system}.
+We can thus see that forwarding can address the data-dependencies caused by pipelining -- the read-after-write of register computations. 
+However, they cannot address the data-dependencies caused by other long latency operations such as memory operations, so pipeline stalls are still needed. 
+Notice that although there is dynamic execution in the pipeline forwarding circuitry, it is actually possible to statically predict the execution time accurately.
+The logic in the pipeline controller that enables and selects the correct forwarding bits only needs to check a small set of previous instructions to detect data-dependencies. 
+Thus, static execution time analysis can detect forwarding by simply checking a short window of previous instructions to account for stalls accordingly. \todo{find papers to back this up}
+The internal state of the branch predictor on the other hand is dependent on branch histories which may have happened arbitrarily long ago in the execution sequence,
+ 
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.6]{figs/data_depend_execution_non_interleaved}
+\end{center}
+\vspace{-10pt}
+\caption{Handling of data dependencies in single threaded pipelines}
+\label{fig:data_depend_execution_non_interleaved}
+\end{figure} 
+ 
 \begin{figure}
 \begin{center}
 \includegraphics[scale=.8]{figs/multithreaded_pipeline_block}
@@ -87,101 +204,6 @@ We will use the term ``full'' thread-interleaved pipelines if there exists at le
 Dependencies arise when an instruction needs data from another instruction that is currently executing in the pipeline and has not yet completed its execution.
 As illustrated in figure~\ref{fig:execution_thread_interleaved_pipeline}, instructions in a full thread-interleaved pipeline can never be dependent upon any other instruction that's currently in executing in the pipeline, because each stage of the pipeline is occupied by an instruction from a different thread.
 In other words, an instruction will always commit before the next instruction from the same thread is fetched, thus no data-dependency within instructions can occur. 
-To further illustrate this point, we will use the two code segments shown in figure~\ref{fig:sample_code_for_pipeline_hazards} and show how data and control hazards no longer exist in thread-interleaved pipelines. 
-\begin{figure}
-  \begin{center}
-    \includegraphics[scale=.6]{figs/sample_code_for_pipeline_hazards}
-  \end{center}
-  \vspace{-20pt}
-  \caption{Sample code segments that cause data dependencies in typical pipelines}
-  \label{fig:sample_code_for_pipeline_hazards}
-\end{figure}
-Both code segments shown in figure~\ref{fig:sample_code_for_pipeline_hazards} consists of assembly instructions from the ARMv4 ISA\todo{citation}.
-The code on the left shows an implementation of Greatest Common Divisor (GCD) using conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than). 
-The code on the right shows an arbitrarily constructed computation code where each instruction is dependent on the results of the previous instruction. 
-
-Conditional branch instructions in the ARM instruction set architecture (ISA) branch based on conditional flags that are set with special compare instructions\todo{citation}.
-The \emph{cmp} instruction is one such compare instruction that subtracts two registers and updates the conditional flags according to the results.
-The GCD implementation shown on the left of of figure~\ref{fig:sample_code_for_pipeline_hazards} uses this mechanism to determine whether to continue or end the algorithm.
-Branches cause control-flow hazards in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch is resolved.
-Conditional branches adds more complexity\todo{?}, as whether or not the branch is taken depends on a condition. 
-Figure~\ref{fig:branch_execution_non_interleaved_pipeline} show two ways branches are commonly handled in a single-threaded pipeline. 
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.58]{figs/branch_execution_non_interleaved_pipeline}
-\end{center}
-\vspace{-10pt}
-\caption{Handling of conditional branches in single threaded pipelines}
-\label{fig:branch_execution_non_interleaved_pipeline}
-\end{figure}
-A simple but effective way of handling control-flow hazards is by simply stalling the pipeline until the branch is resolved.
-This is shown on the left of the figure. 
-Two pipeline delays (or bubbles) are inserted after each branch instruction to wait until address calculation is completed.
-The dependencies between instructions are also drawn out to make clear why the pipeline bubbles are necessary.
-In order for the \emph{blt} instruction to be fetched, its address must be calculated during the execution stage of the \emph{beq} instruction.
-At the same time, because \emph{beq} is a conditional branch, whether or not the branch is taken depends on the \emph{cmp} instruction.
-It is assumed that the architecture contains some forwarding circuitry, so the address calculations could be used before the branch instruction is committed.        
-The performance penalty associated with this method is the pipeline delays inserted to wait for the branch address calculation to complete. 
-Some architectures enforce the compiler to insert one or more non-dependent instructions after a branch that is always executed before the change in control-flow of the program. 
-These are called branch delay slots and can mitigate the branch penalty, but become less effective as pipelines grow deeper (have more pipeline stages) in design. 
-In attempt to remove the need of inserting pipeline bubbles, branch predictors were invented to predict the results of a conditional branch before it is resolved\todo{citation}.
-Branch predictors have been heavily researched.
-Many clever branch predictors have been proposed, and they can accurately predict branches up to 93.5\%\todo{citation}.
-With a branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively. 
-If the prediction was correct, no penalty occurs for the conditional branch, and execution simply continues. 
-However, when a mispredict occurs, then the misfetched instructions need to be voided and the correct instructions need to be refetched into the pipeline for execution.
-The right subfigure of figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of GCD with a branch misprediction.
-After the \emph{beq} instruction, the branch is predicted to be taken, and the \emph{add} and \emph{mov} instructions from the label \emph{end} is directly fetched into execution. 
-When the \emph{cmp} instruction is completed, a misprediction is detected, so the \emph{add} and \emph{mov} instruction are flushed out of the pipeline while the correct instruction \emph{blt} is immediately re-fetched and execution continues.
-The misprediction penalty is typically the number of stages between fetch and execute, as those cycles are wasted executing instructions from an incorrect execution path.
-This penalty only occurs on a mispredict, thus branch prediction typically yields better average performance and is preferred for modern architectures.
-%However, for more complex architectures with caches or other hardware states, the effects of incorrectly fetched instructions on the state of the processor less well-known and studied. 
-Nonetheless, it is important to understand the effects of branch prediction on execution time. 
-
-Typically branch predictors predict branches based upon the history of previous branches encountered.  
-As each branch instruction is resolved, the internal state of the predictor, which stores the branch histories, is updated and used to predict the next branch.
-This implicitly creates a dependency between branch instructions and their execution history, as the prediction is affected by its history.
-In other words, the execution time of a branch instruction will depend on the branch results of previous branch instructions.
-During static execution timing analysis, the state of the branch predictor is unknown because is it often infeasible to keep track of the execution history so far back.   
-There has been work on explicitly modeling branch predictors for execution time analysis\todo{citation}, but the results are \todo{the results of branch predictor modeling for execution time analysis}.
-As a result, the analysis needs to conservatively account for the potential branch mispredict penalty for each branch, which leads to overestimated execution times.
-To make matters worse, as architectures grow in complexity, more internal states exist in architectures that could be affected by the speculative execution. 
-For example, cache lines could be evicted when speculatively executing instructions from a mispredicted path, changing the state of the cache.  
-%When instructions from the correct execution path are re-fetched at branch resolution, a cache miss could be resulted from the change in cache because of the branch misprediction.    
-This makes a tight static execution time analysis extremely difficult, if not impossible; explicitly modeling all hardware states and their effects together often lead to an infeasible explosion in state space. 
-On the other hand, although the simple method of inserting pipeline bubbles for branches could lead to more branch penalties, the static timing analysis is precise and straight forward, as no prediction and speculative execution occur. 
-In the case of the ARM ISA, the analysis simply accounts for the branch penalty after every branch. 
-Additional penalties from a conditional branch can be accounted for by simply checking for instructions that modify the conditional flag above the conditional branch.
-There is a trade-off in this situation between speculative execution for better average performance, or consistent stalling for better predictability.
-We explicitly showed the simple method of handling branches for the purpose of pointing out this trade-off.
-Predictability can be achieved if performance is sacrificed. 
-At the same time, average performance can be improved if predictability is sacrificed. 
-The challenge remains to maintain predictability while improving performance, and how pipeline hazards are handled play an integral part of tackling this challenge.           
-
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.6]{figs/data_depend_execution_non_interleaved}
-\end{center}
-\vspace{-10pt}
-\caption{Handling of data dependencies in single threaded pipelines}
-\label{fig:data_depend_execution_non_interleaved}
-\end{figure}
-Some data-hazards can be handled by inserting extra hardware into the pipeline without speculation.
-For example, figure~\ref{fig:data_depend_execution_non_interleaved} shows the execution of the right code segment from figure~\ref{fig:sample_code_for_pipeline_hazards} on pipelines with and without forwarding.
-Each instruction in this code segment is data-dependent on its previous instruction.   
-Shown in the top of figure~\ref{fig:data_depend_execution_non_interleaved}, without any special circuitry, pipeline bubbles are inserted to ensure read-after-write hazards are handled correctly. 
-The pipeline forwarding circuitry consists of backwards paths for data from different pipeline stages to the inputs of arithmetic units, and multiplexers to select amongst them. 
-They provide a way to directly access computation results from the previous instruction before it commits. 
-The pipeline controller dynamically detects whether a data-dependency exists, and changes the selection bits to the multiplexers accordingly so the correct operands are used.
-The bottom of figure~\ref{fig:data_depend_execution_non_interleaved} shows the execution with forwarding in the pipeline.
-No pipeline bubbles are needed for the first \emph{sub} instruction and \emph{ld} instruction, as the results they depend on can be computed in one cycle by the ALU, and forwarded through the forwarding paths.
-Notice that although there is a dynamic execution aspect to the pipeline forwarding circuitry, it actually causes no unpredictable execution time to the code.
-The logic in the pipeline controller that enables and selects the correct forwarding bits only needs to check a small set of previous instructions to detect data-dependencies. 
-Unlike the branch predictor in which its internal state is dependent on branch histories which may have happened arbitrarily long ago in the execution sequence.
-Thus, static execution time analysis can account for the short history of instructions required  
-
-However, the second \emph{sub} instruction depends on a memory access, thus the forwarding circuitry has no effect, and stalls still need to be inserted in the pipeline.
-The memory access latency in the figure is arbitrarily chosen to be 5 cycles for illustrative purposes, but obtaining the actual access latencies of memory operations is a complicated subject which is addressed in section~\ref{subsection:memory_system}.
 
 
 For instructions that take multiple cycles, a replay mechanism is used so the round robin thread scheduling is preserved and no interference is introduced between the threads.
@@ -189,16 +211,7 @@ When a multi-cycle instruction is fetched into the pipeline from a thread, it ex
 As the instruction goes through the pipeline, no results are committed, but instead its state is saved in a hardware thread control block and does not increment the program counter for this thread. 
 When an instruction fetch from this thread occurs, the same instruction is dispatched into the pipeline to continue its execution. 
 If it still has not completed its execution, then the program counter for this thread is again not incremented and the same instruction is dispatched, until it is completed. 
-Figure~\ref{fig:replay_mechanism_example} illustrates this mechanism.
 %FIXME: Place in replay mechanism figure
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.4]{figs/placeholder}
-\end{center}
-\caption{Illustrative example showing the replay mechanism}
-\label{fig:replay_mechanism_example}
-\end{figure}
-
 For instructions that take multiple cycles due to limitations of the pipeline design, this mechanism makes sense.
 Instructions that do 64-bit operations on a 32-bit pipeline datapath for example falls into this category. 
 In order to abide to the round-robin thread scheduling, the thread simply saves the instruction state and continues execution when it gains access to the pipeline. 
