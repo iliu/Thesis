@@ -87,11 +87,35 @@ The floating point hardware units are pipelined floating point computation units
  
 %TODO: Memory Hierarchy
 \section{Instruction Implementations}
-\subsection{Branches}
-\subsection{Loads and Stores}
+In this section we will go into more details about how each instruction type is implemented and how the hardware blocks shown in the previous sections are used.
+We will go through different instruction types and also discuss the timing implications of our implementation. 
+We will summarize with a table with all instructions and the cycle count it takes to execute them.   
+\subsection{Branch}
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.6]{figs/branch_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Branch Instruction Execution in the Ptarm Pipeline}
+  \label{fig:branch_pipeline_implementation}
+\end{figure}
+Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB. 
+Also, since the general purpose register 15 is the PC, any write to R15 is also considered a branch instruction that branches to the address written into R15.
+Figure~\ref{fig:branch_pipeline_implementation} shows     
 \subsection{Data-Processing}
-\subsection{Floating Point Operations}
+\subsection{Floating Point}
 \subsection{Timing Instructions}
+\subsection{Loads and Stores}
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.6]{figs/ldstr_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Load/Store Instruction Execution in the Ptarm Pipeline}
+  \label{fig:ldstr_pipeline_implementation}
+\end{figure}
 
 \section{PTARM Simulator}
 \label{sec:ptarm_sim}
