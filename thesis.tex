@@ -1,0 +1,151 @@
+\documentclass[11pt]{ucthesis}
+\setlength{\oddsidemargin}{0.15in}
+\def\dsp{\def\baselinestretch{1.75}\large\normalsize}
+\ssp
+\usepackage{amsmath}
+\usepackage[pdftex]{graphicx}
+\usepackage{times}
+%\usepackage[cmex10]{amsmath}
+\usepackage{amsfonts}
+%\usepackage{array}
+%\usepackage{mdwmath}
+%\usepackage{mdwtab}
+
+\usepackage{verbatim}
+\usepackage{fancyvrb, relsize}
+\usepackage{url}
+\usepackage{hyperref}
+
+\newcommand{\mtstamp}{\tau} %{$\tau$}
+\newcommand{\mtdelay}{\delta}
+\newcommand{\mtdependency}{\Delta}
+\newcommand{\rtstamp}{t}
+\newcommand{\rtdelay}{d}
+\newcommand{\rtmaxdelay}{d}
+% Model time delays for particular actors
+\newcommand{\mtsadelay}{\delta_{as}}
+% Physical time delays for particular actors
+\newcommand{\rtnetdelay}{{d_{n}}}
+\newcommand{\rtsdelay}{{d_{s}}}
+\newcommand{\rtadelay}{{d_{a}}}
+\newcommand{\rtsyncerror}{\epsilon}
+\newcommand{\rtsadelay}{d_{as}}
+\newcommand{\G}{input group ~}
+\newcommand{\mtmindelay}{\Delta_{min}}
+\newcommand{\clockdrift}{c}
+\usepackage{verbatim}
+%\usepackage{fancyvrb}
+
+\newcommand{\irt}{\underline{i}}
+\newcommand{\ort}{\underline{o}}
+\newcommand{\Irt}{\underline{I}}
+\newcommand{\Ort}{\underline{O}}
+\newcommand{\seq}{\underline{\pi}}
+\newcommand{\mtdelayrt}{\underline{\delta}}
+
+
+\begin{document}
+\title{Precision Timed Machines
+\iffalse
+From Ptides to PtidyOS, Designing Distributed Real-Time Embedded Systems
+  \titlenote{This work was supported in part by the Center for Hybrid and Embedded Software Systems (CHESS) at UC Berkeley, which receives support from the National Science Foundation (NSF awards \#0720882 (CSR-EHS: PRET), \#0931843 (ActionWebs), and \#1035672 (CSR-)CPS Ptides)), the U. S. Army Research Office (ARO \#W911NF-07-2-0019), the U. S. Air Force Office of Scientific Research (MURI \#FA9550-06-0312), the Air Force Research Lab (AFRL), the Multiscale Systems Center (MuSyC), one of six research centers funded under the Focus Center Research Program, a Semiconductor Research Corporation program, and the following companies: Bosch, National Instruments, Thales, and Toyota.}
+\fi
+}
+\author{Isaac Liu} 
+\degreeyear{2012}
+\degreesemester{Spring}
+\degree{Doctor of Philosophy}
+\chair{Professor Edward A. Lee}
+\othermembers{Professor John Wawrzynek \\
+Professor Alice Agogino}
+\numberofmembers{3}
+\prevdegrees{Bachelor of Science (University of California, Santa Barbara) 2007}
+\field{Electrical Engineering and Computer Science}
+\campus{Berkeley}
+
+\maketitle
+%FIXME for the final version, comment out the approval page.
+%\approvalpage
+\copyrightpage
+
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\begin{frontmatter}
+
+\begin{dedication}
+\null\vfil
+{\large
+\begin{center}
+%\\\vspace{12pt}
+To my wife Emily Cheung, my parents Char-Shine Liu and Shu-Jen Liu, and everyone else whom
+I've had the pleasure of running into for the first twenty-seven years of my
+life.
+%\\\vspace{12pt}
+\end{center}}
+\vfil\null
+\end{dedication}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\begin{acknowledgements}
+
+I want to thank my wife
+
+I want to thank my parents
+
+I want to thank my advisor, Edward A. Lee
+
+I want to thank the committee members
+
+I want to thank Hiren Patel
+
+I want to thank Jan Rieneke
+
+I would also like to thank the ptolemy group especially Christopher and Mary
+
+I would like to thank everyone else that made this possible
+
+\end{acknowledgements}
+
+\end{frontmatter}
+
+\chapter{Introduction}
+\label{chapter:intro}
+\input{chapters/intro}
+
+\chapter{Related Work}
+\label{chapter:related}
+\input{chapters/related}
+
+\chapter{background}
+\label{chapter:background}
+\input{chapters/background}
+
+\chapter{Precision Timed Machines}
+\label{chapter:pret}
+\input{chapters/pret}
+
+\chapter{Implementations and Results}
+\label{chapter:implementation}
+\input{chapters/implementation}
+
+\chapter{Worst Case Execution Time Analysis}
+\label{chapter:pret_wcet}
+\input{chapters/pret_wcet}
+
+\chapter{Applications}
+\label{chapter:app}
+\input{chapters/app}
+
+\chapter{Conclusion and Future work}
+\label{chapter:summary}
+\input{chapters/summary}
+
+\bibliographystyle{abbrv}
+\bibliography{thesis}  
+
+% That's all folks!
+\end{document}
