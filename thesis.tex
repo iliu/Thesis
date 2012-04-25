@@ -7,6 +7,7 @@
 \usepackage{times}
 %\usepackage[cmex10]{amsmath}
 \usepackage{amsfonts}
+\usepackage[usenames,dvipsnames]{color}
 %\usepackage{array}
 %\usepackage{mdwmath}
 %\usepackage{mdwtab}
@@ -16,33 +17,12 @@
 \usepackage{url}
 \usepackage{hyperref}
 
-\newcommand{\mtstamp}{\tau} %{$\tau$}
-\newcommand{\mtdelay}{\delta}
-\newcommand{\mtdependency}{\Delta}
-\newcommand{\rtstamp}{t}
-\newcommand{\rtdelay}{d}
-\newcommand{\rtmaxdelay}{d}
-% Model time delays for particular actors
-\newcommand{\mtsadelay}{\delta_{as}}
-% Physical time delays for particular actors
-\newcommand{\rtnetdelay}{{d_{n}}}
-\newcommand{\rtsdelay}{{d_{s}}}
-\newcommand{\rtadelay}{{d_{a}}}
-\newcommand{\rtsyncerror}{\epsilon}
-\newcommand{\rtsadelay}{d_{as}}
-\newcommand{\G}{input group ~}
-\newcommand{\mtmindelay}{\Delta_{min}}
-\newcommand{\clockdrift}{c}
-\usepackage{verbatim}
-%\usepackage{fancyvrb}
+\newcommand{\rt}{real-time}
+\newcommand{\Rt}{Real-time}
+\newcommand{\thdint}{thread-interleaved}
+\newcommand{\Thdint}{Thread-interleaved}
 
-\newcommand{\irt}{\underline{i}}
-\newcommand{\ort}{\underline{o}}
-\newcommand{\Irt}{\underline{I}}
-\newcommand{\Ort}{\underline{O}}
-\newcommand{\seq}{\underline{\pi}}
-\newcommand{\mtdelayrt}{\underline{\delta}}
-
+\newcommand{\todo}[1]{{{\textcolor{Red}{(Todo: #1)}}}}%
 
 \begin{document}
 \title{Precision Timed Machines
@@ -104,7 +84,7 @@ I want to thank Hiren Patel
 
 I want to thank Jan Rieneke
 
-I would also like to thank the ptolemy group especially Christopher and Mary
+I would also like to thank the ptolemy group especially Christopher and Mary, Jia for providing me the template
 
 I would like to thank everyone else that made this possible
 
@@ -120,21 +100,13 @@ I would like to thank everyone else that made this possible
 \label{chapter:related}
 \input{chapters/related}
 
-\chapter{background}
-\label{chapter:background}
-\input{chapters/background}
-
-\chapter{Precision Timed Machines}
+\chapter{Hardware Architecture}
 \label{chapter:pret}
 \input{chapters/pret}
 
-\chapter{Implementations and Results}
-\label{chapter:implementation}
-\input{chapters/implementation}
-
-\chapter{Worst Case Execution Time Analysis}
-\label{chapter:pret_wcet}
-\input{chapters/pret_wcet}
+\chapter{Programming Models}
+\label{chapter:programming_models}
+\input{chapters/prog_model}
 
 \chapter{Applications}
 \label{chapter:app}

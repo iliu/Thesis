@@ -1,22 +1,86 @@
-Intro text here
+\begin{itemize}
+  \item Explain why the architecture design decisions such as thread interleaved pipeline, scratchpad, memory hierarchy
+  \item Discuss the how in implementation details 
+  \item Show the results of WCET of the architecture
+\end{itemize}
 
-\section{PRET Section Header}
-\label{pret_sec_1}
+\section{Architecture Design} 
+\todo{Intro and transition to this chapter}
 
-Fig.~\ref{fig:placeholder_pret} shows an image
+\subsection{Thread-Interleaved Pipeline}
+\label{subsection:pret_thread_pipeline}
+%FIXME: Citation
+The thread-interleaved pipeline was introduced to improve the response time of handling multiple I/O devices \todo{citation}.
+I/O operations often stall from the communication with the I/O devices.
+Thus, interacting with multiple I/O devices leads to wasted processor cycles that are idle waiting for the I/O device to respond.
+With hardware multi-threading, the pipeline throughput is improved by introducing more hardware thread contexts for the pipeline to execute. 
+When one hardware thread is stalled, instructions from another hardware thread can be fetched into the pipeline to avoid wasting the pipeline cycles. 
+Thread-interleaved pipelines uses a deterministic thread switching policy that cycles the threads through the pipeline in a round robin fashion.
+Every cycle a context switch occurs and a different hardware thread is fetched into the pipeline for execution. 
+Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage thread-interleaved pipeline with 5 hardware threads.
+The thread-interleaved pipeline shown is a single issue single way pipeline, which means that each cycle only one instruction is fetched into the pipeline with only one datapath.
+%FIXME: explain about the hardware requirements of multithreaded architectures 
+We see that with 5 hardware threads on a 5 stage pipeline, the pipeline stages are each executing on a different hardware thread during the same cycle.
+The properties of a thread-interleaved pipeline provides the basis for our timing predictable architecture design.
+% By employing multiple hardware thread contexts, a hardware thread stalled from the I/O operations does not stall the whole pipeline, as other hardware threads can be fetched and executed.
+% In a thread-interleaved pipeline, a thread context switch occurs every processor cycle, and the threads are cycled through in a round robin fashion. 
+% This ensures each thread gets equal access to the process resource, so threads that aren't stalled are guaranteed to make progress.
 
-\section{PRET Section Header 2}
-\label{pret_sec_2}
-
-Here is another header
-
-
+%FIXME: Place in thread interlead figure
 \begin{figure}
 \begin{center}
-\vspace{-32pt}
-\includegraphics[scale=.45]{figs/placeholder}
+\includegraphics[scale=.4]{figs/placeholder}
 \end{center}
-\vspace{-12pt}
-\caption{Image Placeholder}
-\label{fig:placeholder_pret}
+\caption{Example of a 5 thread interleaved 5 stage pipeline}
+\label{fig:execution_thread_interleaved_pipeline}
 \end{figure}
+
+With $n$ hardware threads occupying a $n$ stage pipeline, we remove the data-dependencies caused by the pipeline.
+Data-dependencies arise when an instruction needs data from another instruction that is currently in flight and not committed. 
+These include data operations that operate on registers that are written to in previous instructions, or branch instructions that conditionally branch based upon results from the previous instruction.   
+Pipelines often include forwarding logic and branch predictors to handle these cases so pipeline stalls can be avoided.
+But thread-interleaved pipelines switch hardware thread contexts every cycle, and threads are fetched into the pipeline a predictable round robin fashion.
+So from each hardware thread only one instruction is in flight at one time. 
+As a result, data hazards caused by data dependencies from read after write instruction sequences do not occur in thread-interleaved pipelines because instructions from the same context are committed before the next instruction is dispatched.
+The same holds true for conditional branches, as the previous instruction is committed before the conditional branch instruction needs to be evaluated, so no branch prediction is needed because the conditional is already resolved.       
+Figure~\ref{fig:hazard_comparison_between_pipelines} shows both examples for single thread pipelines and thread-interleaved pipelines.      
+%FIXME: Place in hazard comparison pipeline
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.4]{figs/placeholder}
+\end{center}
+\caption{Comparison of how data dependencies are handled between different pipelines}
+\label{fig:hazard_comparison_between_pipelines}
+\end{figure}
+
+For instructions that take multiple cycles, a replay mechanism is used so the round robin thread scheduling is preserved and no interference is introduced between the hardware threads.
+When a multi-cycle instruction is fetched into the pipeline from a hardware thread, it executes as any instruction.
+As the instruction goes through the pipeline, no results are committed, but instead its state is saved in a hardware thread control block and does not increment the program counter for this hardware thread. 
+When an instruction fetch from this hardware thread occurs, the same instruction is dispatched into the pipeline to continue its execution. 
+If it still has not completed its execution, then the program counter for this hardware thread is again not incremented and the same instruction is dispatched, until it is completed. 
+Figure~\ref{fig:replay_mechanism_example} illustrates this mechanism.    
+
+%FIXME: Place in replay mechanism figure
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.4]{figs/placeholder}
+\end{center}
+\caption{Illustrative example showing the replay mechanism}
+\label{fig:replay_mechanism_example}
+\end{figure}
+
+%Talk about the different multi-cycle instructions - one is instructions that are waiting for memory to complete, one is the inherent instruction takes multiple cycles. 
+%Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
+
+\subsection{Memory System}
+\label{subsection:memory_system}
+
+\section{Implementation}
+\subsection{PTARM Simulator}
+\label{subsection:ptarm_sim}
+
+\subsection{PTARM VHDL Softcore}
+\label{subsectio:ptarm_vhdl_softcore}
+
+\section{Worst Case Execution Time Analysis}
+\label{sec:wcet}
