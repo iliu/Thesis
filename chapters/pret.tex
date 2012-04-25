@@ -1,12 +1,5 @@
-\begin{itemize}
-  \item Explain why the architecture design decisions such as thread interleaved pipeline, scratchpad, memory hierarchy
-  \item Discuss the how in implementation details 
-  \item Show the results of WCET of the architecture
-\end{itemize}
-
 \section{Architecture Design} 
 \todo{Intro and transition to this chapter}
-
 \subsection{Thread-Interleaved Pipeline}
 \label{subsection:pret_thread_pipeline}
 %FIXME: Citation
@@ -15,12 +8,24 @@ I/O operations often stall from the communication with the I/O devices.
 Thus, interacting with multiple I/O devices leads to wasted processor cycles that are idle waiting for the I/O device to respond.
 With hardware multi-threading, the pipeline throughput is improved by introducing more hardware thread contexts for the pipeline to execute. 
 When one hardware thread is stalled, instructions from another hardware thread can be fetched into the pipeline to avoid wasting the pipeline cycles. 
+To reduce the overhead of switching execution context, the pipeline keeps physically separate hardware thread state for each hardware thread. 
+These hardware states include register files, program counters, specially processor registers etc. 
+Muxes are to select the correct hardware states, so context switches can be done by simply changing the selection bits. 
+Figure~\ref{fig:multi-thread pipeline simplified} shows a simplified diagram of a typical multi-threaded pipeline.    
+Throughout this section, we will use the term ``thread'' to refer to hardware threads that have physically separate register files, program counters, and other thread states.
+This is not to be confused the typical notion of ``threads'', which denotes software threads that is managed by operating systems with thread states stored in memory.  
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.4]{figs/placeholder}
+\end{center}
+\caption{Simplified Multi-Threaded Pipeline}
+\label{fig:multi-thread pipeline simplified}
+\end{figure}
 Thread-interleaved pipelines uses a deterministic thread switching policy that cycles the threads through the pipeline in a round robin fashion.
-Every cycle a context switch occurs and a different hardware thread is fetched into the pipeline for execution. 
-Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage thread-interleaved pipeline with 5 hardware threads.
+Every cycle a context switch occurs and a different thread is fetched into the pipeline for execution. 
+Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage thread-interleaved pipeline with 5 threads.
 The thread-interleaved pipeline shown is a single issue single way pipeline, which means that each cycle only one instruction is fetched into the pipeline with only one datapath.
-%FIXME: explain about the hardware requirements of multithreaded architectures 
-We see that with 5 hardware threads on a 5 stage pipeline, the pipeline stages are each executing on a different hardware thread during the same cycle.
+We see that with 5 threads on a 5 stage pipeline, the pipeline stages are each executing on a different thread during the same cycle.
 The properties of a thread-interleaved pipeline provides the basis for our timing predictable architecture design.
 % By employing multiple hardware thread contexts, a hardware thread stalled from the I/O operations does not stall the whole pipeline, as other hardware threads can be fetched and executed.
 % In a thread-interleaved pipeline, a thread context switch occurs every processor cycle, and the threads are cycled through in a round robin fashion. 
@@ -35,12 +40,12 @@ The properties of a thread-interleaved pipeline provides the basis for our timin
 \label{fig:execution_thread_interleaved_pipeline}
 \end{figure}
 
-With $n$ hardware threads occupying a $n$ stage pipeline, we remove the data-dependencies caused by the pipeline.
+With $n$ threads occupying a $n$ stage pipeline, we remove the data-dependencies caused by the pipeline.
 Data-dependencies arise when an instruction needs data from another instruction that is currently in flight and not committed. 
 These include data operations that operate on registers that are written to in previous instructions, or branch instructions that conditionally branch based upon results from the previous instruction.   
 Pipelines often include forwarding logic and branch predictors to handle these cases so pipeline stalls can be avoided.
-But thread-interleaved pipelines switch hardware thread contexts every cycle, and threads are fetched into the pipeline a predictable round robin fashion.
-So from each hardware thread only one instruction is in flight at one time. 
+But thread-interleaved pipelines switch thread contexts every cycle, and threads are fetched into the pipeline a predictable round robin fashion.
+So from each thread only one instruction is in flight at one time. 
 As a result, data hazards caused by data dependencies from read after write instruction sequences do not occur in thread-interleaved pipelines because instructions from the same context are committed before the next instruction is dispatched.
 The same holds true for conditional branches, as the previous instruction is committed before the conditional branch instruction needs to be evaluated, so no branch prediction is needed because the conditional is already resolved.       
 Figure~\ref{fig:hazard_comparison_between_pipelines} shows both examples for single thread pipelines and thread-interleaved pipelines.      
@@ -53,13 +58,12 @@ Figure~\ref{fig:hazard_comparison_between_pipelines} shows both examples for sin
 \label{fig:hazard_comparison_between_pipelines}
 \end{figure}
 
-For instructions that take multiple cycles, a replay mechanism is used so the round robin thread scheduling is preserved and no interference is introduced between the hardware threads.
-When a multi-cycle instruction is fetched into the pipeline from a hardware thread, it executes as any instruction.
-As the instruction goes through the pipeline, no results are committed, but instead its state is saved in a hardware thread control block and does not increment the program counter for this hardware thread. 
-When an instruction fetch from this hardware thread occurs, the same instruction is dispatched into the pipeline to continue its execution. 
-If it still has not completed its execution, then the program counter for this hardware thread is again not incremented and the same instruction is dispatched, until it is completed. 
+For instructions that take multiple cycles, a replay mechanism is used so the round robin thread scheduling is preserved and no interference is introduced between the threads.
+When a multi-cycle instruction is fetched into the pipeline from a thread, it executes as any instruction.
+As the instruction goes through the pipeline, no results are committed, but instead its state is saved in a hardware thread control block and does not increment the program counter for this thread. 
+When an instruction fetch from this thread occurs, the same instruction is dispatched into the pipeline to continue its execution. 
+If it still has not completed its execution, then the program counter for this thread is again not incremented and the same instruction is dispatched, until it is completed. 
 Figure~\ref{fig:replay_mechanism_example} illustrates this mechanism.    
-
 %FIXME: Place in replay mechanism figure
 \begin{figure}
 \begin{center}
@@ -68,8 +72,25 @@ Figure~\ref{fig:replay_mechanism_example} illustrates this mechanism.
 \caption{Illustrative example showing the replay mechanism}
 \label{fig:replay_mechanism_example}
 \end{figure}
+For instructions that take multiple cycles instructions due to limitations of the pipeline design, this mechanism makes sense.
+Instructions that do 64-bit operations on a 32-bit pipeline datapath for example falls into this category. 
+In order to abide to the round-robin thread scheduling, the thread simply saves the instruction state and continues execution when it gains access to the pipeline. 
+However, for other multi-cycle instructions, such as memory operations, this mechanism might seem counter intuitive. 
+These instructions require multiple cycles because data is required from other hardware components that have longer access latencies.
+Memory operations or floating point operations are categorized into such instructions because they are waiting for data from main memory access or computation results from floating point units.
+Often times multi-threaded architectures mark these threads inactive and the thread is not rescheduled until the data is ready.
+This is done to maximize the throughput of the pipeline, since threads waiting for data from other hardware components cannot make any progress until the data is returned. 
+However, this leads to unpredictable timing behaviors in the threads.
+When threads are scheduled and unscheduled dynamically, the other threads in the pipeline would dynamically execute more or less frequently depending on which threads are active and inactive.
+This greatly complicates any timing analysis on the software running on each thread as the execution frequency of the threads would depend on the execution of other threads.
+Thus, our thread-interleaved pipeline does not mark threads inactive, but simply replays the instruction from the thread.
+The effects of latency hiding is still present, as other threads continue to progress while one thread is replaying its multi-cycle instruction.  
 
-%Talk about the different multi-cycle instructions - one is instructions that are waiting for memory to complete, one is the inherent instruction takes multiple cycles. 
+\subsubsection{Predictable and Composable Timing}
+The thread interleaving pipeline design allows for predictable timing analysis for all threads within the pipeline.
+ 
+
+%Talk about the different multi-cycle instructions - one is instructions that are waiting for memory to complete, one is the inherent instruction takes multiple cycles.
 %Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
 
 \subsection{Memory System}
