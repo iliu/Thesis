@@ -17,12 +17,22 @@
 \usepackage{multirow}
 \usepackage{algorithm2e}
 \usepackage{listings}
-
+\usepackage{caption}
 
 \lstdefinelanguage{pret}
 {morekeywords={get_time, delay_until, delay_and_set, exception_on_expire, deactivate_exception}}
 
-\lstset{frame=shadowbox, numbers=right, basicstyle=\footnotesize, keywordstyle=\textbf, language=pret}
+
+\lstset{frame=tb, 
+		numberstyle=\tiny, 
+		numbers=left, 
+		basicstyle=\scriptsize\sffamily, 
+		keywordstyle=\textbf, 
+		language=pret, 
+		numbersep=5pt,
+		xleftmargin=8pt}
+		
+\captionsetup[lstlisting]{singlelinecheck=false}
 
 \newcommand{\gettime}{\textit{get\_time}}
 \newcommand{\delayuntil}{\textit{delay\_until}}
@@ -30,13 +40,13 @@
 \newcommand{\exceptiononexpire}{\textit{exception\_on\_expire}}
 \newcommand{\deactivateexception}{\textit{deactivate\_exception}}
 \newcommand{\mtfd}{\textit{mtfd}}
+\newcommand{\timerexpired}{\textit{timer\_expired}}
 
 \newcommand{\Gettime}{\textit{Get\_time}}
 \newcommand{\Delayuntil}{\textit{Delay\_until}}
 \newcommand{\Delayandset}{\textit{Delay\_and\_set}}
 \newcommand{\Exceptiononexpire}{\textit{Exception\_on\_expire}}
 \newcommand{\Deactivateexception}{\textit{Deactivate\_exception}}
-
 
 \newcommand{\rt}{real-time}
 \newcommand{\Rt}{Real-time}

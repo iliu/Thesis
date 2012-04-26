@@ -73,9 +73,9 @@ The total execution time of the instruction will be the sum of the latencies for
 If pre or post-indexed addressing mode is used, an extra cycle is added to update the base register, just as regular load/store instructions. 
 
 \subsection{Timing instructions}
-Even though the execution time of most timing instructions can be individually be statically determined, they impact the execution time of the program in a very dynamic way.
-For example, the execution of \exceptiononexpire\ and \deactivateexception\ themselves only take one cycle, but when the timer expired exception us thrown, the execution time of the whole program is affected. 
-In order to reason about the timing effects of the timing instructions, we must understand the implementation effects on the precision of the timing instructions.
+Even though the execution time of most timing instructions can be statically determined, they impact the execution time of the program in a very dynamic way.
+For example, the execution of \exceptiononexpire\ and \deactivateexception\ only take one cycle, but when the \timerexpired\ exception is thrown, the execution time of the whole program is affected. 
+To understand the timing effects of the timing instructions, we must understand the implementation effects on the precision of the timing instructions.
 It is impossible for any hardware implementation to provide absolute precision of time, as we are limited by the precision of the digital synchronous circuits that discretize the notion of time. 
 Although the timing extensions allow the manipulation of nanoseconds in software, with the thread-interleaved pipeline, the basic unit of time for each thread is one thread cycle, or 40 nanoseconds, in PTARM.
 As a result, 40 nanoseconds is the shortest interval of time that is observable by each thread.
@@ -97,10 +97,12 @@ So when \delayuntil\ completes its execution, the current platform time will be 
   \begin{center}
     \includegraphics[scale=.7]{figs/delay_until_details}
   \end{center}
-  \vspace{-10mm}
+  \vspace{-3mm}
   \caption{Timing details of get\_time and delay\_until}
   \label{fig:delay_until_details}
 \end{figure}
+
+\todo{make figure for exception on expire!}
 
 Figure~\ref{fig:delay_until_details} illustrates this effect by showing a timeline of execution for one thread on PTARM. 
 The code segment starts executing at time $n$. 
@@ -116,7 +118,7 @@ This can be observed if the offset is set to 161, which will result in the middl
 Because current platform time is less than input timestamp, \delayuntil\ will delay the execution of the program until the next cycle, when $n+200$ is latched to be checked against the input timestamp. 
 At that point, \delayuntil\ will complete its execution, and the next instruction will execute at $n+240$.
 This jitter results from the minimum observable time interval of $40 ns$ for each thread, causing \delayuntil\ to have an observable jitter of up to $40 ns$. 
-\subsubsection{Timed Loop example revisited}
+\subsection{Timed Loop revisited}
 We give a concrete example of analysis of timing instructions on PTARM by deriving the \emph{offset} from the self compensating timed loop shown in section~\ref{sec:timed_loops}.
 This timed loop detects whether the previous loop iteration missed its deadline. 
 If it did, then the current iteration will execute a shorter version of the task in attempt to make up for the lost time, as shown in figure~\ref{fig:self_compensating_loop_timing}.  
@@ -125,11 +127,11 @@ If it did, then the current iteration will execute a shorter version of the task
   \begin{center}
     \includegraphics[scale=.7]{figs/self_compensating_loop_timing}
   \end{center}
-  \vspace{-10mm}
+  \vspace{-3mm}
   \caption{Execution of the self compensating timed loop}
   \label{fig:self_compensating_loop_timing}
 \end{figure}
-
+\vspace{-8mm}
 \begin{lstlisting}[float=h, label=lst:timed_loop_compensate_revisit,caption=Timed loops with compensation revisited]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
 loop:
@@ -150,23 +152,13 @@ loop:
   b loop
 \end{lstlisting}
 
+\subsubsection{Obtaining the offset}
 Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
 During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
 Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
 Without the offset compensation, the loop overhead will cause the miss detection to always detect a missed deadline.
 This can be observed from table~\ref{table:timed-loop-compensate-timing}, where we show a sample execution trace of four iterations in this timed loop.  
 Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of these four iterations, where a missed deadline in the second iteration will cause the third iteration to compensate by executing the shorter version of the task.
-
-In table~\ref{table:timed-loop-compensate-timing}, execution starts at time $t$.
-As mentioned before, each thread cycle is $40ns$, which is reflect in the left most column that shows the progression of time.
-We also show the thread cycle (TC) count, which starts at $n$ when execution begins.
-The execution time of each instruction is according to table~\ref{table:ptarm_instruction_timing}.
-In this code segment, we keep track of two timestamps each iteration. 
-The \emph{deadline\_timestamp} keeps track of the loop deadlines, and is stored in registers r2 and r3.  
-The \emph{current\_timestamp} is updated with \gettime\ in the beginning of each loop iteration to detect if the previous iteration missed its deadline.
-It is stored in registers r4 and r5. 
-The loop period is set to be $4 \mu s$, which is $4000 ns$ (100 thread cycles).
-We add the loop period to the \emph{deadline timestamp} each loop iteration (lines 13 and 14 in the listing).  
 
 \begin{table}
 \vspace{-5mm}
@@ -226,14 +218,25 @@ We add the loop period to the \emph{deadline timestamp} each loop iteration (lin
   \hline 
 \end{smalltabular}}
 \end{center}
-\vspace{-5mm}
-\caption{Self compensating timed loop timing details (TC = thread cycles)}
+\vspace{-3mm}
+\caption{Instruction execution trace of the self compensating timed loop\\ (TC = thread cycles)}
 \label{table:timed-loop-compensate-timing}
 \end{table}
 
+In table~\ref{table:timed-loop-compensate-timing}, execution starts at time $t$.
+As mentioned before, each thread cycle is $40ns$, which is reflect in the left most column that shows the progression of time.
+We also show the thread cycle (TC) count, which starts at $n$ when execution begins.
+The execution time of each instruction is according to table~\ref{table:ptarm_instruction_timing}.
+In this code segment, we keep track of two timestamps each iteration. 
+The \emph{deadline\_timestamp} keeps track of the loop deadlines, and is stored in registers r2 and r3.  
+The \emph{current\_timestamp} is updated with \gettime\ in the beginning of each loop iteration to detect if the previous iteration missed its deadline.
+It is stored in registers r4 and r5. 
+The loop period is set to be $4 \mu s$, which is $4000 ns$ (100 thread cycles).
+We add the loop period to the \emph{deadline\_timestamp} each loop iteration (lines 13 and 14 in the listing).  
 
 \newcommand{\currentt}{\emph{current\_timestamp}}
 \newcommand{\deadlinet}{\emph{deadline\_timestamp}}
+
 
 The need for the \emph{offset} can be observed at the beginning of the second loop iteration.
 At time $t+4080ns$, \gettime\ is called to initiate the miss detection sequence.
@@ -243,20 +246,30 @@ Thus, our miss detection accounts for this by subtracting the 2 thread cycles ($
 In general, the overhead that needs to be account for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
 Intuitively this is because we want to check whether the previous \delayuntil\ executed before the previous \deadlinet, so the \emph{offset} is used to calculate the time of execution of the previous \delayuntil.  
 
+\subsubsection{Overhead of the self compensating timed loop}
+In this self compensating timed loop, the loop period is set to $4000ns$, and regulated with the \delayuntil\ instruction.
+However, the loop period includes the execution of the actual task along with the loop and timing control overhead.
+The loop overhead in this example is only the branch instruction on line 17 in listing~\ref{lst:timed_loop_compensate_revisit}, which is 1 thread cycles (40 ns).
+The overhead for timing control and self compensation consists of all the timing instructions, the arithmetic on the timestamps, and the 2 conditional branch instructions that determines which task to execute.
+From table~\ref{table:timed-loop-compensate-timing} we can count a total overhead of 11 thread cycles including 1 \gettime\ (2 thread cycles), 1 \delayuntil\ (1 thread cycle), 6 arithmetic operations on the timestamps (6 thread cycles), and 2 conditional branch instructions (2 thread cycles).
+Overall the timed loop contains an overhead of 12 thread cycles ($480ns$) , which means the executed tasks (both normal and short) have a timing requirement of 88 thread cycles ($3520ns$) in order for each loop iteration to meet its deadline.  
+In the second loop iteration for our example, \emph{task\_normal} executed for 89 thread cycles, exactly one thread cycle over its timing requirement. 
+As a result, the \delayuntil\ of the second loop iteration did not delay program execution, and the third iteration miss detection detects a missed deadline, and switches to execute \emph{task\_short}. 
+
+\subsubsection{First loop iteration jitter}
+The \emph{offset} previously derived is an overhead that is executed in every iteration of the loop.
+In our code, the overhead only included the execution time of the \delayuntil\ and a branch, as we always unconditionally branch to the beginning of the loop. 
+However, if the overhead was larger, for example, in a conditional loop structure, then it could introduce jitter for the first iteration.
+An example is shown in figure~\ref{fig:setup_look_timing}, where we used an overhead of 200ns, instead of 80ns.
 \begin{figure}[h]
   \vspace{-3mm}
   \begin{center}
     \includegraphics[scale=.9]{figs/setup_loop_timing}
   \end{center}
-  \vspace{-10mm}
+  \vspace{-3mm}
   \caption{Jitter caused by initial timed loop setup}
   \label{fig:setup_look_timing}
 \end{figure}
-
-The \emph{offset} previously derived is an overhead that is executed in every iteration of the loop.
-In our code, the overhead only included the execution time of the \delayuntil\ and a branch, as we always unconditionally branch to the beginning of the loop. 
-However, if the overhead was larger, for example, in a conditional loop structure, then it could introduce jitter for the first iteration. 
-An example is shown in figure~\ref{fig:setup_look_timing}, where we used an overhead of 200ns, instead of 80ns.
 We assume that the setup code remains the same with only one \gettime, and the \emph{offset} is adjusted to 200ns for the miss detection.
 We also assume that the loop periond remains the same, 4000ns, and all loop iterations meet the loop period timing requirements. 
 In this example, we see that the first iteration executes for 120ns longer than subsequent iterations.
@@ -268,43 +281,96 @@ Thus, the first iteration of the loop executes for an addition 120ns, which is t
 This effect was not observed by the previous example because the \emph{offset} and the loop setup both took 80 ns.
 As a result, for the previous example, each loop iteration takes exactly 4000 ns if all loop deadlines were met.   
 
+\begin{lstlisting}[float=h, label=lst:timed_loop_compensate_adj,caption=Jitter adjusted timed loop ]
+  mov r6, #0                 ; i = 0;
+  mov r7, #0                 ; j = 0;
+  
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
+  subs r3, r3, #40           ; adjustment for first loop period 
+  sbc  r2, r2, #0            ; deadline -= 40
+loop:
+  cdp p13, 8, c4, c0, c0, 0  ; get_time, current timestamp stored in [c4, c5]
+  subs r5, r5, #200          ; compensate for loop overhead and delay_until 
+  sbc  r4, r4, #0            ; 
+
+  subs r3, r3, r5            ; Check if previous iteration deadline is missed
+  sbc  r2, r2, r4            ; 
+
+  blmi task_short            ; execute shorter task if previous deadline mess 
+  blpl task_normal           ; or else execute normal task 
+  
+  adds r3, r3, #4000         ; assuming the deadline is 4 us (4000 ns)
+  adc r2, r2, #0             ; calculate the deadline timestamp for this iter.
+  cdp p13, 4, c2, c2, c3, 0  ; delay_until
+	
+  add r6, r6, #1             ; i += 1    
+  add r7, r7, r6 LSL #1      ; j += i*2  
+  cmp r7, #1000              ; 
+  blt loop                   ; branch back if ( j < 10000 )
+\end{lstlisting} 
+
 \begin{figure}[h]
   \vspace{-3mm}
   \begin{center}
     \includegraphics[scale=.9]{figs/setup_loop_timing_adj}
   \end{center}
-  \vspace{-10mm}
+  \vspace{-3mm}
   \caption{Adjusted timed loop setup}
   \label{fig:setup_look_timing_adj}
-\end{figure}  
-  
-This first iteration jitter can be accounted for in the loop setup code by adjusting the initial \deadlinet. 
+\end{figure}
 
- 
-%calculate the overhead of timing instructions for the timed loop vs the loop overhead itself
-
+This first iteration jitter can be accounted for by adjusting the initial \deadlinet\ in the loop setup code.
+In listing~\ref{lst:timed_loop_compensate_adj} we show an example source code that adjusts for the additional overhead in the loop.
+Lines 22 to 25 show the additional loop overhead that conditionally checks whether to branch back to the beginning of the loop.
+The offset that we have to adjust for in this example is exactly 200ns, which includes the 4 instructions for the loop overhead and the \delayuntil. 
+This offset is reflected on line 9.
+Lines 4 to 6 show the loop setup code where we adjust for the execution time of the initial loop iteration, where 40 is subtracted from the initial \deadlinet\ obtained by the \gettime\ on line 4.
+This value is obtained by the execution time difference of the overhead, which is $200ns$, and the setup code after \gettime, which is $160 ns$ (4 thread cycles).
+We show the resulting timing behavior in figure~\ref{fig:setup_look_timing_adj}, where the first loop iteration is adjusted to 4000ns, the same as subsequent iterations.
+By entering the loop with the \deadlinet\ value of $t-40$, we shift the \delayuntil\ deadlines for all loop iterations by 40 ns, allowing us to compensate for the first iteration jitter.   
+Intuitively, we adjust the initial \deadlinet\ before entering the loop to create the illusion that the setup code and the loop overhead observed between each \delayuntil\ has the same execution time.
+By doing so, the first loop iteration will observe the same loop period as all subsequent iterations. 
 
 \subsection{Exceptions}
-The exception\_on\_expire instruction is used to handle missed deadlines immediately by triggering a hardware exception. 
-Once the deadline is setup using this instruction, the PTARM hardware will throw a hardware exception immediately when the timer value passes the deadline.
-The PTARM architecture provides one slot for each thread to register a deadline that is checked in hardware.
-Each processor cycle the timer checks against these registered deadlines in hardware, and throws a hardware exception for the corresponding thread when the timer exceeds the deadline value. 
-The deactivate\_exception is used to un-register the deadline value before the deadline is reached. 
-This way no exception will be thrown.
+In section~\ref{subsec:exception_handling_in_ptarm} we described how exceptions are thrown in PTARM.
+When an exception is triggered in one hardware thread, none of the other hardware threads are affected, as the pipeline is not flushed.
+For the thread on which the exception occurred, only one thread cycle is lost, and the control flow jumps to the correct exception handler depending on the exception vector table.    
+Here, we give a concrete example of the timing properties of exceptions on PTARM by showing how \exceptiononexpire\ and \deactivateexception\ trigger \timerexpired\ exceptions to handle missed deadlines immediately.
+The code for the example is shown in listing~\ref{lst:exception-sample}.
 
-When a hardware exception is thrown, the architecture modifies the program counter (PC) according to an exception vector table, and stores the current PC to the link register. 
-The current processor state register (CPSR) is saved, and normal interrupts are disabled. 
-In the case of a missed deadline, since it is a custom exception, we added an entry to the exception vector table to point to a custom timer expire exception handler code. 
-The entry added changes the PC to the address 0x0000001c, which contains an instruction that branches to our setup code for the timer expire handler. 
-The setup code is short, and mainly is used to jump to a user specified timer expire handler code.
-As shown in listing~\ref{timer-expire-handler}, we reserve one word (\textit{\_timer\_handler\_loc}) for the user to write the address of a timer expire handler function. 
-Assuming that the user already has written an address to \textit{\_timer\_handler\_loc}, then our setup code loads that address into the PC, and executes the user specified function. 
-When the function returns to this setup code, we re-enable interrupts, and returns to the location when the exception occurred.
-It is important to know the location of \textit{\_timer\_handler\_loc} because the user must write the address of their timer handler to that location.
-Our compiled C run time code puts the \textit{\_timer\_handler\_loc} at address 0x00000098.
-If the C run time code is recompiled, then each program must update where the timer handler address is written to to the new address of \textit{\_timer\_handler\_loc}.
-Listing~\ref{exception-sample} shows an example usage of exception\_on\_expire and deactivate\_exception.    
-\begin{lstlisting}[float, label=timer-expire-handler,caption=The custom timer expire setup code]
+\begin{lstlisting}[float=h, label=lst:exception-sample,caption=Sample code that triggers a \timerexpired\ exception ]
+  mov  r3, #0x98              ; r3 = address of _timer_handler_loc 
+  add  r4, pc, #32            ; r4 = addr of delay_handler
+  str  r4, [r3]               ; register delay_handler
+  
+  cdp  p13, 8, c2, c0, c0, 0  ; get_time
+  adds r3, #240
+  adc  r2, #0
+  cdp  p13, 2, c2, c2, c3, 0  ; exception_on_expire
+  
+  add  r5, r6, r6             ; arbitrary code block
+  add  r7, r5, r6             ;
+  
+  cdp  p13, 5, c8, c2, c3, 0  ; deactivate_exception
+  b end_program                       
+  
+delay_handler:
+  mov pc, lr                  ; simply return
+\end{lstlisting}
+
+\newcommand{\delayhandler}{\emph{delay\_handler}}
+\newcommand{\Delayhandler}{\emph{Delay\_handler}}
+\newcommand{\timerhandlerloc}{\emph{\_timer\_handler\_loc}}
+
+In this example, a \delayhandler\ is setup on lines 16 and 17 that simply returns when called.
+\Delayhandler\ is registered as the exception handler for the \timerexpired\ exception, which happens on lines 1 to 3.
+This is done by deriving the address of the \delayhandler\ on line 2, and storing it to the \timerhandlerloc.
+The \timerhandlerloc\ is a reserved location that points to the address of the handler that is executed when the \timerexpired\ exception is thrown.
+When a \timerexpired\ exception is thrown, the current address is saved and control flow jumps to the exception table entry for the \timerexpired\ exception.
+This table entry redirects the execution to a \timerexpired\ exception setup code (shown in listing~\ref{lst:timer-expire-handler}) which calls the registered exception handler.
+The setup code loads the address of \timerhandlerloc\ into a register, and jumps to the handler on line 7.
+If the handler returns, lines 8 to 10 re-enable interrupts, and line 11 returns control to the original PC when the exception occurred.  
+\begin{lstlisting}[float=h, label=lst:timer-expire-handler,caption=The \timerexpired\ exception setup code]
 .text
 .global _tmr_exp_setup;
 _tmr_exp_setup:
@@ -320,71 +386,46 @@ _tmr_exp_setup:
 _timer_handler_loc: .word  0x00000000;
 \end{lstlisting}
 
-\begin{lstlisting}[float, label=exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
-  mov r3, #0x98
-  add r4, pc, #32            ;r4 = addr of delay_handler
-  str r4, [r3]               ;register delay_handler
-  mov r0, #80
-  mov r1, #0
-  cdp p13, 8, c2, c0, c1, 0  ;set_time
-  cdp p13, 2, c2, c2, c3, 0  ;exception_on_expire
-  add r5, r6, r6
-  add r7, r5, r6
-  cdp p13, 5, c8, c2, c3, 0  ;deactivate_exception
-  b end
-delay_handler:
-  mov pc, lr
-\end{lstlisting}
+The execution trace of this example is shown in table~\ref{table:exception-expire-timing}.
+Because execution jumps back and forth between the main code, the \timerexpired\ setup code, and the \delayhandler, so we show the address of the instructions to help follow which code segment is being executed.   
 
-The first three instructions in the sample code registers ``delay\_handler'' to be the timer expire handler.
-The code for delay\_handler currently does not do anything, and simply returns to its caller, we use it for illustrative purposes. 
-We use set\_time to obtain the desired deadline, which is stored in r2 and r3.
-We then use those to register an exception to trigger when the PTARM timer reaches that time. 
-The deactivate\_exception instruction doesn't take in any operands, but simply disarms the timer from throwing a hardware exception. 
-In the sample code above, we purposely set the deadline so a timer expire exception will always occur. 
-Table~\ref{exception-expire-timing} shows the timing details and instruction execution sequence of the above code.
-
-\begin{table}
+\begin{table}[h]
 \begin{center}
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | c | c | l | l r | }
   \hline                        
   Time & TC & address & Inst & Comment\\ \hline
-  0 ns & 0 & 0x40000000 & \textit{mov r3, \#0x98} & get the timer handler address \\  
-  40 ns & 1 & 0x40000004 & \textit{add r4, pc, \#32} & get delay\_handler address \\
-  80 ns & 2 & 0x40000008 & \textit{str r4, [r3]} & register delay\_handler as timer expire handler\\
-  120 ns & 3 & 0x400000C & \textit{mov r0, \#80} & setup offset low 32 bits \\
-  160 ns & 4 & 0x40000010 & \textit{mov r1, \#0} & setup offset high 32 bits \\
-  200 ns & 5 & 0x40000014 & \textit{cdp p13, 8, c2, c0, c1, 0} & set\_time instruction (deadline 360) \\
-  240 ns & 6 & & & \\
-  280 ns & 7 & 0x40000018 & \textit{cdp p13, 2, c2, c2, c3, 0} & exception\_on\_expire instruction (deadline 360) \\
-  320 ns & 8 & 0x4000001C & \textit{add r5, r6, r6} & code block\\
-  360 ns & 9 & 0x40000020 & **throw exception** & timer expired, hardware exception thrown\\  
-  400 ns & 10 & 0x1C & \textit{b \_tmr\_exp\_setup } & branch to setup code \\  
-  440 ns & 11 & 0x78 & \textit{push \{r0, lr\}} & store registers on stack\\
-  480 ns & 12 & & & \\
-  520 ns & 13 & 0x7C & \textit{ldr   r0, \_timer\_handler\_loc} & load the address of timer handler \\
-  560 ns & 14 & 0x80 & \textit{mov   lr, pc} & store return address after timer handler \\
-  600 ns & 15 & 0x84 & \textit{mov   pc, r0} & jump to registered handler (delay\_handler) \\
-  640 ns & 16 & 0x4000002C & \textit{mov   pc, lr} & delay\_handler code, jump back to setup code\\  
-  680 ns & 17 & 0x88 & \textit{mrs   r0, cpsr} & load the CPSR\\
-  720 ns & 18 & 0x8C & \textit{bic   r0, r0, \#0x80} &  enable interrupts\\
-  760 ns & 19 & 0x90 & \textit{msr   cpsr, r0} &  store the CPSR\\
-  800 ns & 20 & 0x94 & \textit{pop   \{r0, pc\}} & return from interrupt\\
-  840 ns & 21 & & & \\    
-  880 ns & 22 & 0x40000020 & \textit{add r7, r5, r6} & code block\\
-  920 ns & 23 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & deactivate\_exception (doesn nothing) \\
-  960 ns & 24 & 0x40000028 & \textit{b end} & instruction after return from delay\_handler\\
+  t ns & n & 0x40000000 & \textit{mov r3, \#0x98} & get the timer handler address \\  
+  t+40 ns & n+1 & 0x40000004 & \textit{add r4, pc, \#32} & get delay\_handler address \\
+  t+80 ns & n+2 & 0x40000008 & \textit{str r4, [r3]} & register delay\_handler as timer expire handler\\
+  t+120 ns & n+3 & 0x40000014 & \textit{cdp p13, 8, c2, c0, c0, 0} & get\_time instruction (timestamp: t+120) \\
+  t+200 ns & n+5 & 0x400000C & \textit{adds r3, \#240} & timestamp += 240 \\
+  t+240 ns & n+6 & 0x40000010 & \textit{adc r2, \#0} & timestamp: t+360 \\
+  t+280 ns & n+7 & 0x40000018 & \textit{cdp p13, 2, c2, c2, c3, 0} & exception\_on\_expire, input timestamp: t+360 \\
+  t+320 ns & n+8 & 0x4000001C & \textit{add r5, r6, r6} & code block\\
+  t+360 ns & n+9 & 0x40000020 & **throw exception** & timer expired, hardware exception thrown\\  
+  t+400 ns & n+10 & 0x1C & \textit{b \_tmr\_exp\_setup } & branch to setup code \\  
+  t+440 ns & n+11 & 0x78 & \textit{push \{r0, lr\}} & store registers on stack\\
+  t+480 ns & n+12 & & & \\
+  t+520 ns & n+13 & 0x7C & \textit{ldr   r0, \_timer\_handler\_loc} & load the address of timer handler \\
+  t+560 ns & n+14 & 0x80 & \textit{mov   lr, pc} & store return address after timer handler \\
+  t+600 ns & n+15 & 0x84 & \textit{mov   pc, r0} & jump to registered handler (delay\_handler) \\
+  t+640 ns & n+16 & 0x4000002C & \textit{mov   pc, lr} & delay\_handler code, jump back to setup code\\  
+  t+680 ns & n+17 & 0x88 & \textit{mrs   r0, cpsr} & load the CPSR\\
+  t+720 ns & n+18 & 0x8C & \textit{bic   r0, r0, \#0x80} &  enable interrupts\\
+  t+760 ns & n+19 & 0x90 & \textit{msr   cpsr, r0} &  store the CPSR\\
+  t+800 ns & n+20 & 0x94 & \textit{pop   \{r0, pc\}} & return from interrupt\\
+  t+840 ns & n+21 & & & \\    
+  t+880 ns & n+22 & 0x40000020 & \textit{add r7, r5, r6} & code block\\
+  t+920 ns & n+23 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & deactivate\_exception (doesn nothing) \\
+  t+960 ns & n+24 & 0x40000028 & \textit{b end} & instruction after return from delay\_handler\\
   \hline 
 \end{smalltabular}}
 \end{center}
 \caption{Exception\_on\_expire sample code timing details}
-\label{exception-expire-timing}
+\label{table:exception-expire-timing}
 \end{table}
 
-Both exception\_on\_expire and deactivate\_exception take only 1 cycle to complete.
-The execution sequence shown in table~\ref{exception-expire-timing} jumps back and forth between the main code, timer expired setup code, and the actual delay\_handler. 
-In the case that the deadline was set to be longer, the deactivate\_exception instruction would have been executed before the timer expired, and a hardware exception would not have been thrown.
 
 
 

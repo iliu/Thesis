@@ -169,6 +169,7 @@ We use this instruction in the engine modeling application we present in section
 The control loops have a timing requirement of 5.33 $\mu S$, and within each loop iteration we use several \delayandset\ instructions that split the loop iteration into different execution stages. 
 
 \subsubsection{Exception\_on\_Expire and Deactivate\_Exception}
+\label{sec:exception_in_expire_definition}
 \Delayuntil\ and \delayandset\ are only used specify minimum execution times, and cannot express a desired maximum execution time for code blocks.
 The \exceptiononexpire\ instruction is introduced to for this purpose, to specify a desired maximum execution time for code blocks.
 A new exception is added to the ARM exception vector table which represents a timer expired exception. 

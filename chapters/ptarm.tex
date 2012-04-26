@@ -137,6 +137,7 @@ The memory hierarchy of PTARM is exposed to the programmer, as discussed in sect
 It is composed of a boot ROM (read only memory), instruction and data scratchpads, the predictable DRAM controller, and a memory mapped I/O region, all occupying separate address spaces.
 Figure~\ref{fig:ptarm_memory_layout} shows the address regions occupied by each memory type.  
 
+
 \subsection{Boot ROM}
 The boot ROM \todo{mention boot code size} contains the reset instructions and exception vector table that stores entries for handling different exceptions that occur in the pipeline.
 It also contains shared exception handlers and initialization code. 
@@ -153,6 +154,7 @@ More space could be allocated to hardware threads running more memory intensive 
 %The shared memory space in our system between hardware threads is also allocated on the data scratchpad, because the DRAM controller contains privatized bank resources, and does not allow
 %FIXME: separate region for shared scratchpad space?
 Both the boot ROM and scratchpads are synthesized to dual-ported block RAMs on the FPGA, and provide deterministic single cycle access latencies.
+\todo{mention that stack stored is on scratchpad for optimization}
 
 \subsection{DRAM}
 \label{sec:ptarm_dram_integration}
@@ -281,6 +283,7 @@ The current memory request in this case would need to wait until the previous ``
 This creates timing variability to the load instructions because the execution time of load instructions would be different depending on whether an exception just occurred or not.
 Because this situation can only occur in the exception handler, because it contains the instructions executed right after an exception, so we leave it to the compiler to ensure that the first few instructions in the exception handler code does not access the DRAM memory region.
 In PTARM, the compiler simply needs to ensure that the first three instructions executed from an exception handler are not instructions that access the DRAM.
+\todo{mention that stack stored is on scratchpad, so setup instructions don't access DRAM}
 
 Currently PTARM does not implement an external interrupt controller to handle external interrupts. 
 But when implementing such an interrupt controller, each thread should be able to register specific external interrupts that it handles.
@@ -290,7 +293,7 @@ Only the specific thread handling the UART transfers should be interrupt by this
 So we envision an interrupt controller that allows each thread to register specific interrupts that it handles, without affecting other threads in the pipeline.  
 %FIXME: Compare to XMOS style handling of interrupts?
 
-\section{Instruction Implementations}
+\section{Instruction Details}
 \label{sec:ptarm_instructions}
 In this section we go into more details on how each instruction type is implemented and how each hardware block in the pipeline shown in figure~\ref{fig:ptarm_pipeline_five_stage}. 
 We will go through different instruction types and discuss the timing implications each instruction in our implementation.
@@ -597,7 +600,7 @@ The software overhead involves managing a list of deadlines and ensuring that th
 It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
 However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
-\section{Realizations}
+\section{Implementations}
 \subsection{PTARM VHDL Soft Core}
 \label{sec:ptarm_vhdl_soft_core}
 \begin{wrapfigure}{r}{0.5\textwidth}
@@ -649,6 +652,6 @@ The simulator and corresponding documentation can be downloaded from http://ches
 
 \todo{present benchmark numbers on the simulator and compare to others}
 
-\section{Timing Analysis on PTARM}
+\section{Timing Analysis}
 \label{sec:wcet}
 \input{chapters/ptarm_wcet}
