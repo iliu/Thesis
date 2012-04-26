@@ -232,7 +232,7 @@ Several timing predictable bus architectures~\todo{cite} have been proposed, whi
 A predictable thread-aware I/O controller is also needed to ensure data from the I/O devices are read by the correct thread, and contention is properly managed.  
 This is a future research challenge of PRET -- to predictably interface with various I/O devices.    
 
-\section{Exception Handling}
+\section{Exceptions}
 \label{subsec:exception_handling_in_ptarm}
 When exceptions occur in a single threaded pipeline, the whole pipeline must be flushed because of the control flow shift in the program. 
 The existing instructions in the pipeline become invalid, and the pipeline overwrites the PC to jump to a specified exception handler. 

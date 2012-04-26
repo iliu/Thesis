@@ -73,24 +73,53 @@ The total execution time of the instruction will be the sum of the latencies for
 If pre or post-indexed addressing mode is used, an extra cycle is added to update the base register, just as regular load/store instructions. 
 
 \subsection{Timing instructions}
-The execution time of most timing instructions can be statically determined. 
-Their effect on the execution time of the program though could dynamically change however, depending on the deadlines used and the current platform time.
-The \gettime\ instruction takes 2 thread cycles every execution, as it simply obtains the current platform time.
-Although \exceptiononexpire\ and \deactivateexception\ can affect the execution time of the program by triggering timer expired exceptions, the execution of the instructions themselves only take 1 thread cycle.
-The single thread cycle merely sets up or deactivates the correct hardware mechanisms for checking the timer expired exceptions.  
-The execution time of \delayuntil\ will depend on the current platform time and its input deadline timestamp.
-This by design the semantics of \delayuntil. 
-At a minimum, \delayuntil\ will still take one thread cycle to execute, even if the current platform time has passed the input timestamp.
-
+Even though the execution time of most timing instructions can be individually be statically determined, they impact the execution time of the program in a very dynamic way.
+For example, the execution of \exceptiononexpire\ and \deactivateexception\ themselves only take one cycle, but when the timer expired exception us thrown, the execution time of the whole program is affected. 
 In order to reason about the timing effects of the timing instructions, we must understand the implementation effects on the precision of the timing instructions.
 It is impossible for any hardware implementation to provide absolute precision of time, as we are limited by the precision of the digital synchronous circuits that discretize the notion of time. 
-In our timing extensions, we allow the users to manipulate a 64 bit nanosecond representation of time in software. 
-However, because of the thread-interleaved pipeline, our basic unit of time is limited to one thread cycle, which is 40 nanoseconds in our implementation.
-This has a subtle effect on the minimum precision that the timing instructions can support.
-   
+Although the timing extensions allow the manipulation of nanoseconds in software, with the thread-interleaved pipeline, the basic unit of time for each thread is one thread cycle, or 40 nanoseconds, in PTARM.
+As a result, 40 nanoseconds is the shortest interval of time that is observable by each thread.
+This can also be explained from the implementation of the pipeline.
+Each thread only latches the timer value in the fetch stage, and the timestamp is propagated along the pipeline and associated with the instruction. 
+Since there are four threads cycling in a round robin fashion, each thread latches the timer value only once every 4 processor cycles. 
+With 100MHz clocking the pipeline in our implementation, 4 processor cycles is  equivalent to 40 nanoseconds. 
 
- 
+When setting deadlines, the execution time of the timing instructions must be taken into account. 
+As explained in the implementation, each timing instruction latches the current platform time in the fetch stage.
+That timestamp is used throughout instruction execution and associated as the current time.  
+For example, the time value in the timestamp obtained from \gettime\ will contain the time before the execution of \gettime.
+Since \gettime\ takes 2 thread cycles every execution, 80 nanoseconds will have elapsed when the timestamp is obtained from \gettime.
+In the same way, \delayuntil\ latches the current platform time at the fetch stage each thread cycle, and compares with the input timestamp. 
+\Delayuntil\ will delay program execution until the latched platform time is \emph{greater than or equal to} the input timestamp value.
+So when \delayuntil\ completes its execution, the current platform time will be \emph{at least} 40 nanoseconds greater than the input timestamp specified, to account for the execution of \delayuntil. 
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[scale=.7]{figs/delay_until_details}
+  \end{center}
+  \vspace{-10mm}
+  \caption{Timing details of get\_time and delay\_until}
+  \label{fig:delay_until_details}
+\end{figure}
+
+Figure~\ref{fig:delay_until_details} illustrates this effect by showing a timeline of execution for one thread on PTARM. 
+The code segment starts executing at time $n$. 
+The code only consists of \gettime, \delayuntil, and 2 add instructions used to add an offset to the timestamp obtained by \gettime.
+For all 3 cases, the timestamp obtained by \gettime\ would contain the value $n$, even though the instruction after \gettime\ executes at $n+80$.
+Taking into account the 2 thread cycles used to add the offset to the timestamp, if the offset is $\leq 160$, then the \delayuntil\ will simply serve as a NOP. 
+This is because when \delayuntil\ is executed, it will latch $n+160$ for the platform time, and it will only delay program execution if the input timestamp is $> n+160$.
+This is shown in the top case of the figure.
+Notice that the instruction after \delayuntil\ executes at time $n+200$, which accounts for the 1 thread cycle it takes to execute \delayuntil.
+Assuming \delayuntil\ does delay the program, in the worst-case, the instruction after \delayuntil\ executes $79 ns$ after the input timestamp. 
+This can be observed if the offset is set to 161, which will result in the middle timeline shown in figure~\ref{fig:delay_until_details}.  
+\Delayuntil\ will first latch the time $n+160$ to compare with the input timestamp of $n+161$. 
+Because current platform time is less than input timestamp, \delayuntil\ will delay the execution of the program until the next cycle, when $n+200$ is latched to be checked against the input timestamp. 
+At that point, \delayuntil\ will complete its execution, and the next instruction will execute at $n+240$.
+This jitter results from the minimum observable time interval of $40 ns$ for each thread, causing \delayuntil\ to have an observable jitter of up to $40 ns$. 
+
 \subsubsection{Timed Loop example revisited}
+We revisit the timed loop example introduced in section~\ref{sec:timed_loops} to give a concrete example of how to account for the jitter and execution time of timing instructions.      
+   
 \begin{lstlisting}[float=h, label=lst:timed_loop_compensate,caption=Timed loops with compensation ]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
 loop:
