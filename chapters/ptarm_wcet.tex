@@ -116,16 +116,26 @@ This can be observed if the offset is set to 161, which will result in the middl
 Because current platform time is less than input timestamp, \delayuntil\ will delay the execution of the program until the next cycle, when $n+200$ is latched to be checked against the input timestamp. 
 At that point, \delayuntil\ will complete its execution, and the next instruction will execute at $n+240$.
 This jitter results from the minimum observable time interval of $40 ns$ for each thread, causing \delayuntil\ to have an observable jitter of up to $40 ns$. 
-
 \subsubsection{Timed Loop example revisited}
-We revisit the timed loop example introduced in section~\ref{sec:timed_loops} to give a concrete example of how to account for the jitter and execution time of timing instructions.      
-   
-\begin{lstlisting}[float=h, label=lst:timed_loop_compensate,caption=Timed loops with compensation ]
+We give a concrete example of analysis of timing instructions on PTARM by deriving the \emph{offset} from the self compensating timed loop shown in section~\ref{sec:timed_loops}.
+This timed loop detects whether the previous loop iteration missed its deadline. 
+If it did, then the current iteration will execute a shorter version of the task in attempt to make up for the lost time, as shown in figure~\ref{fig:self_compensating_loop_timing}.  
+\begin{figure}[h]
+  \vspace{-3mm}
+  \begin{center}
+    \includegraphics[scale=.7]{figs/self_compensating_loop_timing}
+  \end{center}
+  \vspace{-10mm}
+  \caption{Execution of the self compensating timed loop}
+  \label{fig:self_compensating_loop_timing}
+\end{figure}
+
+\begin{lstlisting}[float=h, label=lst:timed_loop_compensate_revisit,caption=Timed loops with compensation revisited]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
 loop:
   cdp p13, 8, c4, c0, c0, 0  ; get_time, current timestamp stored in [c4, c5]
-  subs r5, r5, #<offset>     ; <offset> is implementation dependent and used to 
-  sbc  r4, r4, #0            ; account for loop overhead and miss detection
+  subs r5, r5, #80           ; compensate for loop overhead and delay_until 
+  sbc  r4, r4, #0            ; 
 
   subs r3, r3, r5            ; Check if previous iteration deadline is missed
   sbc  r2, r2, r4            ; 
@@ -133,12 +143,112 @@ loop:
   blmi task_short            ; execute shorter task if previous deadline mess 
   blpl task_normal           ; or else execute normal task 
   
-  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adds r3, r3, #4000         ; assuming the deadline is 4 us (4000 ns)
   adc r2, r2, #0             ; calculate the deadline timestamp for this iter.
   cdp p13, 4, c2, c2, c3, 0  ; delay_until
    
   b loop
 \end{lstlisting}
+
+Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
+During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
+Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
+Without the offset compensation, the loop overhead will cause the miss detection to always detect a missed deadline.
+This can be observed from table~\ref{table:timed-loop-compensate-timing}, where we show a sample execution trace of four iterations in this timed loop.  
+Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of these four iterations, where a missed deadline in the second iteration will cause the third iteration to compensate by executing the shorter version of the task.
+
+In table~\ref{table:timed-loop-compensate-timing}, execution starts at time $t$.
+As mentioned before, each thread cycle is $40ns$, which is reflect in the left most column that shows the progression of time.
+We also show the thread cycle (TC) count, which starts at $n$ when execution begins.
+The execution time of each instruction is according to table~\ref{table:ptarm_instruction_timing}.
+In this code segment, we keep track of two timestamps each iteration. 
+The \emph{deadline\_timestamp} keeps track of the loop deadlines, and is stored in registers r2 and r3.  
+The \emph{current\_timestamp} is updated with \gettime\ in the beginning of each loop iteration to detect if the previous iteration missed its deadline.
+It is stored in registers r4 and r5. 
+The loop period is set to be $4 \mu s$, which is $4000 ns$ (100 thread cycles).
+We add the loop period to the \emph{deadline timestamp} each loop iteration (lines 13 and 14 in the listing).  
+
+\newcommand{\currentt}{\emph{current\_timestamp}}
+\newcommand{\deadlinet}{\emph{deadline\_timestamp}}
+
+The need for the \emph{offset} can be observed at the beginning of loop iteration 2.
+At time $t+4080ns$, \gettime\ is called to initiate the miss detection sequence.
+The previous \deadlinet\ is $t+4000$, which was met in the first iteration.  
+However, \gettime\ updates the \currentt\ to $t+4080$, because the execution of \delayuntil\ and \emph{b loop} took 2 thread cycles combined. 
+Thus, our miss detection accounts for this by subtracting the 2 thread cycles ($80ns$) overhead from \currentt\ before comparing it with \deadlinet.
+In general, the overhead that needs to be account for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
+Intuitively this is because we want to check whether the previous \delayuntil\ executed before the previous \deadlinet, so the \emph{offset} is used to calculate the time of execution of the previous \delayuntil.  
+
+
+When the first loop iteration executes, the \currentt\ will first be checked against the \deadlinet\ that was setup before the loop began execution.
+The compensation for the loop offset in this case also helped compensate for the initial loop setup time.
+Without it, the \currentt\ would be greater than \deadlinet\ from the execution time of the setup \gettime instruction, and cause a false missed deadline detection.
+Because it takes 2 thread cycles ($80ns$) to execute \gettime, the value the \textbf{offset} at a minimum must be 2 thread cycles so the first iteration will not falsely detect a missed deadline.  
+As execution continues, the first iteration executes the normal task, and the \delayuntil\ is executed before the first deadline of $t+4000ns$.
+
+
+\begin{table}
+\vspace{-5mm}
+\begin{center}
+\noindent\makebox[\textwidth]{%
+\begin{smalltabular}{ | l | l | l r | }
+  \hline
+  \textbf{Time} & \textbf{TC} & \textbf{Instruction} & \textbf{Comment}\\ \hline \hline 
+  t ns & n &  \textit{cdp p13, 8, c2, c0, c0, 0} & get\_time (deadline: t) \\  \hline
+  \multicolumn{4}{|c|}{ -- -- Loop 1st iteration / No deadline miss -- -- } \\ \hline    
+  t+80 ns & n+2 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+80) \\
+  t+160 ns & n+4 &  \textit{subs r5, r5, \#80} & (current -= 80)\\
+  t+200 ns & n+5 &  \textit{sbc  r2, r2, r4} & (current: t)\\  
+  t+240 ns & n+6 &  \textit{subs r3, r3, r5} & compare deadline (t) and current (t) \\
+  t+280 ns & n+7 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  t+320 ns & n+8 &  \textit{blmi task\_short} & nop since cc[``n''] == 0\\
+  t+360 ns & n+9 &   \textit{blpl task\_normal} & branch since cc[``n"] == 0\\  
+    - ns & - &  \ldots & executing task\_normal \\  
+  t+3800 ns & n+95 & \textit{adds r3, r3, \#4000} &  (deadline += 4000) \\
+  t+3840 ns & n+96 & \textit{adc r2, r2, \#0} &  (deadline: t+4000) \\ 
+  t+3880 ns & n+97 &  \textit{cdp p13, 4, c2, c2, c3, 0} & delay\_until, input timestamp is t+4000\\
+  - ns & - & \ldots & delay\_until for 3 thread cycles\\  
+  t+4040 ns & n+101 &  \textit{b loop} & jump back to loop \\ \hline
+  \multicolumn{4}{|c|}{ -- -- Loop 2nd iteration / Deadline miss -- -- } \\ \hline    
+  t+4080 ns & n+102 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+4080)\\
+  t+4160 ns & n+104 &  \textit{subs r5, r5, \#80} & (current -= 80)\\
+  t+4200 ns & n+105 &  \textit{sbc  r2, r2, r4} & (current: t+4000)\\  
+  t+4240 ns & n+106 &  \textit{subs r3, r3, r5} & compare deadline (t+4000) and current (t+4000)\\
+  t+4280 ns & n+107 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  t+4320 ns & n+108 &  \textit{blmi task\_short} & nop since cc[``n''] == 0\\
+  t+4360 ns & n+109 &   \textit{blpl task\_normal} & branch since cc[``n"] == 0\\  
+  - ns & - &  \ldots & code for task\_normal \\  
+  t+7960 ns & n+199 & \textit{adds r3, r3, \#4000} & (deadline += 4000) \\
+  t+8000 ns & n+200 & \textit{adc r2, r2, \#0} & (deadline: t+8000) \\ 
+  t+8040 ns & n+201 &  \textit{cdp p13, 4, c2, c2, c3, 0} & delay\_until, *no delay*\\
+  t+8080 ns & n+202 &  \textit{b loop} & jump back to loop \\ \hline
+  \multicolumn{4}{|c|}{ -- -- Loop 3rd iteration / Compensate with shorter task -- -- } \\ \hline    
+  t+8120 ns & n+203 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+8120)\\
+  t+8200 ns & n+205 &  \textit{subs r3, r3, r5} & (current -= 80)\\
+  t+8240 ns & n+206 &  \textit{sbc  r2, r2, r4} & (current: t+8040) \\
+  t+8280 ns & n+207 &  \textit{subs r3, r3, r5} & compare deadline (t+8000) and current (t+8040)\\
+  t+8320 ns & n+208 &  \textit{sbc  r2, r2, r4} & result is -40, set cc[``n''] \\
+  t+8360 ns & n+209 &  \textit{blmi task\_short} & branch since cc[``n"] == 1 \\
+  - ns & - &  \ldots & code for task\_short \\  
+  t+10280 ns & n+257 &   \textit{blpl task\_normal} & nop since cc[``n''] == 1\\    
+  t+10320 ns & n+258 & \textit{adds r3, r3, \#4000} & (deadline += 4000) \\
+  t+10360 ns & n+259 & \textit{adc r2, r2, \#0} & (deadline: t+12000) \\ 
+  t+10400 ns & n+260 &  \textit{cdp p13, 4, c2, c2, c3, 0} & delay\_until\\
+  - ns & - &  \ldots & delay until time is t+12000 \\  
+  t+12040 ns & n+301 &  \textit{b loop} & jump back to loop \\ \hline
+   \multicolumn{4}{|c|}{ -- -- Loop 4th iteration / Execute normal task -- -- } \\ \hline    
+  t+12080 ns & n+302 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+12080)\\
+  t+12160 ns & n+304 &  \textit{subs r3, r3, r5} & (current -= 80)\\
+  t+12200 ns & n+305 &  \textit{sbc  r2, r2, r4} & (current: t+12000) \\
+  t+12240 ns & n+306 &  \textit{subs r3, r3, r5} & compare deadline (t+12000) and current (t+12000)\\
+  t+12280 ns & n+307 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  \hline 
+\end{smalltabular}}
+\end{center}
+\vspace{-5mm}
+\caption{Self compensating timed loop timing details (TC = thread cycles)}
+\label{table:timed-loop-compensate-timing}
+\end{table}
 
 
 \subsection{Exceptions}
@@ -161,7 +271,7 @@ It is important to know the location of \textit{\_timer\_handler\_loc} because t
 Our compiled C run time code puts the \textit{\_timer\_handler\_loc} at address 0x00000098.
 If the C run time code is recompiled, then each program must update where the timer handler address is written to to the new address of \textit{\_timer\_handler\_loc}.
 Listing~\ref{exception-sample} shows an example usage of exception\_on\_expire and deactivate\_exception.    
-\begin{lstlisting}[label=timer-expire-handler,caption=The custom timer expire setup code]
+\begin{lstlisting}[float, label=timer-expire-handler,caption=The custom timer expire setup code]
 .text
 .global _tmr_exp_setup;
 _tmr_exp_setup:
@@ -177,7 +287,7 @@ _tmr_exp_setup:
 _timer_handler_loc: .word  0x00000000;
 \end{lstlisting}
 
-\begin{lstlisting}[label=exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
+\begin{lstlisting}[float, label=exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
   mov r3, #0x98
   add r4, pc, #32            ;r4 = addr of delay_handler
   str r4, [r3]               ;register delay_handler
@@ -204,7 +314,7 @@ Table~\ref{exception-expire-timing} shows the timing details and instruction exe
 \begin{table}
 \begin{center}
 \noindent\makebox[\textwidth]{%
-\begin{tabular}{ | c | c | l | l r | }
+\begin{smalltabular}{ | c | c | l | l r | }
   \hline                        
   Time & TC & address & Inst & Comment\\ \hline
   0 ns & 0 & 0x40000000 & \textit{mov r3, \#0x98} & get the timer handler address \\  
@@ -233,7 +343,7 @@ Table~\ref{exception-expire-timing} shows the timing details and instruction exe
   920 ns & 23 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & deactivate\_exception (doesn nothing) \\
   960 ns & 24 & 0x40000028 & \textit{b end} & instruction after return from delay\_handler\\
   \hline 
-\end{tabular}}
+\end{smalltabular}}
 \end{center}
 \caption{Exception\_on\_expire sample code timing details}
 \label{exception-expire-timing}
