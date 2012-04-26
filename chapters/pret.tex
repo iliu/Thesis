@@ -1,5 +1,10 @@
 \section{Architecture Design} 
 \todo{Intro and transition to this chapter}
+
+\subsection{Predictable and Composable Timing}
+%Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
+The thread interleaving pipeline design allows for predictable timing analysis for all threads within the pipeline.
+
 \subsection{Thread-Interleaved Pipeline}
 \label{subsection:pret_thread_pipeline}
 %FIXME: Citation
@@ -10,45 +15,50 @@ With hardware multi-threading, the pipeline throughput is improved by introducin
 When one hardware thread is stalled, instructions from another hardware thread can be fetched into the pipeline to avoid wasting the pipeline cycles. 
 To reduce the overhead of switching execution context, the pipeline keeps physically separate hardware thread state for each hardware thread. 
 These hardware states include register files, program counters, specially processor registers etc. 
-Muxes are to select the correct hardware states, so context switches can be done by simply changing the selection bits. 
-Figure~\ref{fig:multi-thread pipeline simplified} shows a simplified diagram of a typical multi-threaded pipeline.    
-Throughout this section, we will use the term ``thread'' to refer to hardware threads that have physically separate register files, program counters, and other thread states.
+Muxes are added to select the correct hardware states, so context switches can be done by simply changing the selection bits. 
+Figure~\ref{fig:multi-thread pipeline simplified} shows a simplified diagram of a typical multi-threaded architecture.    
+Throughout this chapter, we will use the term ``thread'' to refer to hardware threads that have physically separate register files, program counters, and other thread states.
 This is not to be confused the typical notion of ``threads'', which denotes software threads that is managed by operating systems with thread states stored in memory.  
 \begin{figure}
 \begin{center}
-\includegraphics[scale=.4]{figs/placeholder}
+\includegraphics[scale=.8]{figs/multithreaded_pipeline_block}
 \end{center}
-\caption{Simplified Multi-Threaded Pipeline}
+\vspace{-30pt}
+\caption{Common Multi-Threaded Pipeline Architecture}
 \label{fig:multi-thread pipeline simplified}
 \end{figure}
+
 Thread-interleaved pipelines uses a deterministic thread switching policy that cycles the threads through the pipeline in a round robin fashion.
 Every cycle a context switch occurs and a different thread is fetched into the pipeline for execution. 
 Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage thread-interleaved pipeline with 5 threads.
-The thread-interleaved pipeline shown is a single issue single way pipeline, which means that each cycle only one instruction is fetched into the pipeline with only one datapath.
+The thread-interleaved pipeline shown is a single-issue, single-way architecture.
+Single-issue means that each cycle only one instruction is fetched into the pipeline.
+Single-way means that there is only one execution datapath, so each instruction can only hold one operation.
 We see that with 5 threads on a 5 stage pipeline, the pipeline stages are each executing on a different thread during the same cycle.
 The properties of a thread-interleaved pipeline provides the basis for our timing predictable architecture design.
 % By employing multiple hardware thread contexts, a hardware thread stalled from the I/O operations does not stall the whole pipeline, as other hardware threads can be fetched and executed.
 % In a thread-interleaved pipeline, a thread context switch occurs every processor cycle, and the threads are cycled through in a round robin fashion. 
 % This ensures each thread gets equal access to the process resource, so threads that aren't stalled are guaranteed to make progress.
-
 %FIXME: Place in thread interlead figure
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.4]{figs/placeholder}
-\end{center}
-\caption{Example of a 5 thread interleaved 5 stage pipeline}
-\label{fig:execution_thread_interleaved_pipeline}
-\end{figure}
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/thread-interleaved-execution}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Example Execution of a 5 Thread 5 Stage Thread-Interleaved Pipeline}
+  \label{fig:execution_thread_interleaved_pipeline}
+\end{wrapfigure}
 
 With $n$ threads occupying a $n$ stage pipeline, we remove the data-dependencies caused by the pipeline.
-Data-dependencies arise when an instruction needs data from another instruction that is currently in flight and not committed. 
-These include data operations that operate on registers that are written to in previous instructions, or branch instructions that conditionally branch based upon results from the previous instruction.   
+Data-dependencies arise when an instruction needs data from another instruction that is currently in flight in the pipeline and not committed. 
+These include data operations that operate on registers which are written to in previous instructions. 
+Branch instructions that conditionally branch based upon results from the previous instruction also cause data-dependencies.   
 Pipelines often include forwarding logic and branch predictors to handle these cases so pipeline stalls can be avoided.
 But thread-interleaved pipelines switch thread contexts every cycle, and threads are fetched into the pipeline a predictable round robin fashion.
 So from each thread only one instruction is in flight at one time. 
 As a result, data hazards caused by data dependencies from read after write instruction sequences do not occur in thread-interleaved pipelines because instructions from the same context are committed before the next instruction is dispatched.
-The same holds true for conditional branches, as the previous instruction is committed before the conditional branch instruction needs to be evaluated, so no branch prediction is needed because the conditional is already resolved.       
-Figure~\ref{fig:hazard_comparison_between_pipelines} shows both examples for single thread pipelines and thread-interleaved pipelines.      
+The same holds true for conditional branches, as the condition is resolved before the next instruction is fetched, thus no prediction or stall is needed.      
+Figure~\ref{fig:hazard_comparison_between_pipelines} shows how data-dependencies and conditional branches are handled for both single-threaded and thread-interleaved pipelines.      
 %FIXME: Place in hazard comparison pipeline
 \begin{figure}
 \begin{center}
@@ -72,7 +82,8 @@ Figure~\ref{fig:replay_mechanism_example} illustrates this mechanism.
 \caption{Illustrative example showing the replay mechanism}
 \label{fig:replay_mechanism_example}
 \end{figure}
-For instructions that take multiple cycles instructions due to limitations of the pipeline design, this mechanism makes sense.
+
+For instructions that take multiple cycles due to limitations of the pipeline design, this mechanism makes sense.
 Instructions that do 64-bit operations on a 32-bit pipeline datapath for example falls into this category. 
 In order to abide to the round-robin thread scheduling, the thread simply saves the instruction state and continues execution when it gains access to the pipeline. 
 However, for other multi-cycle instructions, such as memory operations, this mechanism might seem counter intuitive. 
@@ -86,22 +97,35 @@ This greatly complicates any timing analysis on the software running on each thr
 Thus, our thread-interleaved pipeline does not mark threads inactive, but simply replays the instruction from the thread.
 The effects of latency hiding is still present, as other threads continue to progress while one thread is replaying its multi-cycle instruction.  
 
-\subsubsection{Predictable and Composable Timing}
-The thread interleaving pipeline design allows for predictable timing analysis for all threads within the pipeline.
- 
-
-%Talk about the different multi-cycle instructions - one is instructions that are waiting for memory to complete, one is the inherent instruction takes multiple cycles.
-%Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
+%fixme: Add floating point unit description
+Care must also be taken when adding datapaths that take multiple cycles, or else the interference introduced could easily disrupt the timing analysis of threads.
+If the added datapath isn't able to support pipelined or simultaneous operations, then it will introduce contention amongst the threads.
+For example, in figure~\ref{fig:none_pipelined_floatingpoint} we show the effects of adding a non-pipelined floating point divider that takes 20 cycles to execute.    
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.4]{figs/placeholder}
+\end{center}
+\caption{None Pipelined Floating Unit}
+\label{fig:none_pipelined_floatingpoint}
+\end{figure}
+As one thread executes a floating-point division instruction, any other thread that also executes a floating-point division must now wait until the first instruction finishes. 
+If other threads also executes the same instruction, then queuing mechanisms must be introduced, for threads that are contending for the floating-point divider. 
+This would greatly complicate the timing analysis, as the execution time of floating-point division instructions now depend on the execution context of other threads.
+Pipelining the floating-point divider would increase the throughput at the cost of area and latency. 
+However, by pipeling the floating-point divider unit, each thread that executes a floating-point division can now access it without contention. 
+The replay mechanism also hides the long latency of the instruction, and benefits from the improved latency. 
+Because there is no contention, the timing analysis of floating-point operations are now trivial and predictable.     
 
 \subsection{Memory System}
 \label{subsection:memory_system}
+
 
 \section{Implementation}
 \subsection{PTARM Simulator}
 \label{subsection:ptarm_sim}
 
 \subsection{PTARM VHDL Softcore}
-\label{subsectio:ptarm_vhdl_softcore}
+\label{subsection:ptarm_vhdl_softcore}
 
-\section{Worst Case Execution Time Analysis}
+\subsection{Worst Case Execution Time Analysis}
 \label{sec:wcet}
