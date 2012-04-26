@@ -1,6 +1,173 @@
 % This file was created with JabRef 2.6.
 % Encoding: MacRoman
 
+@MANUAL{jedec,
+  title = {DDR2 SDRAM SPECIFICATION JESD79-2E.},
+  author = {JEDEC},
+  year = {2008},
+  owner = {liuisaac},
+  timestamp = {2011.04.11}
+}
+
+
+@book{JaNgWa07,
+	Author = {Bruce Jacob and Spencer W. Ng and David T. Wang},
+	Isbn = {978-0-12-379751-3},
+	Month = {September},
+	Publisher = {Morgan Kaufmann Publishers},
+	Title = {Memory Systems: Cache, {DRAM}, Disk.},
+	Year = {2007}
+}
+
+@inproceedings{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability,
+    author = {Jan Reineke and Isaac Liu and Hiren D. Patel and
+              Sungjun Kim and Edward A. Lee},
+    title = {PRET DRAM Controller: Bank Privatization for
+              Predictability and Temporal Isolation},
+    booktitle = {CODES+ISSS '11: Proceedings of the seventh
+              IEEE/ACM/IFIP international conference on
+              Hardware/software codesign and system synthesis},
+    organization = {ACM},
+    pages = {99-108},
+    month = {October},
+    year = {2011},
+    abstract = {Hard real-time embedded systems employ
+              high-capacity memories such as Dynamic RAMs
+              (DRAMs) to cope with increasing data and code
+              sizes of modern designs. However, memory
+              controller design has so far largely focused on
+              improving average-case performance. As a
+              consequence, the latency of memory accesses is
+              unpredictable, which complicates the worst-case
+              execution time analysis necessary for hard
+              real-time embedded systems. Our work introduces a
+              novel DRAM controller design that is predictable
+              and that significantly reduces worst-case access
+              latencies. Instead of viewing the DRAM device as
+              one resource that can only be shared as a whole,
+              our approach views it as multiple resources that
+              can be shared between one or more clients
+              individually. We partition the physical address
+              space following the internal structure of the DRAM
+              device, i.e., its ranks and banks, and interleave
+              accesses to the blocks of this partition. This
+              eliminates contention for shared resources within
+              the device, making accesses temporally predictable
+              and temporally isolated. This paper describes our
+              DRAM controller design and its integration with a
+              precision-timed (PRET) architecture called PTARM.
+              We present analytical bounds on the latency and
+              throughput of the proposed controller, and confirm
+              these via simulation.},
+    URL = {http://chess.eecs.berkeley.edu/pubs/851.html}
+}
+
+
+@ARTICLE{Patel2008PRETSPM,
+  author = {Patel, Hiren D. and Lickly, Ben and Burgers, Bas and Lee, Edward
+	A.},
+  title = {A Timing Requirements-Aware Scratchpad Memory Allocation Scheme for
+	a Precision Timed Architecture},
+  year = {2008},
+  number = {UCB/EECS-2008-115},
+  month = {Sep},
+  abstract = {The precision timed architecture presents a real-time embedded processor
+	with instruction-set extensions that provide precise timing control
+	via timing instructions to the programmer. Programmers not only describe
+	their functionality using C, but they can also prescribe timing requirements
+	in the program. We target this architecture and present a static
+	scratchpad memory allocation scheme that greedily attempts to meet
+	these timing requirements. Our objective is to schedule minimum number
+	of instructions and minimize data allocation to the scratchpads such
+	that timing requirements in the program are met. Once the timing
+	requirements are satisfied, the remainder of the scratchpad memory
+	can be used to optimize some other metric desired by the programmer.
+	As an example, we minimize the frequency of main memory accesses
+	in the program. This work presents the following: 1) high-level timing
+	constructs for C that synthesize to timing instructions and 2) a
+	greedy iterative instruction and data scratchpad memory allocation
+	scheme that attempts to first meet the specified timing requirements.},
+  institution = {EECS Department, University of California, Berkeley},
+  url = {http://www.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-115.html}
+}
+
+@ARTICLE{Suhendra2005WCETSPM,
+  author = {Suhendra, Vivy and Mitra, Tulika and Roychoudhury, Abhik and Chen,
+	Ting},
+  title = {WCET Centric Data Allocation to Scratchpad Memory},
+  year = {2005},
+  pages = {223--232},
+  address = {Washington, DC, USA},
+  booktitle = {RTSS '05: Proceedings of the 26th IEEE International Real-Time Systems
+	Symposium},
+  doi = {http://dx.doi.org/10.1109/RTSS.2005.45},
+  isbn = {0-7695-2490-7},
+  publisher = {IEEE Computer Society}
+}
+
+@mastersthesis{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous,
+    author = {Shamik Bandyopadhyay},
+    title = {Automated Memory Allocation of Actor Code and Data
+              Buffer in Heterochronous Dataflow Models to
+              Scratchpad Memory},
+    school = {University of California, Berkeley},
+    month = {August},
+    year = {2006},
+    abstract = {A scratchpad memory is a fast compiler-managed
+              on-chip memory that replaces the hardware managed
+              cache in several embedded processors. Scratchpad
+              memories provide better real-time guarantees, and
+              significantly lower overheads in energy
+              consumption and area as compared to caches [9].
+              Several allocation schemes exist for mapping
+              variables, data and code to the scratchpad memory.
+              However, none of these schemes seek to optimize
+              the allocation based on the control flow and data
+              flow information that can be gleaned from block
+              diagram based programs in frameworks in LabVIEW
+              and Ptolemy II [7]. In this report we present
+              methods for scratchpad memory allocation of block
+              diagram programs composed under the Heterochronous
+              Dataflow (HDF) model of computation [3]. HDF is a
+              heterogeneous composition of Synchronous Dataflow
+              (SDF) [1] and Finite State Machines (FSM). It is
+              significantly more expressive than SDF since it
+              allows rate changes in actors during execution.
+              The memory allocation method exploits the coarse
+              grained software architecture and semantics of the
+              HDF models to gather information about the
+              temporal pattern and access frequencies of memory
+              references and the memory requirements of the
+              computational blocks. This information is
+              processed using an Integer Linear Program (ILP)
+              based framework to generate the optimal memory
+              allocation for each state in the HDF graph. We
+              also present a modified version of the algorithm
+              which generates multiple allocations for each
+              state. The ILP based allocation algorithm is shown
+              to perform significantly better than caches. We
+              also show that the allocation algorithm increases
+              predictability by being completely independent of
+              the scheduling technique used to generate the
+              execution schedule for the HDF model. The
+              algorithmic modification that generates multiple
+              allocations per state is shown to perform better
+              than the original algorithm for actor code
+              allocation for intermediate scratchpad sizes. We
+              present a strict upper bound on the memory access
+              time of a HDF model allocated to scratchpad using
+              the above algorithm. We also present several
+              interesting directions for future exploration.},
+    URL = {http://chess.eecs.berkeley.edu/pubs/331.html}
+}
+
+@INPROCEEDINGS{Lam91thecache,
+    author = {Monica S. Lam and Edward E. Rothberg and Michael E. Wolf},
+    title = {The Cache Performance and Optimizations of Blocked Algorithms},
+    booktitle = {In Proceedings of the Fourth International Conference on Architectural Support for Programming Languages and Operating Systems},
+    year = {1991},
+    pages = {63--74}
+}
 
 @inproceedings{Craven_PRET_implementation_2010,
  author = {Craven, Stephen and Long, Daniel and Smith, Jason},

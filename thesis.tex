@@ -2,29 +2,31 @@
 \setlength{\oddsidemargin}{0.15in}
 \def\dsp{\def\baselinestretch{1.75}\large\normalsize}
 \ssp
+
 \usepackage{amsmath}
 \usepackage[pdftex]{graphicx}
 \usepackage{times}
-%\usepackage[cmex10]{amsmath}
 \usepackage{amsfonts}
 \usepackage[usenames,dvipsnames]{color}
-%\usepackage{array}
-%\usepackage{mdwmath}
-%\usepackage{mdwtab}
-
 \usepackage{verbatim}
 \usepackage{fancyvrb, relsize}
 \usepackage{url}
 \usepackage{hyperref}
 \usepackage{wrapfig}
+\usepackage{subfigure}
+\usepackage{algorithm2e}
 
 
 \newcommand{\rt}{real-time}
 \newcommand{\Rt}{Real-time}
 \newcommand{\thdint}{thread-interleaved}
 \newcommand{\Thdint}{Thread-interleaved}
-
 \newcommand{\todo}[1]{{{\textcolor{Red}{(Todo: #1)}}}}%
+\newcommand{\mycaption}[1]{\vspace{-7mm}
+\caption{#1}
+\vspace{-4mm}}
+\newcommand{\hpstar}[2]{#1}
+
 
 \begin{document}
 \title{Precision Timed Machines
@@ -120,7 +122,8 @@ I would like to thank everyone else that made this possible
 
 \chapter{Applications}
 \label{chapter:app}
-\input{chapters/app}
+\input{chapters/RTencrypt}
+\input{chapters/1dcfd}
 
 \chapter{Conclusion and Future work}
 \label{chapter:summary}
