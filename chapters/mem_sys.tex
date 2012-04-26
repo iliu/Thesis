@@ -1,14 +1,14 @@
 While pipelines designs continue to improve, memory technology has been struggling to keep up with the increase in clock speed and performance.
-Even though memory bandwidth can be improved with more bank parallelization, the memory latency remains the bottle neck to improve memory performance.
-Common memory technologies used in embedded systems contain a significant trade off between access latency and capacity. 
+Even though memory bandwidth can be improved with more bank parallelization, the memory latency remains the bottleneck to improved memory performance.
+Common memory technologies used in embedded systems contain a significant tradeoff between access latency and capacity. 
 Static Random-Access Memories (SRAM) provide a shorter latency that allows single cycle memory access from the pipeline.
-However, the hardware cost to implement each memory cell prevents SRAM blocks to be implemented with high capacity.
-On the other hand, Dynamic Random-Access Memories (DRAM) uses a more compact memory cell design that can easily be combined into larger capacity memory blocks.
-But the memory cell of DRAMs must be constantly refreshed due to charge leakage, and the large capacity often prohibits faster access latencies.
+However, the hardware cost to implement each memory cell prevents SRAM blocks from being implemented with high capacity.
+On the other hand, Dynamic Random-Access Memories (DRAM) use a more compact memory cell design that can easily be combined into larger capacity memory blocks.
+But the memory cell of DRAMs must be constantly refreshed due to charge leakage, and the large capacity memory blocks often prohibits faster access latencies.
 %TODO: talk about about embedded systems seldom need disk?
 To bridge the latency gap between the pipeline and memory, smaller memories are placed in between the pipeline and larger memories to act as a buffer, forming a memory hierarchy.
 The smaller memories give faster access latencies at the cost of lower capacity, while larger memories make up for that with larger capacity but slower access latencies. 
-The goal is to speed up program performance by placing commonly accessed values closer to the pipeline, while less access values are placed farther away.
+The goal is to speed up program performance by placing commonly accessed values closer to the pipeline, while less accessed values are placed farther away.
 
 \subsection{Memory Hierarchy}
 \subsubsection{Caches}
@@ -26,17 +26,17 @@ A \emph{CPU Cache} (or cache) is commonly used in the memory hierarchy to manage
 The cache manages of contents of the fast access memory in hardware by leveraging the spatial and temporal locality of data accesses. 
 The main benefits of the cache is that it abstracts away the memory hierarchy from the programmer.
 When a cache is used, all memory accesses is routed through the cache. 
-If the data from the memory access is on the cache, then a cache hit occurs, and the data is returned right away.
-However, if data is not on the cache, then a cache miss occurs, and the cache controller fetches the data from the larger memory and adjusts the memory contents on the cache. 
+If the data from the memory access is in the cache, then a cache hit occurs, and the data is returned right away.
+However, if data is not in the cache, then a cache miss occurs, and the cache controller fetches the data from the larger memory and adjusts the memory contents in the cache. 
 The replacement policy of the cache is used to determine which cache line, the unit of memory replacement on caches, to replace. 
 A variety of cache replacement policies have been researched and used to optimize for different memory access patterns of applications. 
-In fact, modern memory hierarchies often contain multiple layers of hierarchy to balance the trade-off between speed and capacity.
+In fact, modern memory hierarchies often contain multiple layers of hierarchy to balance the tradeoff between speed and capacity.
 A commonly used memory hierarchy is shown in figure~\ref{fig:conventional_mem_hierarchy}.
 If the data value is not found in the L1 cache, then it is searched for in the L2 cache. 
-If the L2 cache also misses, then the data is retrieved from main memory, and sent back to the CPU while the L1 and L2 cache updates its contents.
+If the L2 cache also misses, then the data is retrieved from main memory, and sent back to the CPU while the L1 and L2 cache update its contents.
 Different replacement policies can be used at different levels of the memory hierarchy to optimize the hit rate or miss latency of the memory access.
 
-When caches are used, the program is oblivious to the different levels of memory hierarchy because it is abstracted away from the program; the cache gives its best-effort to optimize memory access latencies.
+When caches are used, the program is oblivious to the different levels of memory hierarchy because they are abstracted away from the program; the cache gives its best-effort to optimize memory access latencies.
 Whether or not an access hits the cache or goes all the way out to main memory is hidden from the program.
 Thus, the programmer does not need to put in any effort, and can get a reasonable amount of performance. 
 Furthermore, when programs are ported to another architecture with a different cache configuration, no change in the program is required to still obtain a reasonable amount of performance from the hardware.   
@@ -44,26 +44,26 @@ For general purpose applications, this gives the ability to improve design time 
 
 However, the cache makes no guarantees on actual memory access latencies and program performance. 
 The execution time of programs could highly vary depending on a number different factors -- cold starts, previous execution contexts, interrupt routines, and even branch mispredictions that cause unnecessary cache line replacements.  
-Thus, when execution time is important, the variability and uncontrollability of caches may outweigh the benefits it provides. 
+Thus, when execution time is important, the variability and uncontrollability of caches may outweigh the benefits they provide. 
 
 The cache's internal states include the controller state and memory contents. 
-As the programmer cannot explicitly control the state of the cache, it is extremely difficult to analyze execution time on systems caches.
+As the programmer cannot explicitly control the state of the cache, it is extremely difficult to analyze execution time on systems with caches.
 At an arbitrary point of execution, if the state of the cache is unknown, a conservative worst-case execution time analysis needs to assume the worst case, as if the memory access went directly to main memory.
-In order to acquire tighter execution time analysis, the cache must be modeled along program execution to predict the current cache state.
+In order to acquire tighter execution time analysis, the cache must be modeled with program execution to predict the current cache state.
 The ease of such modeling depends on the replacement policy used in the cache.
 
 For example, the \emph{Least Recent Used} (LRU) replacement policy replaces the least recently used cache line whenever an eviction occurs. 
 Within a basic block, a code segment without a control flow change, the contents of a cache with $N$ cache lines can be fully known after $N$ different memory accesses~\cite{Heckmann2003processor}.  
-The $N$ different memory accesses will evict all cache lines in the cache prior to the basic block, and fill it with the memory contents of the $N$ accesses. 
+The $N$ different memory accesses will evict all cache lines in the cache prior to the basic block, and fill them with the memory contents of the $N$ accesses. 
 In this case, the analysis assumes $N$ initial cache misses before the cache state is known.
 However, the cache state is destroyed when analysis hits a control flow merge with another path.
 Thus, the usefulness of this analysis depends on $N$ and how long basic blocks are in programs.  
 In practice, the complexity of modern programs and memory architectures often introduce a high variability in program execution time, rendering analysis imprecise. 
 
-Even outside of the context of real-time applications, caches can present side effects that they were not intended for.  
+Even outside of the context of real-time applications, caches can present unintended side effects.
 For applications that require extreme high speed, the best-effort memory management that caches offer simply is not good enough.
-Programs often need to be hand tuned and tailored to specific cache architectures and parameters to acquire the desired performance. 
-In order to tune algorithm performance, algorithm designers are required to understand to the abstracted away memory architecture and enforce data access patterns that conform to the cache size and replace policy.   
+Programs often need to be hand tuned and tailored to specific cache architectures and parameters to achieve the desired performance. 
+In order to tune algorithm performance, algorithm designers are required to understand to the abstracted away memory architecture and enforce data access patterns that conform to the cache size and replacement policy.   
 For example, instead of operating on entire rows or columns of an array, algorithms are rewritten to operate on a subset of the data at a time, or blocks, so the faster memory in the hierarchy can be reused.
 This technique is called \emph{Blocking}~\cite{Lam91thecache}, and is very well-known and commonly used.   
 %\todo{talk about LAPACK? Libraries that tune programs to caching}.
@@ -84,7 +84,7 @@ We cannot argue against the need for a memory hierarchy, as there is an undeniab
 However, instead of abstracting away the memory hierarchy, we propose to \emph{expose} the memory layout to the software.  
 
 \emph{Scratchpads} were initially proposed for their power saving benefits over caches~\cite{Banakar2002}.
-Scratchpads can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provide 16KB of SPM per thread-bundle~\cite{8800gpu}.
+Scratchpads can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provides 16KB of SPM per thread-bundle~\cite{8800gpu}.
 Scratchpads uses the same memory technology (SRAMs) as caches, but does not implement the hardware controller to manage its memory contents.
 Without the hardware controller, scratchpads do not manage its memory contents in hardware.
 Instead, scratchpads occupy a distinct address space in memory when they are used as fast access memory.
@@ -101,7 +101,7 @@ Because in hardware scratchpads do not need to check whether the data is on the 
   \label{fig:pret_mem_hierarchy}
 \end{wrapfigure}   
 
-Unlike caches, which overlay its address space with main memory to hide the hierarchy, scratchpads explicitly \emph{exposes} the memory hierarchy, as figure~\ref{fig:pret_mem_hierarchy} illustrates.  
+Unlike caches, which overlay their address space with main memory to hide the hierarchy, scratchpads explicitly \emph{expose} the memory hierarchy, as figure~\ref{fig:pret_mem_hierarchy} illustrates.  
 The exposed memory hierarchy gives software full control over the management of memory contents in the hierarchy.
 Data allocated on the scratchpad will have single cycle access latencies, while other data will take the full DRAM access latency. 
 The memory access latency for each request now depends only on the access address, and not that state of another hardware controller. 
@@ -109,27 +109,26 @@ This drastically improves the predictability of memory access times, and reduces
 However, this places the burden of memory management on the programmer. 
 
 Two allocation schemes are commonly employed to manage the contents of scratchpads in software.
-\emph{Static allocation schemes} allocate data on the scratchpad during compile time, and the contents allocated on the scratchpad does not change throughout program execution. 
+\emph{Static allocation schemes} allocate data on the scratchpad during compile time, and the contents allocated on the scratchpad do not change throughout program execution. 
 Static scratchpad allocation schemes~\cite{Suhendra2005WCETSPM, Patel2008PRETSPM} often use heuristics or a compiler-based static analysis of the program to find the most commonly executed instructions or data structures, and allocate them statically on the scratchpad to improve program performance. 
 \emph{Dynamic allocation schemes} modify the data on the scratchpad during run time in software through DMA mechanisms.
 The allocation could either be automatically generated and inserted by the compiler, or explicitly specified by the user programmatically.
 
 Embedded system designs often deal with limited resources and other design constraints, such as limited memory or hard timing deadlines.    
-Thus, the design of such systems often require analysis on memory usage etc to ensure that the constraints are met. 
-Higher level models of computations, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto}, allow users to design systems at a higher level.
-The higher level models expose the structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
-Bandyopadhyay~\cite{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous} presented an automated memory allocation of scratchpads for the execution of Heterochronous Dataflow models.
+Thus, the design of such systems often requires analysis of memory usage to ensure that the constraints are met. 
+Higher level models of computation, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto} expose the structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
+Bandyopadhyay~\cite{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous} presents an automated memory allocation of scratchpads for the execution of Heterochronous Dataflow models.
 The Heterochronous Dataflow (HDF) model is an extension to the Synchronous Dataflow (SDF) model with finite state machines (FCM). 
 The HDF models contain different program states, each state executing a SDF model that contains actors communicating with each other. 
 Bandyopadhyay analyzed the actor code and the data that was being communicated in each HDF state.
 The dynamic scratchpad allocation is inserted during state transitions, and the memory allocated is optimized for each HDF state. 
-This allocation not only showed roughly 17\% performance improvement compared to executions using LRU caches, but also more predictable program performance.
+This allocation not only shows roughly a 17\% performance improvement compared to executions using LRU caches, but also more predictable program performance.
 
 The underlying memory technology that is used to make both scratchpads and caches is not inherently unpredictable, as SRAMs provide constant low-latency access time. 
 However, caches manage the contents of the SRAM in hardware. 
-By using caches in the memory hierarchy, the hierarchy is hidden from the programmer, and hardware managed memory contents creates highly variable execution times with unpredictable access latencies. 
-Scratchpads on the other hand exposes the memory hierarchy to the programmer, allowing more predictable and repeatable memory access performances.
-Although the allocation of scratchpads requires more effort, but it also provides opportunity for high efficiency, as it can be tailored to specific applications.   
+By using caches in the memory hierarchy, the hierarchy is hidden from the programmer, and hardware managed memory contents create highly variable execution times with unpredictable access latencies. 
+Scratchpads on the other hand expose the memory hierarchy to the programmer, allowing more predictable and repeatable memory access performances.
+Although the allocation of scratchpads requires more effort, it also provides opportunity for high efficiency, as it can be tailored to specific applications.   
 Thus, in our time-predictable architecture, scratchpads are employed as our fast-access memory. 
 
 \subsection{DRAM Memory Controller}
@@ -138,8 +137,8 @@ However, bank conflicts and refreshes within the DRAM can cause memory accesses 
 Modern memory controllers are designed to optimize average-case performance by queueing and reordering memory requests to improve throughput of memory requests. 
 This results in unpredictable and varying access times along with an increased worst-case access time for each memory request.
 In this section we will present a DRAM memory controller that privatizes DRAM banks with scheduled memory refreshes to provide improved worst-case latency and predictable access time.    
-The contributions from this section is research done jointly with several co-authors from Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
-We do not claim sole credit for this work, and the summary is included in this thesis only for completeness purposes. 
+The contributions from this section are research done jointly with several co-authors from Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
+We do not claim sole credit for this work, and the summary is included in this thesis only for completeness. 
 We will first give some basic background on DRAM memories, then present the predictable DRAM controller designed.
 
 \subsubsection{DRAM Basics}
@@ -162,12 +161,12 @@ Because the capacitor leaks charge, it must be refreshed periodically, typically
 A \textbf{\emph{DRAM array}} is made of a two-dimensional array of DRAM cells.
 Each access made to the DRAM array goes through two phases: a row access followed by one or more column accesses.   
 During the row access, one of the rows in the DRAM array is moved into the row buffer.
-To read the value in the row buffer, the capacitance of the DRAM cells are compared to the wires connecting them with the row buffer.
+To read the value in the row buffer, the capacitance of the DRAM cells is compared to the wires connecting them with the row buffer.
 The wires need to be precharged close to the voltage threshold so the sense amplifiers can detect the bit value.
 Columns can be read and written to quickly after the row is in the row buffer. 
 
 The \textbf{\emph{DRAM device}} consists of banks formed of DRAM arrays. 
-Modern DRAM devices have multiple banks, control logic, and I/O mechanisms to read from and write to the data bus, as shown in the center of \ref{fig:dram_basics}.
+Modern DRAM devices have multiple banks, control logic, and I/O mechanisms to read from and write to the data bus, as shown in the center of figure \ref{fig:dram_basics}.
 Banks can be accessed concurrently, but the data, command and address busses, which is what the memory controller uses to send commands to the DRAM device, are shared within the device. 
 The following table\footnotemark lists the four most important commands and their function:
 \footnotetext{This table is as shown in ~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}
@@ -192,17 +191,17 @@ Accessing columns from the same row does not require additional PRE and RAS comm
 Column accesses can immediately be followed by a PRE command to decrease latency when accessing different rows. 
 This is known as auto-precharge (or closed-page policy).
 Refreshing of the cells can be done in two ways.
-First, by issuing a refresh command, which refreshes all banks of the device simultaneously. 
+One common way is to issue a refresh command that refreshes all banks of the device simultaneously. 
 The refresh latency depends on the capacity of the device, but the DRAM device manages a counter to step through all the rows.
 The rows on the device could also be manually refreshed by performing row accesses to them.
-Thus, the memory controller could performance row accesses on every row within the 64 ms refresh period.
+Thus, the memory controller could perform row accesses on every row within the 64 ms refresh period.
 This requires the memory controller to keep track of the refresh status of the device and issue more refresh commands, but each refresh takes less time because it is only a row access. 
 
 \textbf{\emph{DRAM modules}} are made of several DRAM devices integrated together for higher bandwidth and capacity. 
 A high-level view of the dual-ranked dual in-line memory module (DIMM) is shown in the right side of figure~\ref{fig:dram_basics}.
 The DIMM has eight DRAM devices that are organized in two ranks.
 The two ranks share the address, command inputs, and the 64-bit data bus.
-The chip select is used to determine which ranks is addressed.
+The chip select is used to determine which ranks are addressed.
 All devices within a rank are accessed simultaneously when the rank is addressed, and the results are combined to form the request response.  
 % Due to the sharing of I/O mechanisms within a device, consecutive accesses to the same rank are more constrained than consecutive accesses to different ranks, which only share the command and address as well as the data bus.
 % We later exploit this subtle difference by restricting consecutive accesses to different ranks to achieve more predictable access latencies.  
@@ -216,7 +215,7 @@ Table~\ref{table:ddr2-constraints} gives an overview of timing parameters for a 
 These timing constraints come from the internal structure of DRAM modules and DRAM cells.
 For example, $t_{RCD}, t_{RP}$, and $t_{RFC}$ are from the structure of DRAM banks that are accessed through sense amplifiers that need to be precharged.
 $t_{CL}, t_{WR}, t_{WTR}$, and $t_{WL}$ result from the structure of DRAM banks and DRAM devices.
-The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks which would result in too high a current draw.
+The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks that would result in too high a current draw.
 The memory controller must conform to these timing constraints when sending commands to the DDR2 module.  
 %The additive latency, $t_{AL}$, can be set by the user and determines how many cycles after a posted-CAS a CAS is executed.
 Here we only gave a quick overview of DRAMs, we refer more interested readers to Jacob et al.~\cite{JaNgWa07} for more details.
@@ -258,13 +257,13 @@ While our discussion of the design of this DRAM controller is specific to our DD
 \paragraph{Backend}
 Conventional DRAM memory controllers view the entire memory device as one resource, and any memory requests can access the whole DRAM device. 
 Subsequent memory accesses can target the same bank within the DRAM, which results in the need for memory requests to be queued and serviced sequentially, without exploiting bank parallelism.
-Our controller views the memory devices as independent resource partitioned by banks. 
+Our controller views the memory devices as independent resources partitioned by banks. 
 Specifically, we partition our memory module into four \emph{resources}, each consisting of two banks within the same rank. 
 The banks within each resource can be arbitrarily chosen, but all banks within a resource must belong to the same rank, and each of the ranks must contain at least two resources.
-This is to avert access patterns that would incur high latency from the contention fo the shared busses within banks and ranks.
+This is to avert access patterns that would incur high latency from the contention for the shared busses within banks and ranks.
 The partitioning of the memory device allows us to fully exploit bank parallelism by accessing the resources in a periodic and pipelined fashion.
 The periodic access scheme to the four resources interleaves each memory access between the ranks.
-Subsequent accesses to the same rank goes to the other resource, grouped from banks.  
+Subsequent accesses to the same rank go to the other resource, grouped from banks.  
 Figure~\ref{fig:backend} shows an example of the following access requests: read from resource 0 in rank 0, write to resource 1 in rank 1, and read from resource 2 in rank 0. 
 
 \begin{figure}[h]

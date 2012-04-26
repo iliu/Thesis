@@ -1,7 +1,7 @@
 In this chapter we present the design principles of a PREcision Timed (PRET) Machine.
 Specifically, we discuss the implementation of a predictable pipeline and memory controller, and present timing extensions to the ISA. 
 It is important to understand why and how current architectures fall short of timing predictability and repeatability.
-Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and trade offs when designing architectures for predictable and repeatable timing.
+Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and tradeoffs when designing architectures for predictable and repeatable timing.
 
 \section{Pipelines}
 The introduction of pipelining vastly improves the performance of processors.
@@ -164,7 +164,7 @@ For example, if caches are used, their internal state could be updated during sp
 As architectures grow in complexity, the combined modeling of all hardware states in the architecture often leads to an intractable explosion in state space for the analysis.    
 This makes a tight static execution time analysis extremely difficult, if not impossible.
 
-The difference in execution time effects between stalling and employing a branch predictor highlights an important trade off for architecture designs.    
+The difference in execution time effects between stalling and employing a branch predictor highlights an important tradeoff for architecture designs.    
 It is possible to improve average-case performance by making predictions, and speculatively executing based upon them.
 However, this comes at the cost of predictability, and a potential decreasing of the worst-case performance.  
 For real-time and safety critical systems, the challenge remains to improve worst-case performance while maintaining predictability, and how pipeline hazards are handled plays a key role in tackling this challenge. 
@@ -248,9 +248,9 @@ with deterministic execution time behaviors.
 \label{section:pret_thread_pipeline}
 Thread-interleaved pipelines use a fine-grain thread scheduling policy; every cycle a different hardware thread is fetched for execution.
 A round robin scheduling policy is often employed to reduce the context switch overhead every cycle.     
-The thread-interleaved pipeline is known for implementing the peripheral processors of the Cray Multi-Threaded Architecture (MTA) multiprocessors~\cite{CDC6600}.
+The thread-interleaved pipeline is known for implementing the peripheral processors of the CDC6600~\cite{CDC6600}.
 Each the ``peripheral processor'' is implemented as a hardware thread.     
-Interacting with input/output peripherals often lead to idle processor cycles that waits for the peripherals' responses.
+Interacting with input/output peripherals often leads to idle processor cycles to wait for the peripherals' responses.
 By interleaving several threads, thread-level parallelism is fully exploited, and the idle cycles can be used for simultaneous interaction with multiple input/output devices.       
 Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage single width thread-interleaved pipeline with 5 threads.
 \begin{figure}[h]
@@ -264,7 +264,7 @@ Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example executio
 
 The same code segments from figure~\ref{fig:sample_gcd_code} and figure~\ref{fig:sample_data_dependent_code} are used in this example. 
 Threads 0, 2 and 4 execute GCD (figure~\ref{fig:sample_gcd_code}) and threads 1 and 3 execute the data dependent code segment (figure~\ref{fig:sample_data_dependent_code}).
-The thick arrows on the left show the initial execution progresses of each thread at cycle 0.
+The thick arrows on the left show the initial execution progress of each thread at cycle 0.
 We observe from the figure that each cycle, an instruction from a different hardware thread is fetched in round robin order.
 By cycle 4, each pipeline stage is occupied by a different hardware thread.
 The fine-grained thread interleaving and round robin scheduling combine to form this important property for thread-interleaved pipelines, which provides the basis for a timing predictable pipeline design.
@@ -292,7 +292,7 @@ By this point, the branch has already been resolved, so no control hazard is cau
 The next fetched instruction from thread 2 is \emph{always} from the correct program path.
 In this way, the control hazards from branches are eliminated.  
   
-The interleaving of threads also eliminate control hazards in the presence of exceptions.
+The interleaving of threads also eliminates control hazards in the presence of exceptions.
 If the pipeline detects an exception for the \emph{blt} instruction in its writeback stage (cycle 6), the control flow for thread 2 will be changed to handle the exception.  
 Because no other instruction in the pipeline belongs to thread 2 at cycle 6, no instruction needs to be flushed.  
 This reveals an important property our timing predictable pipeline, that \emph{no instruction is speculatively executed}.
@@ -302,7 +302,7 @@ Therefore, the correct program path is always executed.
 
 The minimum number of threads required to eliminate control hazards depends on the number of the pipeline stages.
 Conservatively, interleaving the same number of threads as pipeline stages will always remove control hazards.
-Intuitively, this is because at any point in time, each stage of the pipeline with be executing an instruction from a different hardware thread. 
+Intuitively, this is because at any point in time, each stage of the pipeline will be executing an instruction from a different hardware thread. 
 Thus, no explicit dependency will exist between instructions in the pipeline. 
 Lee and Messerschmitt~\cite{lee1987pip} further showed that it is possible to use one less thread than the number of pipeline stages for certain implementations. 
 From here on, when we refer to the thread-interleaved pipeline, we assume enough threads to remove \emph{explicit} dependencies between instructions in the pipeline.
@@ -340,7 +340,7 @@ On the left we show that explicit dependencies between instructions in the pipel
 However, by inserting pipeline stalls to meet the minimum required thread count, the dependencies are once again removed.
 This is shown on the right.   
 Employing more total threads in the pipeline can reduce the amount of stalling needed, since there is a larger pool of threads to select from.  
-However, to ensure explicit dependencies are removed, stalls are \emph{always} required when the active thread count drops below the minimum.
+However, to ensure that explicit dependencies are removed, stalls are \emph{always} required when the active thread count drops below the minimum.
 
 More importantly however, the dynamic activation and deactivation of threads breaks temporal isolation between the threads.   
 When a thread is deactivated, other threads are fetched more frequently into the pipeline.
@@ -350,8 +350,8 @@ Because a thread can deactivate based upon its own execution and affect other th
 In order to maintain temporal isolation between the threads, threads cannot affect the execution time of others.
 For a time-predictable thread-interleaved pipeline, threads are not dynamically deactivated.
 Instead, when a thread is fetched in the presence of a data hazard, a pipeline delay is inserted to preserve the round robin thread schedule.
-This only slightly reduces the utilization of the pipeline, as other threads still executing during the long latency operation.
-But the temporal isolation of threads is preserved, as the execution frequency of threads remain the same regardless of any thread activity.  
+This only slightly reduces the utilization of the pipeline, as other threads are still executing during the long latency operation.
+But the temporal isolation of threads is preserved, as the execution frequency of threads remains the same regardless of any thread activity.  
 Compared to single threaded pipelines, the benefits of latency hiding from mulithreading are still present.
 
 %The next instruction from thread 3 that is fetched into the pipeline is again the same \emph{ld} instruction.  
@@ -389,11 +389,11 @@ By doing so, the access latency to the hardware unit is determined only by the t
 In section~\ref{section:memory_system} we show a predictable DRAM memory controller that use TDMA in the backend to schedule accesses to DRAM memory. 
 
 It is important to understand that a TDMA schedule removes timing interference, but does \emph{not} remove structural hazards.
-In fact, a TDMA schedule can further uncover the performance penalty of structural hazards.
+In fact, a TDMA schedule can further expose the performance penalty of structural hazards.
 By reserving privatized time slots for threads, the hardware unit will appear to be busy even when no thread is accessing it.
 Thus, structural hazards can occur even when the hardware unit is not being used.
 Although a TDMA schedule increases the average latency to access the hardware unit, the worst-case access latency is similar that of a conventional first-come-first-serve (FCFS) queuing based access schedule with a queue size of one.
-In both cases, the worst-case access latency is needs to account for the accesses of all threads.      
+In both cases, the worst-case access latency needs to account for the accesses of all threads.      
 However, by using a TDMA schedule to predictably handle the structural hazards, the temporal isolation of threads enable a much tighter and simpler WCET analysis~\cite{Lv:2010:CAI:1935940.1936246}.
 %http://user.it.uu.se/~yi/pdf-files/RTSS10_65.pdf
 
@@ -409,7 +409,7 @@ Shared hardware units can create \emph{implicit} dependencies between threads if
 A shared branch predictor, as discussed earlier, is a prime example for this. 
 Our thread-interleaved pipeline removes the need for a branch predictor by the interleaving of hardware threads.  
 A shared cache is another example.   
-A cache maintains internal state that determines if a memory access goes to the cache or to main memory.
+A cache maintains internal state that determines whether a memory access goes to the cache or to main memory.
 There is typically an enormous latency difference between the two different accesses.
 When the cache is shared between threads, the different interleaving of threads can affect the execution time of all threads. 
 It is even possible to degrade the performance of the system if threads continuously evict cache lines from each other. 
@@ -448,7 +448,7 @@ We use the term \emph{thread cycle} to encapsulate this latency, and simplify th
 In our example, the instructions shown in thread 0 each take 1 thread cycle.
 
 The \emph{ldr} instruction in thread 1 accesses main memory.
-From the thread-interleaving, the access latency to main memory is hidden the concurrent execution of other threads. 
+From the thread-interleaving, the access latency to main memory is hidden in the concurrent execution of other threads. 
 Thus, long latency instructions can appear to have a reduced latency in the isolated view of threads.
 In this example, the \emph{ldr} instruction observes only a 2 thread cycle latency, even though the actual memory access latency could have been up to 10 processor cycles. 
 
