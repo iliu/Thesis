@@ -134,6 +134,85 @@ The data memory
 
 Also talk about I/O bus connections and the protocol to determine if data is ready
 
+\subsubsection{Integration with the Memory Controller}
+
+PTARM~\cite{Liu10}, a PRET machine~\cite{Edwards:2007:pret}, is a thread-interleaved implementation of the ARM instruction set.
+Thread-interleaved processors preserve the benefit of a multi-threaded architecture -- increased throughput, but use a predictable fine-grained thread-scheduling policy -- round robin.
+If there is the same number of hardware threads as there are pipeline stages, at any point in time, each stage of the pipeline is occupied by a different hardware thread; there are no dependencies between pipeline stages, and the execution time of each hardware thread is independent of all others. PTARM has four pipeline stages and four hardware threads.
+Each hardware thread has access to an instruction scratchpad and a data scratchpad.
+The scratchpads provide single-cycle access latencies to the threads.
+The two scratchpads are shared among the four threads, allowing for shared memory communication among the threads.
+
+However, due to the thread-interleaving, only one thread can access the scratchpad at any time.
+Each hardware thread is also equipped with a direct memory access (DMA) unit, which can perform bulk transfers between the two scratchpads and the DRAM.
+Both scratchpads are dual-ported, allowing a DMA unit to access the scratchpads in the same cycles as its corresponding hardware thread.
+In our implementation of thread-interleaving, if one thread is stalled waiting for a memory access, the other threads are unaffected and continue to execute normally.
+
+The four resources provided by the backend are a perfect match for the four hardware threads in the PTARM thread-interleaved pipeline.
+We assign exclusive access to one of the four resources to each thread.
+In contrast to conventional memory architectures, in which the processor interacts with DRAM only by filling and writing back cache lines, there are two ways the threads can interact with the DRAM in our design.
+First, threads can initiate DMA transfers to transfer bulk data to and from the scratchpad. 
+Second, since the scratchpad and DRAM are assigned distinct memory regions, threads can also directly access the DRAM through load and store instructions. 
+
+%\HP{Why not introduce figure 4 here?}
+%\IL{Why introduce figure 4 here?}
+%\myparagraph{Connection of the Controller Backend to PTARM}
+Whenever a thread initiates a DMA transfer, it passes access to the DRAM to its DMA unit, which returns access once it has finished the transfer. 
+During the time of the transfer, the thread can continue processing and accessing the two scratchpads.
+If at any point the thread tries to access the DRAM, it will be blocked until the DMA transfer has been completed.
+Similarly, accesses to the region of the scratchpad which are being transferred from or to will stall the hardware thread\footnote{This does not affect the execution of any of the other hardware threads.}.
+\ref{fig:pretintegration} shows a block diagram of PTARM including the PRET DRAM controller backend and the memory module.
+The purpose of the frontend is to route requests to the right request buffer in the backend and to insert a sufficient amount of refresh commands, which we will discuss in more detail.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.7\linewidth]{figs/pret-integration}
+\end{center}
+\caption{Integration of PTARM core with DMA units, PRET memory controller and dual-ranked DIMM~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}\label{fig:pretintegration} % \todo{modify to show four independent resources in backend}
+\end{figure}
+
+%\HP{What is this next paragraph trying to discuss?  I'd rework this paragraph to say that we present an example read access and discuss the interaction of the pipeline and the controller}
+When threads directly access the DRAM through load (read) and store (write) instructions, the memory requests are issued directly from the pipeline. 
+\ref{fig:readlatencyderivation}, which we will later use to derive the read latency, illustrates the stages of the execution of a read instruction in the pipeline.
+At the end of the memory stage, a request is put into the request buffer of the backend.
+Depending on the alignment of the pipeline and the backend, it takes a varying number of cycles until the backend generates corresponding commands to be sent to the DRAM module.
+After the read has been performed by the DRAM and has been put into the response buffer, again, depending on the alignment of the pipeline and the backend, it takes a varying number of cycles for the pipeline to reach the write-back stage of the corresponding hardware thread.
+Unlike the thread-interleaved pipeline, the DMA units are not pipelined, which implies that there are no ``alignment losses'':
+the DMA units can fully utilize the bandwidth provided by the backend.
+
+
+\paragraph{Store Buffer}
+%\HP{Is this PRET-like?  Seems very unpret to me?}
+Stores are fundamentally different from loads in that a hardware thread does not have to wait until the store has been performed in memory.
+By adding a single-place store buffer to the frontend, we can usually hide the store latency from the pipeline.
+Using the store buffer, stores which are not preceded by other stores can be performed in a single thread cycle.
+By \emph{thread cycle}, we denote the time it takes for an instruction to pass through the thread-interleaved pipeline.
+Other stores may take two thread cycles to execute.
+A bigger store buffer would be able to hide latencies of successive stores at the expense of increased complexity in timing analysis.
+
+
+\paragraph{DMA refreshes}
+We make use of this flexibility for loads from the pipeline and when performing DMA transfers:
+if a load would coincide with a scheduled refresh, we push back the refresh to the next slot.
+Similarly, we skip the first refresh during a DMA transfer and schedule an additional one at the end of the transfer.
+This pushes back the refresh of a particular row by at most $60 \cdot 13$ cycles.
+%Alternatively, this can be seen as shifting all refreshes, during the DMA transfer, back by $63$ slots or to the end of the transfer.
+More sophisticated schemes would be possible, however, we believe their benefit would be slim.
+Following this approach, two latencies can be associated with a DMA transfer:
+\begin{enumerate}
+  \item The time from initiating the DMA transfer until the data has been transferred, and is, e.g., available in the data scratchpad.
+  \item The time from initiating the DMA transfer until the thread-interleaved pipeline regains access to the DRAM.
+\end{enumerate}
+Our conjecture is that latency 1 is usually more important than latency 2.
+Furthermore, our approach does not deteriorate latency 2.
+For loads sent from the pipeline, the pushed back refreshes become invisible:
+as the pipeline is waiting for the data to be returned and takes some time to reach the memory stage of the next instruction, it is not able to use successive access slots of the backend, and thus it is unable to observe the refresh at all.
+With this refresh scheme, refreshes do not affect the latencies of load/store instructions, and the refreshes scheduled within DMA transfers are predictable so the latency effects of the refresh can be easily analyzed.  
+
+
+
+
+
 \section{Instruction Implementations}
 \label{sec:ptarm_instructions}
 In this section we go into more details on how each instruction type is implemented and how each hardware block in the pipeline shown in figure~\ref{fig:ptarm_pipeline_five_stage}. 
@@ -473,7 +552,7 @@ Without the additional \emph{timer adder} in the pipeline, comparing 64 bits usi
 This would decrease the precision of this instruction by a factor of two, because now we can only check the deadline against the timer every two thread cycles.
 The added \emph{timer adder} allows \emph{delay\_until} to check the deadline every thread cycle, to ensure that no additional threads cycles have elapsed right after the deadline is reached. 
 
-\subsubsection{Exception\_on\_Expire, Deactivate\_Exception}    
+\subsubsection{Exception\_on\_Expire and Deactivate\_Exception}    
 \emph{Exception\_on\_expire} and \emph{deactivate\_exception} provide a mechanism to actively check for missed code that runs longer than a specified deadline.  
 \emph{Exception\_on\_expire} is used to register a deadline for immediate miss detection. 
 \emph{Deactivate\_exception} is used to deactivate the active checking before the deadline expires.   
