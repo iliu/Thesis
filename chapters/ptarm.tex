@@ -72,7 +72,7 @@ The ARM ISA programmer's model states that reading from R15 reads the current PC
 Single threaded pipelines need to increment the PC immediately in the fetch stage to prepare for the next instruction fetch.  
 For thread-interleaved pipelines, since the next PC from the current thread is not needed until several cycles later, it doesn't need to be in the fetch stage. 
 But because we need the results of PC+8 as a data operand, it is placed in the decode stage. 
-The \emph{timer} is a hardware counter clocked to the processor clock which is used to implement the timing instructions mentioned in chapter~\ref{chapter:programming_models}.
+The \emph{timer} is a hardware counter clocked to the processor clock which is used to implement the timing instructions mentioned in section~\ref{sec:programming_models}.
 The timer contains a 64 bit value that represents nanoseconds, and starts at 0 when the pipeline starts up.  
 The time value is latched in the decode stage as the subsequent stages use it for timer manipulation.
 
@@ -123,25 +123,38 @@ This allows us to interleave four threads in our five stage pipeline instead of 
 %talk about the front end implementation to access the ptarm memory controller, and the access latencies that is generated   
 %talk about the I/O memory region, and how the protocol is implemented to determine if memory access is completed yet
 
-The instruction memory is currently composed of an instruction scratchpad and a boot ROM. 
-The boot ROM \todo{mention bootROM size} is shared between all the threads and contains the initialization code for each thread. 
-It also contains the exception vector table that stores entries for handling different exceptions that occur in the pipeline, along with some of the exception handlers. 
-The instruction scratchpad \todo{size?} is currently logically divided into five regions. 
-Each of the threads contains its own private instruction region, and a shared region where all threads can access.
-Both the boot ROM and instruction scratchpad are also synthesized to FPGA block RAMs, and both give single cycle access latencies.
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/ptarm_memory_layout}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Memory Layout of PTARM}
+  \label{fig:ptarm_memory_layout}
+  \vspace{-10pt}
+\end{wrapfigure} 
+The memory hierarchy of PTARM is exposed to the programmer, as discussed in section~\ref{section:memory_system}.
+It is composed of a boot ROM (read only memory), instruction and data scratchpads, the predictable DRAM controller, and a memory mapped I/O region, all occupying separate address spaces.
+Figure~\ref{fig:ptarm_memory_layout} shows the address regions occupied by each memory type.  
 
-The data memory 
+\subsection{Boot ROM}
+The boot ROM \todo{mention boot code size} contains the reset instructions and exception vector table that stores entries for handling different exceptions that occur in the pipeline.
+It also contains shared exception handlers and initialization code. 
+The instructions store on the boot ROM cannot be modified at run-time, hence the read-only memory name. 
+However, a dedicated region in the boot ROM stores a table for user-registered exception handlers, these entries can be modified prorammatically. 
+We use this region to allow users to register timer expire exception handlers.
+  
+\subsection{Scratchpads}  
+The instruction and data scratchpad \todo{size?} can be partitioned into private regions for each thread, or shared by all threads.
+If PTARM is used in embedded security application, such as running encryption algorithms on it, then the partitioning the scratchpads into private regions might be desired. 
+In chapter~\ref{chapter:app} we will discuss the security implications and how a Precision Timed Machine can defend against side-channel attacks.
+On the other hand, sharing the scratchpad could provide flexibility on the allocation of scratchpads between hardware threads. 
+More space could be allocated to hardware threads running more memory intensive tasks while less could be allocated to the other hardware threads~\todo{cite scratchpad allocation paper}.
+%FIXME: separate region for shared scratchpad space?
+Both the boot ROM and scratchpads are synthesized to dual-ported block RAMs on the FPGA, and provide deterministic single cycle access latencies.
 
-Also talk about I/O bus connections and the protocol to determine if data is ready
-
-\subsubsection{Integration with the Memory Controller}
-
-PTARM~\cite{Liu10}, a PRET machine~\cite{Edwards:2007:pret}, is a thread-interleaved implementation of the ARM instruction set.
-Thread-interleaved processors preserve the benefit of a multi-threaded architecture -- increased throughput, but use a predictable fine-grained thread-scheduling policy -- round robin.
-If there is the same number of hardware threads as there are pipeline stages, at any point in time, each stage of the pipeline is occupied by a different hardware thread; there are no dependencies between pipeline stages, and the execution time of each hardware thread is independent of all others. PTARM has four pipeline stages and four hardware threads.
-Each hardware thread has access to an instruction scratchpad and a data scratchpad.
-The scratchpads provide single-cycle access latencies to the threads.
-The two scratchpads are shared among the four threads, allowing for shared memory communication among the threads.
+\subsection{DRAM}
+Access to 
 
 However, due to the thread-interleaving, only one thread can access the scratchpad at any time.
 Each hardware thread is also equipped with a direct memory access (DMA) unit, which can perform bulk transfers between the two scratchpads and the DRAM.
@@ -180,16 +193,13 @@ After the read has been performed by the DRAM and has been put into the response
 Unlike the thread-interleaved pipeline, the DMA units are not pipelined, which implies that there are no ``alignment losses'':
 the DMA units can fully utilize the bandwidth provided by the backend.
 
-
 \paragraph{Store Buffer}
-%\HP{Is this PRET-like?  Seems very unpret to me?}
 Stores are fundamentally different from loads in that a hardware thread does not have to wait until the store has been performed in memory.
 By adding a single-place store buffer to the frontend, we can usually hide the store latency from the pipeline.
 Using the store buffer, stores which are not preceded by other stores can be performed in a single thread cycle.
 By \emph{thread cycle}, we denote the time it takes for an instruction to pass through the thread-interleaved pipeline.
 Other stores may take two thread cycles to execute.
 A bigger store buffer would be able to hide latencies of successive stores at the expense of increased complexity in timing analysis.
-
 
 \paragraph{DMA refreshes}
 We make use of this flexibility for loads from the pipeline and when performing DMA transfers:
@@ -209,9 +219,68 @@ For loads sent from the pipeline, the pushed back refreshes become invisible:
 as the pipeline is waiting for the data to be returned and takes some time to reach the memory stage of the next instruction, it is not able to use successive access slots of the backend, and thus it is unable to observe the refresh at all.
 With this refresh scheme, refreshes do not affect the latencies of load/store instructions, and the refreshes scheduled within DMA transfers are predictable so the latency effects of the refresh can be easily analyzed.  
 
+\subsection{Memory Mapped I/O}
+Currently PTARM implements a separate I/O bus for communicating with I/O.
+The bus is currently shared between all threads.
+%Also talk about I/O bus connections and the protocol to determine if data is ready
 
+\section{Exception Handling}
+\label{subsec:exception_handling_in_ptarm}
+When exceptions occur in a single threaded pipeline, the whole pipeline must be flushed because of the control flow shift in the program. 
+The existing instructions in the pipeline become invalid, and the pipeline overwrites the PC to jump to a specified exception handler. 
+The ARM ISA specifies seven types of exceptions, and an exception vector table that points the PC to specified handler addresses when those exceptions occur. 
+The exception vector table is stored in the BootROM in our implementation.
+Exceptions can be triggered by external or internal events that occur in the pipeline, such as an toggling an external interrupt signal or using a software interrupt instruction to trigger the exception programmatically.
+But no matter how the exceptions are generated, they must be handled predictably in the pipeline.
+ 
+In the context of a thread interleaved pipeline, all threads are temporally isolated. 
+Thus, an exception that occurs on one thread must not effect the execution of other threads in the pipeline.
+In our pipeline, any exceptions or interrupts that occur during execution are latched at each stage and propagated down the pipeline with the instruction. 
+An instruction flush signal is toggled to ensure that this instruction does not commit any state to memory or registers. 
+The exception type is checked at the memory stage in the PC write logic before the next PC is committed.  
+According to the exception type, the program state register bits are set, and the PC is redirected to the correct entry in the exception vector table. 
+The current PC is passed on to the writeback stage to store in the link register (R14).
+This provides a mechanism for the program return to the initial instruction where the exception occurs and re-execute it if desired, since the instruction did not complete its execution.
+If the exception is generated from after a memory access and detected in the writeback stage, the PC forwarding path is used to fetch the exception vector entry for data memory exceptions. 
+Note that it is up the each exception handler to save the register states and stack of the program.  
 
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/exception_handling_pipeline}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Handling Exceptions in PTARM}
+  \label{fig:exception_handling_pipeline}
+  \vspace{-10pt}
+\end{wrapfigure} 
+None of the instructions that are executing in the pipeline are flushed when an exception occurs in our pipeline. 
+As shown in figure~\ref{fig:exception_handling_pipeline}, the instructions that are executing in other pipeline stages all belong to other threads, so no flushing of the pipeline is required because no instruction was executed speculatively.
+This simplifies the timing analysis of exceptions in our pipeline, as the timing behavior of other threads in the pipeline are unaffected.
+For the thread which the exception occurs, the only overhead to handling the exception is that the current instruction does not complete its execution this thread cycle.  
+The next thread cycle the pipeline will be handling the exception already, resulting in no additional stalls for the thread.
 
+It is possible that an exception occurs during a memory access instruction that is waiting for the results from DRAM to complete. 
+In this case, because the memory request is also sent to the DRAM controller, and possible already being serviced by the DRAM, we cannot cancel the memory request abruptly.
+In the case that the interrupted instruction was a load, we can simply disregard the results of the load, but if the instruction was a store, we cannot cancel the store request that is writing data to the memory.
+So it is up to the programmer to disable interrupts before writing to critical memory locations that require a consistent program state.
+By interrupting an instruction that is waiting on memory access to complete, we also potentially complicate the interaction with our DRAM controller.
+The DRAM controller can only service one request from each thread at a time for predictable performance\todo{elaborate on this?}.
+This normally is not an issue because our pipeline does not reorder instructions or speculatively execute while there are outstanding memory requests, but the pipeline waits until the request is finished before continuing execution.
+However, if a memory instruction is interrupted, the pipeline flushes the current instruction and continues execution of the exception handler in the Boot ROM.
+If at this point, the exception handler contains a memory request instruction to the DRAM, a memory request would be issued to the DRAM controller that is still servicing the previous request prior to the exception from this thread.
+The current memory request in this case would need to wait until the previous ``canceled'' memory request to complete its service by the DRAM before it can begin being serviced.
+This creates timing variability to the load instructions because the execution time of load instructions would be different depending on whether an exception just occurred or not.
+Because this situation can only occur in the exception handler, because it contains the instructions executed right after an exception, so we leave it to the compiler to ensure that the first few instructions in the exception handler code does not access the DRAM memory region.
+In PTARM, the compiler simply needs to ensure that the first three instructions executed from an exception handler are not instructions that access the DRAM.
+
+Currently PTARM does not implement an external interrupt controller to handle external interrupts. 
+But when implementing such an interrupt controller, each thread should be able to register specific external interrupts that it handles.
+For example, we might have a hard real-time task that is executing on one thread, while another thread without timing constraints is executing on another thread waiting for an interrupt to signal the completion of a UART transfer.
+In this case the thread running the hard real-time task should not be effected even if it is in execution when the interrupt occurs.
+Only the specific thread handling the UART transfers should be interrupt by this interrupt.  
+So we envision an interrupt controller that allows each thread to register specific interrupts that it handles, without affecting other threads in the pipeline.  
+%FIXME: Compare to XMOS style handling of interrupts?
 
 \section{Instruction Implementations}
 \label{sec:ptarm_instructions}
@@ -395,64 +464,6 @@ If the load to R15 instruction updates the base register, then the forwarding pa
 The extra cycle used to update the base register will allow us to propagate the results from memory to be committed in the memory stage.
 The timing behavior still conforms to a regular load to registers instruction. 
 
-\subsection{Exception Handling}
-\label{subsec:exception_handling_in_ptarm}
-When exceptions occur in a single threaded pipeline, the whole pipeline must be flushed because of the control flow shift in the program. 
-The existing instructions in the pipeline become invalid, and the pipeline overwrites the PC to jump to a specified exception handler. 
-The ARM ISA specifies seven types of exceptions, and an exception vector table that points the PC to specified handler addresses when those exceptions occur. 
-The exception vector table is stored in the BootROM in our implementation.
-Exceptions can be triggered by external or internal events that occur in the pipeline, such as an toggling an external interrupt signal or using a software interrupt instruction to trigger the exception programmatically.
-But no matter how the exceptions are generated, they must be handled predictably in the pipeline.
- 
-In the context of a thread interleaved pipeline, all threads are temporally isolated. 
-Thus, an exception that occurs on one thread must not effect the execution of other threads in the pipeline.
-In our pipeline, any exceptions or interrupts that occur during execution are latched at each stage and propagated down the pipeline with the instruction. 
-An instruction flush signal is toggled to ensure that this instruction does not commit any state to memory or registers. 
-The exception type is checked at the memory stage in the PC write logic before the next PC is committed.  
-According to the exception type, the program state register bits are set, and the PC is redirected to the correct entry in the exception vector table. 
-The current PC is passed on to the writeback stage to store in the link register (R14).
-This provides a mechanism for the program return to the initial instruction where the exception occurs and re-execute it if desired, since the instruction did not complete its execution.
-If the exception is generated from after a memory access and detected in the writeback stage, the PC forwarding path is used to fetch the exception vector entry for data memory exceptions. 
-Note that it is up the each exception handler to save the register states and stack of the program.  
-
-\begin{wrapfigure}{r}{0.5\textwidth}
-  \vspace{-20pt}
-  \begin{center}
-    \includegraphics[scale=.65]{figs/exception_handling_pipeline}
-  \end{center}
-  \vspace{-20pt}
-  \caption{Handling Exceptions in PTARM}
-  \label{fig:exception_handling_pipeline}
-  \vspace{-10pt}
-\end{wrapfigure} 
-None of the instructions that are executing in the pipeline are flushed when an exception occurs in our pipeline. 
-As shown in figure~\ref{fig:exception_handling_pipeline}, the instructions that are executing in other pipeline stages all belong to other threads, so no flushing of the pipeline is required because no instruction was executed speculatively.
-This simplifies the timing analysis of exceptions in our pipeline, as the timing behavior of other threads in the pipeline are unaffected.
-For the thread which the exception occurs, the only overhead to handling the exception is that the current instruction does not complete its execution this thread cycle.  
-The next thread cycle the pipeline will be handling the exception already, resulting in no additional stalls for the thread.
-
-It is possible that an exception occurs during a memory access instruction that is waiting for the results from DRAM to complete. 
-In this case, because the memory request is also sent to the DRAM controller, and possible already being serviced by the DRAM, we cannot cancel the memory request abruptly.
-In the case that the interrupted instruction was a load, we can simply disregard the results of the load, but if the instruction was a store, we cannot cancel the store request that is writing data to the memory.
-So it is up to the programmer to disable interrupts before writing to critical memory locations that require a consistent program state.
-By interrupting an instruction that is waiting on memory access to complete, we also potentially complicate the interaction with our DRAM controller.
-The DRAM controller can only service one request from each thread at a time for predictable performance\todo{elaborate on this?}.
-This normally is not an issue because our pipeline does not reorder instructions or speculatively execute while there are outstanding memory requests, but the pipeline waits until the request is finished before continuing execution.
-However, if a memory instruction is interrupted, the pipeline flushes the current instruction and continues execution of the exception handler in the Boot ROM.
-If at this point, the exception handler contains a memory request instruction to the DRAM, a memory request would be issued to the DRAM controller that is still servicing the previous request prior to the exception from this thread.
-The current memory request in this case would need to wait until the previous ``canceled'' memory request to complete its service by the DRAM before it can begin being serviced.
-This creates timing variability to the load instructions because the execution time of load instructions would be different depending on whether an exception just occurred or not.
-Because this situation can only occur in the exception handler, because it contains the instructions executed right after an exception, so we leave it to the compiler to ensure that the first few instructions in the exception handler code does not access the DRAM memory region.
-In PTARM, the compiler simply needs to ensure that the first three instructions executed from an exception handler are not instructions that access the DRAM.
-
-Currently PTARM does not implement an external interrupt controller to handle external interrupts. 
-But when implementing such an interrupt controller, each thread should be able to register specific external interrupts that it handles.
-For example, we might have a hard real-time task that is executing on one thread, while another thread without timing constraints is executing on another thread waiting for an interrupt to signal the completion of a UART transfer.
-In this case the thread running the hard real-time task should not be effected even if it is in execution when the interrupt occurs.
-Only the specific thread handling the UART transfers should be interrupt by this interrupt.  
-So we envision an interrupt controller that allows each thread to register specific interrupts that it handles, without affecting other threads in the pipeline.  
-%FIXME: Compare to XMOS style handling of interrupts?
-
 \subsection{Timing Instructions}
 In section~\ref{sec:programming_models} we presented various instruction extensions to the ISA to bring timing semantics at the ISA level.
 We will now present a primitive implementation of those instructions in PTARM.  
@@ -576,7 +587,7 @@ The software overhead involves managing a list of deadlines and ensuring that th
 It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
 However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
-\section{Time Analysis of PTARM}
+\section{Timing Analysis of PTARM}
 \label{sec:wcet}
 
 %mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
