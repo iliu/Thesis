@@ -1,358 +1,234 @@
-Craven et. al~\cite{Craven_PRET_implementation_2010} implements PRET thread interleaved pipeline as an open source core using OpenFire 
+We are certainly not the first or only one to tackle the unpredictability of computer architecture designs.
+In this chapter we survey the abundance of related research to our goal of predictable architectures.
+Timing analysis techniques, compiler techniques and architectural techniques all play a role in tackling the unpredictability of computer architectures.
+However, we limit the scope of this survey to a few compiler techniques with the main focus on architectural techniques, as that is the focus of this thesis. 
+
+Adding temporal semantics to programming languages has been the focus of many research proposals, but to the best of our knowledge, we believe this is the first attempt to introduce temporal semantics down to the ISA level. 
 
 %FIXME: Compare to XMOS style handling of interrupts?
 
-\section{Real Time Adaptions}
-%different lines of design and their thought process
-\subsection{Branch Prediction for Real Time Purposes}
+\section{Pipeline-Focused Techniques}
+\subsection{Static Branch Predictors}
 \label{sec:RTBranch}
-Dynamic Branch predictors are a pain to model because the effect of
-\textit{aliasing} of branch points. \textit{Aliasing} occurs when two
-different branches occupy the same branch predictor slot, and cause
-interference, which most of the time is destructive, and very complex
-to model. They also cause timing
-anomalies~\cite{Engblom2003dynbranch}. Burguiere et
-al.~\cite{Burguiere2005staticbranchpredict} (Pascal Sainrat) made a
-case for \textit{static branch prediction} to be used for real time
-systems. This could be done in several ways. Classic static branch
-predictions have relatively simple prediction schemes. One scheme is
-to predict either all branches are taken or not taken. Improvements
-include the \textit{Backward Taken, Forward Not taken} scheme, to
-improve performance for loops and if statements. In Burguiere's work,
-they analyze different code patterns (loops, if-then-else, if then)
-and assign a static prediction for those patterns. This removes
-\textit{aliasing} and gives better estimated worst case branch
-mispredicts. Architecture support is common now for static branch
-predictions, where compilers can insert instruction set support
-constructs to denote the static prediction of the branch. The
-underlying architecture will use that for its prediction, instead of
-relying on a dynamic hardware unit. 
+Dynamic branch predictors cause timing anomalies~\cite{Engblom2003dynbranch}, and are difficult to model is because of the \textit{aliasing} of branch points.   
+\textit{Aliasing} occurs when two different branches occupy the same branch predictor slot, and cause interference.
+Burguiere et al.~\cite{Burguiere2005staticbranchpredict} made a case for \textit{static branch prediction} to be used for real-time systems.
+This could be done in several ways. 
+The simplest form can predict all branches taken or not taken. 
+Improvements can include the \textit{Backward Taken, Forward Not taken} scheme, to improve performance for loops and if statements.
+This uses the observation that for loop control branches, most all backwards branches are taken to return to the loop, and only at the end of the loop are forward branches taken. 
+With architecture support for static branch predictions, compilers can analyze code patterns (loops, if-then-else, if then) and insert instruction set constructs to denote the static prediction of each branch.  
+The underlying architecture will use that for its prediction, instead of relying on a dynamic hardware unit.
+This removes \textit{aliasing} and gives better estimated worst case branch mispredicts. 
 
-Bodin et al.~\cite{Bodin2005staticbranch} further pushes the idea of
-static branch prediction to improve WCET of programs. The idea is the
-use static branch prediction for the worst case execution path, and
-remove all branch mis-prediction penalty on the worst case path to
-improve the performance of the worst case path. They propose an
-algorithm that iterates through the CFG to find the WCEP. Initially,
-all the branches are assumed to be mispredicted, and the algorithm
-uses IPET to find the worst case path when each branch is
-mispredicted. Then, the algorithm assigns a static branch prediction
-to the branches on the WCEP by predicting the WCEP to be taken. The
-algorithm then iterates again to find the WCEP with the newly
-predicted branches. If two iterations yield the same WCEP, then the
-algorithm is done. Since the algorithm never reassigns assigned
-branches, it always converges. It's not optimal since it never
-reassigns branch predictions. This can effectively lower the WCET of a
-program, and remove the unpredictability of branches.
+Bodin et al.~\cite{Bodin2005staticbranch} uses this idea of software static branch prediction to improve WCET of programs.
+Intuitively, they aim to remove all branch mispredict penalties from the worst-case path to improve the WCET. 
+They propose an algorithm that iterates through the control flow graph to find the worst-case execution path (WCEP). 
+Initially, the algorithm finds the worst case path assuming all the branches are mispredicted. 
+Then, the algorithm assigns the static branch prediction of all branches on the WCEP to be taken.
+The algorithm then iterates again to find the new WCEP until two iterations yield the same WCEP.
+Since the algorithm never reassigns assigned branches, it always converges but is not optimal.
+The presence of caches can easily effect the WCEP, and each branch prediction reassigned could modify the cache state.
+However, the experiments assumed all code and data fit into the caches, thus the effect of caches were not factored into by the algorithm.
 
-\subsection{Real Time Superscalar}
+\subsection{Superscalar Pipelines}
 \label{sec:RTSuperscale}
-For superscalar processors, attempting to model all advanced
-techniques leads to either very pessimistic results, or almost
-infeasible complex models. This is because the amount of inherent
-state that's kept by the pipeline is large. Rochange et
-al.~\cite{Rochange2005superscalar} (Pascal Sainrat) first proposed to
-fit a superscalar processor for real time purposes, by trying to ease
-the analysis using pre-scheduling of instructions. The concept is
-similar to resetting the pipeline state before each basic block
-execution. This is done by postponing the scheduling of the next basic
-block until anything from the previous basic block that can effect the
-timing is committed. The paper assumes no cache or TLB, nor does it
-mention any branch prediction, which could effect execution across
-basic blocks. Although there is no formal proofs in the paper, but the
-idea is intriguing. If one could effectively remove all timing
-interference across basic blocks, then the resources needed to model the
-pipeline could be significantly reduced, since you only need to model
-for a basic block, and the initial state is consistent for each basic
-block. However, depending on how many instructions can be in flight at
-one time, waiting for the pipeline state to be flushed could induce
-large penalties for programs with a lot of control flow transfer and
-small basic blocks. 
+Superscalar pipelines issue multiple instructions at a time to exploit instruction-level parallelism (ILP). 
+In order to keep the pipeline filled, superscalar pipelines typically employ more aggressive techniques to fully utilize the ILP. 
+As a result, attempting to model all advanced techniques often leads to either very pessimistic results, or almost infeasible complex models.
 
-\paragraph{A time-predictable execution mode for superscalar pipelines with instruction prescheduling ~\cite{Rochange2005superscalar}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
+Rochange et al.~\cite{Rochange2005superscalar} propose to use instruction pre-scheduling to ease the difficulties of analysis of superscalar pipelines.  
+The concept is similar to resetting the pipeline state before each basic block execution. 
+This is done by postponing the scheduling of instructions from the next basic block until the instructions from the previous basic block are completed.
+If it is possible to remove all timing interference across basic blocks, then the resources needed to model the pipeline could be significantly reduced, as each basic block will start with a consistent initial state.
+However, the results assume the absence of caches, which could easily effect execution across basic blocks.  
+Furthermore, depending on how many instructions can be in flight at one time, waiting for the pipeline state to be flushed could induce large penalties for programs with a lot of control flow transfer and small basic blocks. 
 
-\item What is the main goal?\\
-  They want to reconcile high performance with time
-  predictability. Mainly, they are making out of order superscalar
-  pipelines fit WCET estimation techniques. 
-\item What did they do to achieve this goal?\\
-  They control instruction flow to remove dependence between basic
-  blocks so that any WCET estimation tool would only need to measure
-  or estimate a smaller segment of code.  
-\item How do they evaluate their approach? Does it achieve the goal?
-  Do they compare it with other work?\\
-  They showed a performance comparison of slow down compared to
-  regular out of order superscalar and also against in order scalar
-  pipeline to show performance improvement. 
-\item What other work is listed as future work?\\
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-    They ignore peripheral components (cache memories, TLBs) as well
-    as external events (interrupts) and interactions with the
-    operating system (process scheduling, virtual memory, etc).
-  \item Which parts of a system/design process are modified by this
-    work? (e.g. hardware (which feature?), WCET analysis, scheduling,
-    compiler, programming language, \ldots)\\
-\end{itemize}
+% \paragraph{A time-predictable execution mode for superscalar pipelines with instruction prescheduling ~\cite{Rochange2005superscalar}}
+% \begin{itemize}
+% \item What is the background of this work? What is the motivation?\\
+% 
+% \item What is the main goal?\\
+%   They want to reconcile high performance with time
+%   predictability. Mainly, they are making out of order superscalar
+%   pipelines fit WCET estimation techniques. 
+% \item What did they do to achieve this goal?\\
+%   They control instruction flow to remove dependence between basic
+%   blocks so that any WCET estimation tool would only need to measure
+%   or estimate a smaller segment of code.  
+% \item How do they evaluate their approach? Does it achieve the goal?
+%   Do they compare it with other work?\\
+%   They showed a performance comparison of slow down compared to
+%   regular out of order superscalar and also against in order scalar
+%   pipeline to show performance improvement. 
+% \item What other work is listed as future work?\\
+% \end{itemize}
+% Additional questions:
+% \begin{itemize}
+%   \item What are the limitations/assumptions of this work?\\
+%     They ignore peripheral components (cache memories, TLBs) as well
+%     as external events (interrupts) and interactions with the
+%     operating system (process scheduling, virtual memory, etc).
+%   \item Which parts of a system/design process are modified by this
+%     work? (e.g. hardware (which feature?), WCET analysis, scheduling,
+%     compiler, programming language, \ldots)\\
+% \end{itemize}
 
 
-\paragraph{Predictable Out-of-order Execution Using Virtual Traces ~\cite{whitham:08:predOOOwithVirtualTraces}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-  The motivation is to improve WCET of complex processors,
-  specifically for out-of-order superscalar pipelines. 
-\item What is the main goal?\\
-  The main goal of this paper is 3 fold. 1) minimizing the pessimism
-  introduced in WCET analysis. 2) increasing CPU throughput that can
-  be guaranteed. 3) minimize CPU modeling cost. 
-\item What did they do to achieve this goal?\\
-  They introduced a VTC (virtual trace controller) to control the
-  progress of the pipeline. They argue that this controller can be
-  used for a CPU of arbitrary complexity. The VTC operates CPU
-  programs as a collection of traces. Traces are paths through the
-  program. Essentially traces are formed by statically predicting
-  branches, in the context of this paper they predict the branches
-  towards the worst case execution path. This way the pipeline
-  optimizations (out of order execution etc) can optimize the worst
-  case path. This achieves goal 2, which is increased the guaranteed
-  throughput. The traces are formed via static branch predictions, and
-  the VTC contains a VTR (virtual trace register) which stores the
-  branch predictions. The pipeline state is reset between traces, so
-  the WCET analysis can be limited to within traces. The side exits
-  are determined by branch mispredicts. Now WCET within each trace and
-  side exit can be measured, and it will be the same execution time,
-  thus no CPU modeling cost is needed. This achieves goals 1 and 3. 
-\item How do they evaluate their approach? Does it achieve the goal?
-  They use the Malardalen WCET benchmark suite, but assume that
-  benchmark programs are single-path programs. They assume using IPET
-  or methods can find the WCET. They use the benchmark programs and
-  run the program on an idealized in order machine to compare the
-  results with their machine. They compare the speed up /slow down and
-  use it to analyze the issues with their approach. 
-\item What other work is listed as future work?\\
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-    They assume WCEP is easily obtained. It also depends on how many
-    traces are formed, and how effective the traces are formed. They
-    assume scratchpads in this work.
-  \item Which parts of a system/design process are modified by this
-    work? (e.g. hardware (which feature?), WCET analysis, scheduling,
-    compiler, programming language, \ldots)\\
-    They need a compiler to compile code into traces and form
-    traces. The hardware is modified with a VTC to control the traces
-    and stall the pipeline between traces. 
-\end{itemize}
+% \paragraph{Predictable Out-of-order Execution Using Virtual Traces ~\cite{whitham:08:predOOOwithVirtualTraces}}
+% \begin{itemize}
+% \item What is the background of this work? What is the motivation?\\
+%   The motivation is to improve WCET of complex processors,
+%   specifically for out-of-order superscalar pipelines. 
+% \item What is the main goal?\\
+%   The main goal of this paper is 3 fold. 1) minimizing the pessimism
+%   introduced in WCET analysis. 2) increasing CPU throughput that can
+%   be guaranteed. 3) minimize CPU modeling cost. 
+% \item What did they do to achieve this goal?\\
+%   They introduced a VTC (virtual trace controller) to control the
+%   progress of the pipeline. They argue that this controller can be
+%   used for a CPU of arbitrary complexity. The VTC operates CPU
+%   programs as a collection of traces. Traces are paths through the
+%   program. Essentially traces are formed by statically predicting
+%   branches, in the context of this paper they predict the branches
+%   towards the worst case execution path. This way the pipeline
+%   optimizations (out of order execution etc) can optimize the worst
+%   case path. This achieves goal 2, which is increased the guaranteed
+%   throughput. The traces are formed via static branch predictions, and
+%   the VTC contains a VTR (virtual trace register) which stores the
+%   branch predictions. The pipeline state is reset between traces, so
+%   the WCET analysis can be limited to within traces. The side exits
+%   are determined by branch mispredicts. Now WCET within each trace and
+%   side exit can be measured, and it will be the same execution time,
+%   thus no CPU modeling cost is needed. This achieves goals 1 and 3. 
+% \item How do they evaluate their approach? Does it achieve the goal?
+%   They use the Malardalen WCET benchmark suite, but assume that
+%   benchmark programs are single-path programs. They assume using IPET
+%   or methods can find the WCET. They use the benchmark programs and
+%   run the program on an idealized in order machine to compare the
+%   results with their machine. They compare the speed up /slow down and
+%   use it to analyze the issues with their approach. 
+% \item What other work is listed as future work?\\
+% \end{itemize}
+% Additional questions:
+% \begin{itemize}
+%   \item What are the limitations/assumptions of this work?\\
+%     They assume WCEP is easily obtained. It also depends on how many
+%     traces are formed, and how effective the traces are formed. They
+%     assume scratchpads in this work.
+%   \item Which parts of a system/design process are modified by this
+%     work? (e.g. hardware (which feature?), WCET analysis, scheduling,
+%     compiler, programming language, \ldots)\\
+%     They need a compiler to compile code into traces and form
+%     traces. The hardware is modified with a VTC to control the traces
+%     and stall the pipeline between traces. 
+% \end{itemize}
 
 
-Extending the superscalar work, Whitham et
-al. \cite{whitham:08:predOOOwithVirtualTraces} proposed using a slightly
-modified out of order superscalar pipeline with \textit{virtual
-  traces} to provide a predictable and repeatable processor for single
-thread execution. \cite{Whitham2008formvirtualtraces} explains in more
-detail how virtual traces are formed. Basically virtual traces utilize
-the idea described in Bodin et al.~\cite{Bodin2005staticbranch}(see
-\ref{sec:RTBranch}), and use static branch prediction to guide the
-processor along the path of a \textit{trace}. A trace is formed using
-a similar algorithm in~\cite{Bodin2005staticbranch}, except that its
-size ($L$) is determined by the number to branches it speculates. This
-could be limited by the complexity of the algorithm, although there is
-usually an optimal point in which you won't get more parallelism even
-if you pass it. In the out of order pipeline, fetching of the
-instructions of a trace is stalled until the previous trace is
-completely out of the pipeline. This allows traces to be analyzed
-starting from a fresh state in the pipeline, and prevent interference
-between traces. There is also constrains on other unpredictable events
-that might be derived from some pipeline state which cannot be flushed
-(padding variable length instructions (\textcolor{red}{what do these
-  instructions depend on?}), disallowing memory prediction
-assuming scratchpads and disallowing branch instructions to be
-reordered (so you will only be in one trace, as branches represent
-exits to the trace) etc). This allows for the execution of traces to
-run at ``constant'' time for each different exit (the worst case time
-is the main path of the trace). By doing this you remove the need for
-WCET analysis because you can just do it by measurement. 
+Whitham et al. \cite{whitham:08:predOOOwithVirtualTraces} combined the techniques of \emph{instruction pre-scheduling} and \emph{static branch predictions} and propose modifications to an out-of-order superscalar pipeline to provide predictability for single thread execution.  
+Instead of basic blocks, the superscalar pipeline pre-schedules instructions across \emph{virtual traces}\cite{Whitham2008formvirtualtraces}. 
+\emph{Virtual traces} are program paths with static branch predictions inserted. 
+These are usually formed by predicting along the WCEP, similar to the algorithm Bodin et al.~\cite{Bodin2005staticbranch} introduced. 
+Each virtual trace can contain a fixed number of branches. 
+A VTC (virtual trace controller) is introduced to control the progress of the pipeline.
+The VTC contains a VTR (virtual trace register) which stores the branch predictions, and the pipeline state is reset between traces so the WCET analysis can be limited to within traces.
+The out-of-order superscalar pipeline is also modified to disallow memory prediction, reordering of branches, and assume scratchpads are used instead of caches.  
+This allows the execution of traces to run predictably for each different exit (branch mispredict) within a trace.
+They show an improved throughput for most programs when compared to a simple in-order CPU model, and studied the effects of trace sizes in order to balance the main path execution time against the costs of side exits 
 
-\bigskip
+% There are issues with this work, as the assumption is the ability to find the WCEP when doing the trace scheduling (how do you obtain numbers for the basic blocks with Out of Order execution, and what if program itself is so complex that the analysis is nearly infeasible?). 
+% But the idea of using static branch prediction in combination with WCET could be leveraged. 
+% The delayed scheduling of traces to flush the pipeline could be a huge penalty for programs with small tasks that execute frequently. 
+% Reducing this delay is thus a trade off between performance of traces vs amount of state to keep to obtain the performance.
 
-There are issues with this work, as the assumption is the ability to
-find the WCEP when doing the trace scheduling (how do you obtain
-numbers for the basic blocks with Out of Order execution, and what if
-program itself is so complex that the analysis is nearly
-infeasible?). But the idea of using static branch prediction in
-combination with WCET could be leveraged. The delayed scheduling of
-traces to flush the pipeline could be a huge penalty for programs with
-small tasks that execute frequently. Reducing this delay is thus a
-trade off between performance of traces vs amount of state to keep to
-obtain the performance.
-
-\subsection{Real Time VLIW }
+\subsection{VLIW architectures}
 \label{sec:RTVLIW}
-VLIW machines rely on compiler to utilize ILP. This helps in the
-predictability of the software because the hardware does minimum
-reordering or stalling. Yan et al.~\cite{Yan2008VLIW} Studied the
-predictability of VLIW machines, and proposed changes to the
-architecture and compiler to improve the predictability. Although most
-of the data dependency is scheduled away by the compiler, there are
-still several factors that limit its predictability on the hardware: 
-\begin{itemize}
-\item Memory access latency will still cause instructions to stall
-  from the architecture. Since statically it is not known whether a
-  memory access is a hit or a miss, the hardware still needs to check
-  and stall for it. 
-\item Data dependency across compilation units. The hardware still
-  supports basic data dependency checking because across compilation
-  units there could still be dependencies. 
-\item Branch handling. If the VLIW uses branch prediction, there is
-  still the need for handling of mis-prediction etc.
-\end{itemize}
-To circumvent the problem,~\cite{Yan2008VLIW} proposed two major
-methods. First, by using the predicate instructions and full
-if-conversion combined with hyperblock scheduling they eliminate all
-none-loop branches. Then, for the dependencies across compilation
-units, they use code padding. They detect the leaf instructions
-(instructions which the compiler didn't detect any dependencies) and
-then based upon how many cycles the instruction takes, and how many c
-cycles are already there, they pad the code with nops. This will
-enable easier WCET analysis. This work currently doesn't deal with
-caches however, as it assumes a perfect cache.
+VLIW machines, like superscalars, issue multiple instructions at a time to exploit ILP.
+However, unlike superscalrs, they rely on compiler to utilize ILP and determine the instructions issued.  
+This helps in the predictability of the software because the hardware does minimum reordering or stalling.
+ 
+Yan et al.~\cite{Yan2008VLIW} studied the predictability of VLIW machines, and propose changes to the architecture and compiler to improve the predictability. 
+They found that although most of the data dependency is scheduled away by the compiler, there are still several factors that limit the predictability on the hardware. 
+First, memory access latency will still cause instructions to stall from the architecture. 
+Since statically it is not known whether a memory access is a hit or a miss, the hardware still needs to check and stall for it. 
+Second, data dependency still exists across compilation units, so the hardware still supports basic data dependency checking to handle those dependencies.
+A compilation unit could be a basic block, a loop, a procedure or a region~\cite{Hank:1995:RCI:225160.225189}. 
+Finally, if the VLIW uses branch prediction, there is still the need for handling of mis-prediction etc.
 
-\subsection{Real Time Scheduling with Multithreading}
-With multithreading done explicitly in hardware, the scheduling policy
-is key to obtaining predictability for multithreaded processors. If
-the scheduling policy is done by the hardware, and it's not
-transparent to the programmer, than there is no way to guarantee
-performance of any thread because the hardware can swap threads
-without knowledge of programmer. 
+As VLIW machines heavily utilize the compiler to improve performance, they propose several compiler techniques to compile programs that lend themselves to better WCET for VLIW architectures. 
+First, they use the single-path paradigm proposed by Puschner and Burns~\cite{Puschner:2002:WTP:882515.885528}, and eliminate all non-loop backwards branches with full if-conversions~\cite{Allen:1983:CCD:567067.567085}.  
+To mitigate the performance penalty of single-path programming with aggressive hyperblock scheduling~\cite{Mahlke:1992:ECS:144953.144998} to exploit the ILP from VLIW architectures. 
+For the data dependencies across compilation units, they use code padding to ensure the execution time is consistent across different paths.    
+This will enable easier WCET analysis. 
+This work minimally deals with instruction caches, but does not account in the effects of data cache. 
 
-Kreuzinger et al.~\cite{Kreuzinger2000RTmultithread} (Theo Ungerer)
-evaluated using different real time scheduling schemes to schedule
-hardware threads and handle external events. They evaluated FPP (fixed
-priority preemptive), EDF (earliest deadline first), LLF (least laxity
-first) and GP (guaranteed percentage), which is during a period, each
-thread gets a fixed percentage of the pipeline share. The architecture
-used for this work is a java multi-threaded superscalar pipeline with
-four threads. \cite{Kreuzinger2003multithreadeventhandle} explains the
-architecture in more detail. A hardware priority manager is
-implemented to facilitate the scheduling of threads. All real-time
-threads registers its real-time requirements during initialization
-stage to the priority manager. When the external event occurs, the
-priority manager schedules the corresponding IST (interrupt service
-thread) and starts assigning priorities based upon the real time
-requirements. The evaluation criteria to compare scheduling policies
-is the throughput of the processor. The conclusion of the report is
-that in order to maximize multiple threads on a superscalar machine,
-the scheduler should try and keep as many threads active as long as
-possible to leverage thread level parallelism and hide more latencies
-of pipeline stalls. Thus GP does the best because it schedules
-different active threads each cycle until their percentage runs out,
-thus it keeps threads alive as long as possible. The idea of using
-hardware threads to service interrupts is novel because of the low
-overhead to switch contexts. Also by giving the interrupt service
-routine thread priorities, you can bound the time. But this approach
-lacks composability between the different priorities. 
+\subsection{Multithreaded Pipelines}
+\subsubsection{Thread Scheduling}
+With explicit hardware multithreading, the scheduling policy plays a huge role in the predictability of the architecture.
+Kreuzinger et al.~\cite{Kreuzinger2000RTmultithread} evaluated the use of different real time scheduling schemes to schedule hardware threads to handle external events. 
+They evaluated fixed priority preemptive (FPP), earliest deadline first (EDF), least laxity first (LLF) and guaranteed percentage (GP), which is essentially time sharing the pipeline. 
+The architecture used for evaluation is a java multi-threaded superscalar pipeline with four threads~\cite{Kreuzinger2003multithreadeventhandle}. 
+A hardware priority manager is implemented to facilitate the scheduling of threads. 
+All real-time threads registers its real-time requirements during initialization stage to the priority manager. 
+When the external event occurs, the priority manager schedules the corresponding interrupt service thread, and starts assigning priorities based upon the real time requirements. 
+The evaluation criteria to compare scheduling policies is the throughput of the processor. 
+The conclusion of the report is that in order to maximize multiple threads on a superscalar machine, the scheduler should try and keep as many threads active as long as possible to leverage thread level parallelism and hide more latencies of pipeline stalls. 
+Thus GP does the best because it schedules different active threads each cycle until their percentage runs out, thus it keeps threads alive as long as possible. 
+The idea of using hardware threads to service interrupts is novel because of the low overhead to switch contexts. 
+By giving the interrupt service routine thread priorities, it may be possible the bound the execution time of higher priority threads. 
+Although the dynamic thread scheduling can cause execution time bounds to be imprecise from the effects of timing interference across threads.  
+  
+El-Haj-Mahmoud et al.~\cite{El-Haj-Mahmoud2005VirtualMultiprocessor} proposed a statically scheduled multithreaded architecture called the Real-Time Virtual Multiprocessor(RVMP).   
+The idea of a virtual processor is a slice of time on the process. 
+The RVMP extends an in-order 4-way superscalar processor to support the partitioning of the pipeline in \emph{space} and \emph{time}.  
+In the \emph{space} dimension, the resources of the superscalar can be partitioned to different threads. 
+In the \emph{time} dimension, the superscalar resources are time shared, and different threads are scheduled to utilize the resources at different times.  
+The hardware extensions to the superscalar pipeline prevent interference between the virtual partitionings.
+Scratchpads are employed for predictable memory access latencies, although they assume all accesses go to the scratchpad. 
+It is unclear how accesses to shared resources, in particular main memory are dealt with.
+A static round-based schedule of the thread execution is constructed to account for the real-time requirements of each thread.
+The static schedule utilizes the flexibility of the different time and space partitioning options to allow threads with higher utilization more access to the pipeline. 
 
+\subsubsection{Simultaneous Multithreaded Architectures} 
+\label{sec:RTSMT}
+Simultaneous Multithreaded Architectures (SMT) attempt to exploit both instruction-level and thread-level parallelism by dynamically scheduling multiple hardware threads onto a multi-way pipeline. 
+Each cycle, instructions from different threads can be fetched simultaneously to fully utilize the pipeline.
+The dynamic scheduling and aggressive speculation techniques render SMTs almost impossible to use for real-time systems.  
+However, several proposals involved slight modifications to architecture to create a \emph{WCET-aware} SMT to be used for real-time systems.  
 
-A more static approach was proposed by El-Haj-Mahmoud et
-al.~\cite{El-Haj-Mahmoud2005VirtualMultiprocessor} called Virtual
-Multiprocessor. The idea of a virtual processor is a slice of time on
-the process. This approached used a multithreaded superscalar in order
-pipeline, but instead of using a dynamic real time scheduler in the
-architecture, it attempts to statically schedule the different threads
-in the architecture offline. The different ways of the superscalar is
-partitioned and separated, which can be used by the static scheduler
-to execute threads. It uses scratchpad memory and static branch
-prediction (pad branch penalties in WCET analysis). For the
-superscalar, it first introduces a fetch buffer between the scratchpad
-and issue logic. This is to buffer instructions for all (four in the
-paper) threads so there is always instruction available to
-execute. The fetch buffer is filled according to the static schedule,
-for example, if only one way is reserved for a thread, it is only
-fetched once per fetch round (every four cycles in this paper). The
-decoding and scoreboarding logic is duplicated for different hardware
-thread spaces to check dependencies and hazards within the
-thread. Also, when a reconfiguration of the processor partition
-occurs, there might be instructions still in the issue and decoding
-logic that are waiting to be dispatched from a thread that is going to
-be disabled. If this instruction stalls, it might create interference
-in the static schedule because it could block the newly activated
-threads from executing. Thus, they introduce shadow buffers (one per
-VP) to store and checkpoint instructions from a disabled hardware
-thread, so that it could be resumed when it is scheduled. It's unclear
-in this paper how multicycle instructions could effect the execution
-of other threads. Also, it makes no mention of how scratchpads
-interact with main memory, since each VP has its own scratchpad, it's
-possible that there is contention to the memory. 
+Barre et al.~\cite{Barre2008RTSMT} proposed to assign one explicit hardware thread with the highest priority. 
+That thread, called the real-time thread, gains access to any resource whenever it is scheduled. 
+Any other thread that is currently occupying the resource will be preempted, and later replayed when the real-time thread is not using it.
+The modifications to the SMT include additions to allow the preemption, and also the partitioning of any resource that needs to be shared. 
+This gives the highest priority thread the illusion that it has the whole superscalar pipeline to itself, reducing the execution time analysis of the real-time thread to the equivalent of a superscalar architecture. 
+Currently the cache effects and branch prediction are listed as future work.  
 
-Both these multithreaded archtectures extend a superscalar processor
-for performance reasons. It's unclear really how precise the WCET
-could be, since a superscalar pipeline itself is hard to obtain
-precise WCET, accounting in different interrupts and priorities or
-different threads could only give a really conservative WCET
-estimate. Even if we try to statically schedule the hardware threads,
-the schedulability test done needs to be based on a conservative
-assumption of the WCET. The question is, how precise is the WCET of a
-superscalar without the presence of caches and branch predictors. 
+Hily et al.~\cite{Hily1999} showed that out-of-order execution may not be as cost effective as in-order execution on SMT machines.
+Thus, Uhrig et al.~\cite{SaschaUhrig2005SMT} proposed a similar concept to Barre et al.~\cite{Barre2008RTSMT}, except for an in-order executed superscalar.
+Mische et al.\cite{Mische2008SMT} expands this to allow more than one real-time thread running on the SMT architecture.
+They do so by essentially time-sharing the highest priority thread slot amongst the real-time threads.  
+The time-sharing schedule is statically constructed to ensure that the real-time threads still provide reasonable WCET guarantees. 
+This architecture uses instruction scratchpads without data scratchpads, and no branch predictors, as the branch penalty can be filled with executions from other threads.   
+Some issues do arise with the contention of memory access, as it is difficult to partition memory accesses between hardware threads.
+Contention between the high priority thread slot and other thread slots are resolved by alerting the memory controller from earlier stages in the pipeline that a high priority thread will issue a memory instruction. 
+This way the memory controller can hold off service to the lower priority memory accesses and wait for the high priority access to come.     
+Contention between the real-time threads on the high priority slot however are not resolved. 
+ 
+% \bigskip
+% Although real time SMT proposals have a lot of compelling features, it
+% still lacks a formal WCET analysis. All of the proposals have just
+% used measured benchmarks to prove performance, and assumed that
+% because the high priority thread runs as if no other thread is
+% running, so static analysis is possible. In reality, WCET for a
+% superscalar processor already contains pessimistic results. Although
+% the lack of a branch predictor and in order execution may aid in
+% this. Also, in this line of work still only one explicit hardware
+% thread slot gets real-time performance, while the other threads'
+% performance will have a non-continuous penalty, which is hard to
+% categorize. 
 
-\paragraph{Virtual Multiprocessor: An Analyzable, High-Performance Microarchitecture for Real-Time Computing~\cite{El-Haj-Mahmoud2005VirtualMultiprocessor}}
-\begin{itemize}
-	\item What is the background of this work? What is the motivation?\\
-		High-end embedded systems demand analyzable high performance.
-		To meet higher performance targets features like deep pipelining, dynamic branch prediction, multiple instruction issue, multithreading, out-of-order execution have been introduced in embedded processors.
-		Deriving tight and safe bounds on the WCETs of tasks on such processors is intractable.
-		Higher performance can be achieved without sacrificing analyzability by using multiple simple processors.
-		However, the uniform partitioning of resources among multiple processors leads to load-balance problems.
-		In Simultaneous Multithreading (SMT), resources can be shared more flexibly to better utilize aggregate resources.
-		However, as simultaneous tasks interfere in SMT, this flexibility comes at the cost of reduced analyzability.
-	\item What is the main goal?\\
-		The goal is to achieve high performance (and therefore increased schedulability) without sacrificing analyzability.
-	\item What did they do to achieve this goal?
-		They introduce a Real-Time Virtual Multiprocessor (RVMP).
-		RVMP is an extension of an in-order superscalar processor.
-		The idea is to virtually partition the superscalar pipeline in \emph{space} and \emph{time}.
-		In the space dimension, the processing resources of the processor may be partitioned arbitrarily.
-		If the underlying superscalar architecture has four ways, it could be partitioned into four virtual processors with one way, a single virtual processor with four ways, or anything in between, like one virtual processor with three ways and one with one way.
-		Over time, these partitions may change.
-		The partitioning is done in such a way that tasks executing on the virtual processors do not interfere, i.e. they achieve timing composability.
-		This enables independent analysis of tasks on analyzable virtual processors.
-		Interference on memory accesses is eliminated by the introduction of scratchpad memories.\\
-		For scheduling, time is split into \emph{rounds} of fixed length.
-		Each task is split into subtasks that are executed with these rounds.
-		Scheduling tasks in rounds has the benefit of yielding more compact schedules which can be stored efficiently in the processor.
-		The impact of splitting tasks on their schedulability is unclear.
-	\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?
-		The approach is evaluated by performing schedulability analyses.
-		Benchmarks from the C-lab real-time benchmark suite and the MiBench embedded benchmark suite are used to generate random task sets with four (eight) tasks. 
-		The periods of the tasks in the task set are randomly selected with some constraints to eliminate trivially schedulable and unschedulable instances.
-		The schedulability of these task sets is then evaluated on RVMP and on fixed partitions of the processor: 4x1, 2x2, and 1x4.
-		Task sets with high utilization can be scheduled on RVMP significantly more often than on processors with fixed partitions.
-		In a second set of experiments, RVMP is compared with two SMT architectures.
-		As these SMT architectures are not analyzable, schedulability is determined using simulation, which is unsafe.
-		In these experiments, RVMP achieves similar performance as the two SMT architectures.
-	\item What other work is listed as future work?
-		No future work is listed.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  		It is unclear how accesses to shared resources, in particular main memory are dealt with.
-  		It appears that all memory accesses go to the scratchpads, which is unrealistic.
-  		The paper assumes a simple task model with periodic tasks, where each task's deadline is its period.
-  		As instruction fetchs of different virtual processors are performed sequentially, it seems that the order of instruction fetches would have an influence on the WCET of a task.
-  		This influence seems to be ignored.
-  		The effect of scheduling tasks in rounds on schedulability is not discussed.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)
-  		Hardware: the entire superscalar pipeline, scratchpad memories instead of caches.\\
-  		The existence of WCET analyses for virtual processors is assumed.\\
-  		A new scheduling mechanism needs to be employed.\\
-  		The use of scratchpads entails the use of a compiler to perform allocation or manual allocation.
-\end{itemize}
-
+\subsection{Others}
+\subsubsection{Virtual Simple Architecture}
 \paragraph{Virtual Simple Architecture (VISA): Exceeding the Complexity Limit in Safe Real-Time Systems~\cite{Anantaraman2003VISA}}
 
 \begin{itemize}
@@ -395,236 +271,7 @@ Additional questions:
 
 
 
-\subsection{Real Time SMT} 
-\label{sec:RTSMT}
-Several work involved trying to utilize SMT for real time
-systems. Barre et al.\cite{Barre2008RTSMT} (Pascal Sainrat) took this
-idea of Simultaneous Multi-Threading and pushed the idea for real time
-systems. This seemed to be counter intuitive at first, since the
-dynamic scheduling of threads and sharing of resources would be a
-nightmare for worst case execution time analysis. Motivation for this
-work include the ``Integrated Modular Avionics (IMA)''
-movement~\cite{IMA}, which tries to integrate several tasks into a
-single computing node. This can save power (on
-interconnects/communication) and save weight for air crafts. However,
-for the current paper\cite{Barre2008RTSMT} caches and branch
-prediction are listed as future work, which are the key aspects to
-it. The idea is very simple, give one explicit hardware thread the
-highest priority, and it gets access to any resource whenever it needs
-to schedule it. The hardware \textit{preempts} any lower priority
-thread instruction that's using a resource for the highest priority
-thread. It later replays the instruction. Along with the scheduling,
-any resource that needs to be shared (like instruction queue or
-decoding queue) is \textit{partitioned} to reduce interference. This
-gives the highest priority thread the illusion that it has the whole
-core to itself, while other threads are scheduled when resources are
-free from the high priority thread. The same concept was also proposed
-earlier by Uhrig et al.~\cite{SaschaUhrig2005SMT} (Theo Ungerer),
-except for in order instead of out of order execution. As this not
-only helps WCET analysis, but also Hily et al.~\cite{Hily1999} proved
-that out of order may not be as cost effective as in order on SMT
-machines.
- 
-Mische et al.\cite{Mische2008SMT} (Theo Ungerer) expanded this work
-and came up with a way to have more than one real time thread running
-in the architecture. Along with having one priority thread that gets
-resource any time it needs it, you time share that thread in a coarse
-grained way for different real time threads (a static schedule is
-constructed). The real time threads only execute in the high priority
-slot, so it can have timing guarantees and analyzability. This paper
-assumed one instruction scratchpad without a data scratchpad, and no
-branches (although it argues that the lack of branches can help the
-non real time thread's throughput). This paper notices some problems
-with memory access, as you can't partition the memory access between
-threads. Two problems arise, first is when a time shared high priority
-thread needs to access memory, but a low priority thread already has
-outstanding memory request in flight. The proposed solution is to
-alert the memory controller as early as possible when a high priority
-thread has decoded a memory instruction. This way the memory
-controller will hold off on all requests that are queued, and wait to
-service the high priority thread. This reduces the additional latency
-penalty by the number of pipeline stages between issue stage and
-memory controller. However, the memory latency is usually in the
-hundreds of cycles, thus it's not very plausible (in this paper they
-only had a data memory access of 3 cycles, so they claim to have
-completely hidden the memory latency of low priority threads). The
-second problem is during the context switching of real time threads,
-if the last instruction of the previous context is a memory operation,
-and the next context needs memory right away, there is a contention
-problem between the real time threads. This paper doesn't directly
-deal with the problem, but simply extends the time allotted to a
-thread, and decreases its time during the next round. For analysis,
-it seems it needs to conservatively assume that this might happen
-every time. Although this penalty will never aggregate, but the
-penalty could be bad with a high number of real time threads and long
-memory access latencies. 
-
-\paragraph{A Predictable Simultaneous Multithreading Scheme for Hard Real-Time~\cite{Barre2008RTSMT}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-  Complexity in embedded software has grown, but increasing cores
-  might not be an ideal solution because the complexity of
-  interconnect. So SMT could be a good solution. But currently SMTs do
-  not provide timing predictability at all. 
-\item What is the main goal?\\
-  The main goal is to provide a \textbf{WCET-aware} SMT processor to
-  execute one real time thread in parallel with less critical
-  threads. In other words, to design a SMT architecture that makes it
-  possible to analyze WCET of real time tasks. The HRT thread should
-  have no interference with other threads.
-\item What did they do to achieve this goal?\\
-  They identified pipeline resources that are storage resources
-  (instruction queues and buffers) and bandwidth resources (functional
-  units and commit stage). The storage resources are statically
-  partitioned among threads to reduce interference. The instruction
-  fetch is S-RR policy (every cycle a different thread is fetched
-  regardless if the thread is ready) to the fetch queue. Then a
-  Most-critical-first scheduling policy is implemented to choose
-  instruction to decode from the fetch queue. Basically, the HRT
-  thread is always chosen first, then the non real time threads get
-  chosen. For the functional units, if the HRT thread needs the a
-  functional unit and it is currently occupied by a NRT thread, then
-  the NRT thread gets trashed and later replayed so the HRT gets
-  access right away. This way the HRT does not have any interference
-  from the NRT thread. 
-\item How do they evaluate their approach? Does it achieve the goal?
-  Do they compare it with other work?\\
-  A cycle-level simulator is used to simulate the processor
-  architecture. They used a perfect branch predictor and perfect data
-  cache, and without modeling the instruction cache, they used a
-  random 1\% instruction miss rate with 100-cycle miss latency. They
-  compared the WCET-aware architecture (mostly MCF policy) with a
-  baseline core that implements O-RR scheduling policy for all
-  resources and oldest first scheduling for functional units etc. 
-
-  They use some simpler functions from the SNU-RT suite and run the
-  same function on all threads to maximize interference. First they
-  run the function with dummy threads to get the performance of the
-  function without interference. Then they begin to run the function
-  on all threads and they show the performance of the last finishing
-  thread. They state that the predictable SMT has no change in
-  execution time compared to the dummy thread experiment (although
-  it's not shown in numbers or tables), and they show that their
-  approach has performance degradation compared to the baseline core,
-  in which the last thread to finish takes longer. They call it a
-  ``moderate degradation''. No formal analysis or WCET analysis is
-  shown.
-\item What other work is listed as future work?\\
-  Address some issues that were ignored in this preliminary study,
-  like the strategy for sharing the instruction and data caches, as
-  well as the branch predictor, so as to maintain full timing
-  predictability for the critical thread. We will also investigate
-  solutions that would allow the concurrent execution of several
-  critical threads.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-    They assume perfect caches and branch prediction, and mainly focus
-    on pipeline features.
-
-    They assume it's possible to do WCET analysis of out of order
-    superscalar processors
-  \item Which parts of a system/design process are modified by this
-    work? (e.g. hardware (which feature?), WCET analysis, scheduling,
-    compiler, programming language, \ldots)\\
-    The hardware is modified by this approach, in particular,
-    mechanisms to partition shared queues and trash and replay
-    instructions in the functional units are added to support
-    implementing priorities in an SMT architecture.
-\end{itemize}
-
-
-\paragraph{Exploiting Spare Resources of In-order SMT Processors Executing Hard Real-time Threads~\cite{Mische2008SMT}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-  SMT processors have higher utilization of processor resources and
-  higher throughput. So the authors want to leverage that higher
-  utilization and throughput but still allow static WCET
-  analysis. (note that there is no clear definition of how precise the
-  static WCET analysis methods are, or how difficult they could
-  be). This work also attempts to do so in the presence of multiple
-  real time threads. 
-\item What is the main goal?\\
-  The paper makes the following four contributions:
-  \begin{itemize}
-    \item An SMT architecture that allows a static WCET analysis
-    \item A scheduling algorithm that executes multiple HRT threads
-      concurrently in SMT processor
-    \item An issue policy that uses free resources for NRT threads
-      without interference
-    \item Solutions to handle multicycle memory access
- \end{itemize}
-\item What did they do to achieve this goal?\\
-  An In order execution policy is used, as compared
-  to~\cite{Barre2008RTSMT}. This helps in static analysis as well as
-  improved throughput~\cite{Hily1999} compared to out of order
-  execution. Although the paper doesn't go into specific details about
-  the architectural features that were changed (beyond the basic
-  single thread to multi-thread hardware conversion), it does
-  specifically state that any changes they had made to the
-  architecture ensures that the HRT thread executes as if it were
-  executing alone. 
-\item How do they evaluate their approach? Does it achieve the goal?
-  Do they compare it with other work?\\
-  Benchmarks are run from the EEMBC automotive benchmark suite and the
-  Malardalen WCET group. They were executed on a cycle-accurate
-  SystemC model of CarCore. The first benchmark they looked at was the
-  effects of the memory instruction announcing. They looked at the
-  performance of the HRT when there was only 1 instruction or no
-  instruction announcing (CarCore assumes 2 instruction announcing can
-  completely hide the other threads from the HRT thread). They showed
-  that there was a slight performance degradation for the HRT thread,
-  meaning that there was interference from the other threads. They
-  noted that this performance degradation however mainly depends on
-  how much memory access is done by the HRT thread. On the flip side,
-  they also showed that the NRT threads gain in performance (compared
-  to the 2 instruction announcing) when there is 1 or no instruction
-  announcing. All graphs were shown in relative percentage. The second
-  set of numbers they showed the utilization of the processor. They
-  showed that within the HRT thread, if there is only one task, then
-  the utilization is 100\%, if there are 2, then they are both
-  50\%. This shows that there is no interference from NRT
-  threads. Note that NRT thread utilization drastically decreases as
-  priority lowers. 
-\item What other work is listed as future work?\\
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-    One assumption is that program execution on superscalar in-order
-    processor is deterministic, so static WCET analysis is possible
-    (again, nothing about its precision etc). 
-  \item Which parts of a system/design process are modified by this
-    work? (e.g. hardware (which feature?), WCET analysis, scheduling,
-    compiler, programming language, \ldots)\\
-\end{itemize}
-
-Metzlaff et al.~\cite{Metzlaff2008MethodcacheSMIT} (also Theo Ungerer)
-also proposed a method to deal with instruction caching. First they
-propose a separate scratchpad for each thread. Then they used method
-cache~\cite{Kirner2007ModelFunctionCache} with scratchpads and give
-priority to the top thread when a filling is needed. If the thread is
-stalled when a method is being filled into the scratchpad, then it
-seems there would be no data cache access conflict. By using a SMT
-machine, if the high priority thread is filling its cache, the lower
-priority threads could still fill the pipeline and gain utilization
-and throughput.
-
-\bigskip
-Although real time SMT proposals have a lot of compelling features, it
-still lacks a formal WCET analysis. All of the proposals have just
-used measured benchmarks to prove performance, and assumed that
-because the high priority thread runs as if no other thread is
-running, so static analysis is possible. In reality, WCET for a
-superscalar processor already contains pessimistic results. Although
-the lack of a branch predictor and in order execution may aid in
-this. Also, in this line of work still only one explicit hardware
-thread slot gets real-time performance, while the other threads'
-performance will have a non-continuous penalty, which is hard to
-categorize. 
-
-\subsection{Real Time Java}
+\subsubsection{Java Architectures}
 \label{sec:RTJava}
 Schoeberl designed the Java Optimized Processor (JOP)~\cite{jop:wcet}
 to propose using Java for real time embedded systems. The design of
@@ -646,23 +293,25 @@ length microcode. Each microcode executes in a fixed amount of cycles
 WCET analysis only requires a lookup table of bytecode translated into
 microcode, and it knows the execution time. 
 
-\subsection{Thread Interleaving}
+\subsubsection{MCGREP}
+Whitham and Audsley's MCGREP~\cite{whitam:06:mcgrep} use programmable microcode to accelerate hotspots that are otherwise too slow.
 
+\subsubsection{PRET}
+Craven et. al~\cite{Craven_PRET_implementation_2010} implements PRET thread interleaved pipeline as an open source core using OpenFire 
 
-Old idea: HEP\cite{Smith2000HEP}, Lee and
-Messerschmitt\cite{lee1987pip}, 
+\section{Memory-Focused Techniques}
 
+Metzlaff et al.~\cite{Metzlaff2008MethodcacheSMIT} (also Theo Ungerer)
+also proposed a method to deal with instruction caching. First they
+propose a separate scratchpad for each thread. Then they used method
+cache~\cite{Kirner2007ModelFunctionCache} with scratchpads and give
+priority to the top thread when a filling is needed. If the thread is
+stalled when a method is being filled into the scratchpad, then it
+seems there would be no data cache access conflict. By using a SMT
+machine, if the high priority thread is filling its cache, the lower
+priority threads could still fill the pipeline and gain utilization
+and throughput.
 
-Industrial use: XMOS, Ubicom IP3023, Sandbridge Sandblaster, Infineon Tri-Core
-
-\subsection{Missing papers}
-\begin{itemize}
-\item PRET-C - Partha Roop
-\item MCGREP - Jack Witham
-\end{itemize}
-
-
-\section{Memory Hierarchy}
 \subsection{Caches}
 The basic block of caches is a cache line. A cache line can contain
 $B$ words. When the cache is filled, the whole line is filled. When a
@@ -1178,6 +827,7 @@ Additional questions:
   	Scheduling, possibly the DRAM controller
 \end{itemize}
 
+Several research groups have introduced ways to mitigate the temporal interference in SMTs by allocating a real-time thread with the highest priority ~\cite{Barre2008RTSMT}, time-sharing the real-time thread ~\cite{Mische2008SMT}, and partitioning the instruction cache ~\cite{Metzlaff2008MethodcacheSMIT}.
 
 \paragraph{Implementing Time-Predictable Load and Store Operations~\cite{whitham:09:timepredLoadStore} }
 
@@ -1210,49 +860,39 @@ They claim that there are algorithms that determine the best physical address, b
 They require the following modifications: 1) hardware, 2) WCET analysis, and 3) compilers to generate the OPEN/CLOSE commands. 
 \end{itemize}
 
-\section{Interconnect}
+% \section{Interconnect}
+% 
+% \paragraph{Real-Time Control of I/O COTS Peripherals for Embedded Systems~\cite{Pellizzoni08,Bak09}}
+% \begin{itemize}
+% \item What is the background of this work? What is the motivation?\\
+% 	Due to mass production, commercial-off-the-shelf (COTS) peripherals are not only cheaper than custom made systems, but also provide performance orders of magnitude higher (e.g. PCI Express vs. the real-time SAFEbus). It is thus tempting to employ COTS components in real-time systems. However, their unpredictable timing makes their use in such systems difficult: they are typically designed paying little attention to worst-case timing behavior. This paper considers the I/O subsystem. Modern real-time systems may include several high-bandwidth I/O devices. Connecting these devices to the processor through COTS interconnects yields unpredictable delays and may cause deadline misses. In contrast to CPus, where real-time scheduling is common, it is not supported by COTS interconnect systems such as the PCI bus.
+% 	
+% \item What is the main goal?\\
+% 	The goal is to enable the use of COTS interconnect in real-time systems.
+% 
+% \item What did they do to achieve this goal?\\
+% 	They designed a real-time I/O management system. This system consists of a real-time bridge for each COTS peripheral connecting the peripheral to the COTS interconnect, and a reservation controller. The reservation controller decides at any point in time which real-time bridge may access the COTS intereconnect. It can implement a variety of real-time scheduling policies, such as EDF or RM.
+% They extend the Real-Time Calculus to determine I/O delay bounds and each bridge's necessary buffer size to guarantee lossless traffic delivery.
+% 
+% \item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
+% 	They evaluate their approach through measurements of synthetic benchmarks on a COTS PC platform.
+% 	As the speed of the PCIe is running at 2.5 GHz is very high, they extended the reservation controller to poll the state of the bus at a resolution of one microsecond.
+% 	They also reduced the FSB frequency to achieve a typical bandwidth value for embedded platforms.
+% 	The synthetic benchmark consists of four real-time flows competing for main memory.
+% 	The tasks' periods are harmonic, and the total utilization is 100\%.
+% 	So the task set is schedulable under RM.
+% 	First, they execute this task set on an unmodified system.
+% 	One of the tasks misses its deadline at a near-critical instant.
+% 	Once the real-time I/O management is employed, no deadline misses are observed.
+% \item What other work is listed as future work?\\
+% 	In future work, they want to distinguish traffic from the same peripheral, i.e. giving different priorities to different traffic from the same peripheral. They also plan to provide hardware-based preprocessing and filtering on the real-time bridge to drop less important packets if the main CPU is overloaded.
+% \end{itemize}
+% Additional questions:
+% \begin{itemize}
+%   \item What are the limitations/assumptions of this work?\\
+%   	Requires redevelopment of drivers for peripherals on host and real-time bridge side.
+%   \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
+%   	Hardware: real-time bridges and reservation controller. Software: drivers for bridges and hosts.
+% \end{itemize}
 
-\paragraph{Real-Time Control of I/O COTS Peripherals for Embedded Systems~\cite{Pellizzoni08,Bak09}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Due to mass production, commercial-off-the-shelf (COTS) peripherals are not only cheaper than custom made systems, but also provide performance orders of magnitude higher (e.g. PCI Express vs. the real-time SAFEbus). It is thus tempting to employ COTS components in real-time systems. However, their unpredictable timing makes their use in such systems difficult: they are typically designed paying little attention to worst-case timing behavior. This paper considers the I/O subsystem. Modern real-time systems may include several high-bandwidth I/O devices. Connecting these devices to the processor through COTS interconnects yields unpredictable delays and may cause deadline misses. In contrast to CPus, where real-time scheduling is common, it is not supported by COTS interconnect systems such as the PCI bus.
-	
-\item What is the main goal?\\
-	The goal is to enable the use of COTS interconnect in real-time systems.
-
-\item What did they do to achieve this goal?\\
-	They designed a real-time I/O management system. This system consists of a real-time bridge for each COTS peripheral connecting the peripheral to the COTS interconnect, and a reservation controller. The reservation controller decides at any point in time which real-time bridge may access the COTS intereconnect. It can implement a variety of real-time scheduling policies, such as EDF or RM.
-They extend the Real-Time Calculus to determine I/O delay bounds and each bridge's necessary buffer size to guarantee lossless traffic delivery.
-
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They evaluate their approach through measurements of synthetic benchmarks on a COTS PC platform.
-	As the speed of the PCIe is running at 2.5 GHz is very high, they extended the reservation controller to poll the state of the bus at a resolution of one microsecond.
-	They also reduced the FSB frequency to achieve a typical bandwidth value for embedded platforms.
-	The synthetic benchmark consists of four real-time flows competing for main memory.
-	The tasks' periods are harmonic, and the total utilization is 100\%.
-	So the task set is schedulable under RM.
-	First, they execute this task set on an unmodified system.
-	One of the tasks misses its deadline at a near-critical instant.
-	Once the real-time I/O management is employed, no deadline misses are observed.
-\item What other work is listed as future work?\\
-	In future work, they want to distinguish traffic from the same peripheral, i.e. giving different priorities to different traffic from the same peripheral. They also plan to provide hardware-based preprocessing and filtering on the real-time bridge to drop less important packets if the main CPU is overloaded.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	Requires redevelopment of drivers for peripherals on host and real-time bridge side.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	Hardware: real-time bridges and reservation controller. Software: drivers for bridges and hosts.
-\end{itemize}
-
-
-
-
-
-
-\section{Academia}
 \label{sec:related_arch_mod}
-
-
-
-\section{Industry}

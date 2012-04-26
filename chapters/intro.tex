@@ -11,8 +11,10 @@ However, in order for CPS to be deployed in high confidence systems, such as adv
 %all layers need work. Modern abstraction layers omit time.. designers need to reach down below, can't certify a system with its hardware
 % We deal with the ISA and architecture design
 
-Traditionally, the embedded community has widely adopted techniques proposed for general purpose applications, believing that they will provide the same
-advantages and benefits for embedded systems.
+Traditionally, real-time embedded systems have dealt with the notion of time.
+These systems impose deadlines and timing constraints to its underlying tasks to deliver services in real time. 
+The timing constraints of \emph{soft real-time systems} are typically used guarantee quality of service, while the constraints of \emph{hard real-time systems} are used to guarantee safety critical tasks, so they must be met. 
+The real-time embedded community has widely adopted techniques proposed for general purpose applications, believing that they will provide the same advantages and benefits for embedded systems.
 These include the programing language, the operating system, the tool-chains, and the computer architecture.
 However, these techniques are designed for general purpose systems that do not require stringent interaction with the physical environment. 
 Thus, they emphasize on improving average performance over predictability.   
@@ -24,7 +26,7 @@ However, these solutions begin to break down when transitioning to CPS.
 In the current state of embedded software, nearly every abstraction has abstracted away \emph{time}.
 The Instruction Set Architecture (ISA), meant to hide the hardware implementation details from the software, does not include a timing semantic for the instruction executions.  
 Widely adopted programming languages, meant to hide the details of the ISA from the program logic, do not express timing properties; timing is merely an accident of the implementation.
-Real-time operating systems (OS), meant to hide the details of the program from their concurrent orchestration, often use priorities to dictate the execution of tasks; the execution time of tasks can easily affect the scheduled outcome of execution.
+Real-time operating systems (RTOS), meant to hide the details of the program from their concurrent orchestration, often use priorities to dictate the execution of tasks; the execution time of tasks can easily affect the scheduled outcome of execution.
 The lack of \emph{time} in the abstraction layers lead to the following consequences:
 \begin{itemize}
 \item \emph{Unnecessary complexities in the interaction of concurrent components} --  
@@ -42,16 +44,16 @@ As tasks or software threads are scheduled for execution in the OS, an explicit 
 For example, task scheduling and context switching cost may vary from the cache or pipeline state change after executing each tasks. 
 This is often not factored into the analysis~\cite{thiele_et_al:DSP:2004:2}. 
 Furthermore, because the  large variation of execution time in modern complex processors, WCET analysis techniques often lead to overly conservative results for safety~\cite{Wilhelm2008survey}. 
-As the WCET is the underlying  assumption, and often the basis for priority of any scheduling scheme, the conservativeness is propagated throughout the system.
+As the WCET is often the basis for priority of any scheduling scheme, the conservativeness is propagated throughout the system.
 \end{itemize}
 %explain composability
 
-As a result, when the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers, and understand thoroughly the complex underlying details and its affect on execution time. 
+When the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers, and understand thoroughly the complex underlying details and its affect on execution time. 
 This not only increases the design complexity and effort, but the designed systems are \emph{brittle} and extremely sensitive to change~\cite{Sangiovanni-Vincentelli2007automotive, Edwards2007PRETcase}.  
 For example, Sangiovanni-Vincentelli et al.\cite{Sangiovanni-Vincentelli2007automotive} showed that when increasing the execution time of a task, any priority based scheduling scheme results in discontinuity in the timing of all tasks besides the task with the highest priority. 
 At a lower level, adding a few instructions can easily result in a huge variation in program execution time; the state of the hardware dynamic prediction and speculation units, such as caches and pipelines, can easily be affected by the minimum program additions, causing misprediction penalties.
 Thus, in order to verify the timing of safety critical systems, the verification must be done on both the software system and its execution platform, they cannot be separated. 
-In addition, the verification process is often time consuming and expensive.
+This process is often time consuming and expensive.
 Since the abstraction layers do not give any temporal semantics to the system, each layer must be completely understood in order to reason and prove the timing properties of the full system.  
 For avionics manufactures, this means stockpiling the same hardware for the lifetime of an aircraft; any upgrade of components or software in their system could result in drastic timing changes, and thus require re-certification.
 
@@ -75,7 +77,7 @@ Modern systems handle the concurrency of physical processes with multiple tasks,
 In order to efficiently design the system, these individual parts are designed and tested separately, then later integrated to form the final system. 
 This modularity of design is crucial for the continued scaling and improvement of systems.      
 However, if component properties may be destroyed during integration, then the components can no longer be designed and verified separately. 
-Thus, \textit{timing composability} refers to the ability to integrate components while preserving their temporal properties.
+\textit{Timing composability} refers to the ability to integrate components while preserving their temporal properties.
 
 To preserve component properties during integration, modern designs often use a \textit{federated architecture}.
 A Federated Architecture develops functions and features on physically separate platforms which are later integrated through an interconnect or system bus. 
@@ -87,7 +89,7 @@ Only then, can designs continue to stay modular.
 Modern abstractions result in unnecessary complexity in the interaction of concurrent components, which leads to unpredictable interference between components. 
 This hinders the ability to compose functions together on a shared resource while maintaining timing properties. 
 
-These challenges are being addressed not only in academia, but also in industry.  
+These challenges are present not only in research, but also in industry.  
 The Integrated Modular Avionics (IMA) concept~\todo{cite} aims to replace numerous separate processors and line replaceable units (LRU) with fewer, more centralized processing units in order to significant reduce the weight and maintenance savings in new generation of commercial airliners.
 AUTOSAR (AUTomotive Open System ARchitecture)\cite{autosarsite} is an architecture for automotive systems that is jointly being developed by manufacturers, suppliers and tool developers which attempts to defined standards and protocols to help modularize the design of these complex systems.
 We contend that in order for these standards to be safely defined, modern layers of abstractions that have been adopted from conventional computing advances must be redefined to allow for  predictable composition of components.  
@@ -109,7 +111,7 @@ Therefore, existing techniques can only bound the WCET for a processor-program p
 Time bounds from the analysis are broken even when the underlying processor is upgraded to a newer model.
 Thus, the redefinition of abstraction layers must also include temporal semantics at different layers in order to reason about timing properties at higher levels.  
 
-\subsection{Contributions}
+\section{Contributions}
 The contribution of this work is to propel design of cyber-physical systems from the lower levels of abstractions. 
 Specifically in this thesis, we focus on the ISA abstraction layer, and its effects on microarchitecture design. 
 The ISA defines the contract between software instructions and hardware implementations.
@@ -135,32 +137,12 @@ In doing so, we give temporal meaning to programs without limiting the innovatio
 
 We contend that these two contributions must go hand in hand. 
 Our ISA extensions provide the ability to give temporal meaning to programs, but do not enforce a predictable execution of its instructions.
-Thus, without a predictable architecture, programs can still exhibit unpredictable execution time variances.    
+Without a predictable architecture, programs can still exhibit unpredictable execution time variances.    
 On the other hand, a predictable architecture by itself does not bring temporal meaning to the programs, it merely executes them predictably.
-As a result, time is still a side effect of the underlying implementation.
-With both the ISA extensions and the predictable architecture, we equip platforms with the ability to handle physical processes and provide 
+Time will still only be a side effect of the underlying implementation.
+However, with both the ISA extensions and the predictable architecture, we can equip platforms with the ability to handle physical processes and provide 
 a solid foundation to propel the design of CPS at higher levels of abstractions.       
  
-% \begin{itemize}
-% \item \emph{Low jitter} -- Small variance in execution time for a given code block, enabling a tight WCET bound.
-% \item \emph{Continuous}~\cite{Henzinger2008} -- small changes in the input result in small changes in the output.
-% \item Precise timing control, which is the ability to control temporal
-%   properties in the architecture.
-% \item Reasonable performance, or else someone could use a processor
-%   from 20 years ago to achieve some of the effects above.
-% \item Repeatable performance, mainly that the same execution yields
-%   the same output. Including execution time. (\textcolor{red}{This
-%     needs careful defining... what counts as input and what counts as
-%     output?})
-% \item Composability - The ability to compose two tasks without
-%   interference. This is an extremely important property to preserve
-%   because when we design systems, we want to design larger systems
-%   from smaller components. We want to test those smaller systems
-%   separately, then compose them and still have those tested properties
-%   hold true. 
-% \end{itemize}
-% Through this, enable evaluation on the effects and implications on the composition, communication and synchronization of software components or tasks on a predictable architecture.
-
 % 
 % We use the definition from Thiele et al.\cite{thiele_et_al:DSP:2004:2} for predictability:
 % \begin{quote}
@@ -181,142 +163,121 @@ a solid foundation to propel the design of CPS at higher levels of abstractions.
 % \end{quote} 
 
 \section{Background}
-A conventional microprocessor executes a sequence of instructions from
-an instruction set. Each instruction in the instruction set changes
-the state of the processor in a well-defined way.
-The microprocessor provides a strong guarantee about its
-behavior: if you insert in the sequence an instruction that observes the state of the
-processor (e.g., the contents of a register or memory), then that
-instruction observes a state equivalent to one produced by a
-sequential execution of exactly every instruction that preceded it in
-the sequence.
-For speed, however, modern microprocessors rarely execute the instructions
-strictly in sequence. Instead, pipelines, caches, write buffers, and
-out-of-order execution reorder and overlap operations while preserving
-the illusion of sequential execution.  Any \emph{correct execution}
-must preserve the strong guarantee, and thus the illusion.
+\label{bookmark:timing_anomalies}
+% \begin{itemize}
+%   \item Discuss the problem
+%   \item show the difficulty in execution time analysis of a simple c code
+%   \item show the variability different architecture improvements have introduced to improve average case execution time (Sami's graph)
+%   \item not saying WCET is useless, just saying that with more precise architecture designs, WCET can be more precise, less program variation
+% \end{itemize}
 
-Because the semantics of sequential instruction execution is
-specified precisely at the bit level, the state observed by a
-particular instruction is \emph{repeatable}, meaning that every
-correct execution of the same sequence
-will lead to the same state given the same inputs.
-If the sequence of instructions is that given by a single program
-specifying a computation whose inputs are included in
-the  initial state of the processor (e.g. in memory) and whose
-outputs are included in the final state, then the behavior
-of the program is repeatable. We call this
-a conventional Turing-Church computation.
+Programs manifest varying execution times.
+This is illustrated in figure~\ref{fig:program_execution_times}, which shows the distribution of execution times exhibited by an arbitrary program on an arbitrary processor.
 
-Very few instruction sets provide any guarantee
-about the \emph{timing} of the execution of a sequence of instructions.
-If the sequence of instructions is specifying a conventional
-Turing-Church computation, then this timing is irrelevant.
-The sequence specifies a mapping from inputs (contained in the
-initial state of the processor) to outputs (contained in the observed state
-of the processor).
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics{figs/program_executiontimes.pdf}
+  \end{center}
+  \vspace{-3mm}
+  \caption{Program Execution Times~\cite{wilhelm-survey-paper}}
+  \label{fig:program_execution_times}
+\end{figure}
 
-For many application, and most particularly for embedded systems,
-the timing does matter, however. In particular, some
-instructions in the sequence specify interactions with the external
-physical world, causing actuation of physical devices for example.
-Some will poll sensors that measure the state of the physical world
-at the time the instruction is executed. Some instructions will
-be inserted into the sequence in response to an external physical
-event that raises an interrupt request. The time at which this occurs
-determines where in the sequence the instructions to service
-the interrupt are inserted. Thus, the sequence of instructions executed
-by the microprocessor is not entirely determined by a program, but
-is also affected by the timing of external events.
-Even non-embedded computations
-will use such interrupts to perform multitasking, executing multiple
-threads concurrently and switching between them in response
-to interrupts raised by an external timer or external devices
-such as disk drives. Again, the sequence of
-instructions is not completely specified by the program(s) being
-executed. Hence, the strong guarantee provided by the microprocessor
-is not sufficient to make the behavior of the programs repeatable.
+It highlights several key issues that are important to understanding program execution time.
+First, the \emph{observable execution times} may not observe all \emph{possible execution times}.
+This is important because far too often we rely on testing and end-to-end measurement to determine the WCET.
+This will, in general, overestimate the BCET and underestimate the WCET, and is not safe when timing must be guaranteed. 
+Second, it is often difficult to determine the \emph{actual} WCET, thus the worst case guarantee that is given is usually a bound on the WCET.    
+The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} bound on the WCET of a program~\cite{Wilhelm2008survey}. 
+\textit{Safe} means that the execution time will never exceed the bounded time. 
+\textit{Precise} means that the bounded time is as close to the absolute WCET as possible. 
 
-For such programs, the inputs to the system are not just
-the initial state of the processor, as they are in a conventional Turing-Church
-computation. Any complete definition of ``inputs'' must include the
-timing of interrupts and the time at which sensor values are polled.
-Any complete definition of ``outputs'' must also include the timing
-at which actuations in the physical environment are asserted.
-These clearly affect the behavior of the system.
-For a microprocessor that provides no timing guarantees,
-\emph{no such program has repeatable behavior}.
-Two ``correct'' executions can exhibit significantly different timing
-and can execute significantly different sequences of instructions,
-resulting in significantly different outputs.
+Several factors contribute to the difficulties of a safe and precise WCET analysis.
+In general, it is impossible to obtain the upper bounds on execution times for programs because programs are not guaranteed to terminate.  
+Real-time systems use a restricted form of programming to ensure an execution time upper bound.
+Recursion is often not allowed or must be explicitly bounded, as are the iteration counts of loops. 
+Despite that, algorithms contain input dependent program paths that complicate analysis.    
+The worst case program path depends on the worst-case input, which in general, is not known or hard to derive.    
 
-In the above analysis, we implicitly define the \emph{behavior}
-of a program to be the mapping from inputs to outputs.
-Many useful programs, however, do not require such a rigorously
-defined behavior. Some measure of nondeterminism is tolerable,
-meaning that the same inputs may lead to different outputs,
-as long as some application-dependent set of \emph{properties} is
-satisfied. If the timing of an output is important, for example,
-it may not have to be precise. The application has some
-tolerance to deviations in the timing. Thus, we are generally
-more interested in whether satisfaction of these properties
-is repeatable. That is, we insist that every correct execution
-satisfies an application-dependent set of properties.
+Along with complications from the software structure, the execution time variance exhibited by the underlying architecture further complicates analysis.   
+A conventional microprocessor executes a sequence of instructions from an instruction set. 
+Each instruction in the instruction set changes the state of the processor in a well-defined way.
+The microprocessor provides a strong guarantee about this behavior: a sequence of instructions \emph{always} changes the processor state in the sequential order of the instructions.        
+For speed, however, modern microprocessors rarely execute the instructions strictly in sequence. 
+Instead, pipelines, caches, write buffers, and out-of-order execution reorder and overlap operations while preserving the illusion of sequential execution.  
+This causes the execution time of even the same sequence of instructions to fluctuate, depending on the underlying execution of its instructions.
+To illustrate this, we show in figure~\ref{fig:simple_code_timing_issues} a code segment with a simple control structure and a static loop bound.
 
-A real-time program, for example, will specify a set of properties
-as constraints on the timing of certain external interactions or
-internal actions (updates of values in memory, for example).
-The task of a real-time system designer is to ensure that these
-properties are repeatable.
+%predictability -   
+  % C code example
+  % modern architecture improvements
+\begin{wrapfigure}{r}{0.45\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.6]{figs/simple_code_timing_issues}
+  \end{center}
+  \vspace{-10pt}
+  \caption{Simple Loop Timing Issues}
+  \label{fig:simple_code_timing_issues}
+  \vspace{-10pt}
+\end{wrapfigure}
 
-A \emph{predictable} property is a repeatable property than can be
-determined in finite time from a specification of the system.
-Since any computer only has
-finite memory, the state after a sequence of instruction executions is technically
-predictable, although doing so can take an impractically long time.
-However, if the specification of the system is a program, the sequence
-of instructions executed will not be predictable if timing
-is not repeatable (interrupts and multitasking will interfere).
-Thus, even a conventional Turing-Church computation on
-a uniprocessor may not
-have repeatable behavior \cite{Lee:06:Threads}.
+Even with a simple software structure, several situations can arise from the execution on the underlying architecture. 
+Each array access in the code is compiled into a memory access.
+Whether the memory access hits or misses the cache has huge implications on program execution time.
+The \emph{if} statement is usually compiled to a conditional branch, and the outcome of the branch predictor could easily affect the execution time of the program.
+%Furthermore, the speculatively executed instructions could modify the cache state which can cause future memory accesses to delay.        
+Superscalar architectures can execute instructions out-of-order, thus data-dependencies in this code may or may not stall, depending on the memory accesses and how much loop unrolling is done by the compiler/architecture.   
 
+Further complications arise as architectures become increasingly parallel with multiprocessing techniques such as multicore and multithreading.
+These techniques allow the architecture to inherently handle concurrency, but can easily introduce temporal interference even between logically independent behaviors.
+For example, in a multicore machine with shared caches, the processes running on one core can affect the timing of processes on another core even when there is no communication between these processes.
+Similarly, Simultaneous Multithreading ~\cite{Eggers97simultaneousmultithreading} architectures share a wide-issue superscalar pipeline across multiple hardware threads.
+Instructions are dispatched from all threads simultaneously using scoreboaring mechanisms.
+However, the contention for pipeline resources between threads can easily vary the execution time of a particular thread. 
 
+% On the other hand, symmetric multiprocessing (SMP) techniques use multiple processing units connected with an on-chip communication interconnect such as a bus or network-on-chip.
+% SMP exploits thread-level parallelism by designating a thread to a different processing unit.
+% While this removes temporal interference caused by sharing pipeline resources between multiple threads, temporal interference is reintroduced at the on-chip communication interconnect.
+% For instance, sharing the same off-chip memory between processing units requires arbitration and coherence, which results in temporal interference.
+% In fact, any sharing of resources such as busses, memories, switches, buffers, and I/O devices can result in temporal interference.
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics{figs/speculation_anomaly}
+  \end{center}
+  \vspace{-10pt}
+  \caption{Timing anomaly cause by speculation~\cite{Reineke06adefinition}}
+  \label{fig:speculation_anomaly}
+  \vspace{-10pt}
+\end{wrapfigure}
+The common misconception is that at least a \emph{safe} upper bound on the execution time can be easily determined by assuming the worse case in unknown situations.
+This is not true because dynamic processors can exhibit \emph{timing anomalies}~\cite{Reineke06adefinition,Lundqvist1999}, situations where a local worst-case does not entail the global worst-case.
+Reineke et al.~\cite{Reineke06adefinition} illustrates this with the example in figure~\ref{fig:speculation_anomaly}.
+In this example, a mispredicted branch results in unnecessary instruction fetching that destroys the cache state. 
+However, if the first instruction being fetched is a cache miss, the correct branch condition will be computed before the fetch, and no speculatively executed instruction will destroy the cache state. 
+This example shows that simply assume a cache miss (local worst-case) will not always lead to the global worst-case execution time.    
 
-Moderating these practices is not enough.  Repeatability is more
-important than predictability.  With repeatable timing, testing can
-establish correctness, and testing is almost always easier than
-detailed analysis.  Without repeatability, testing proves little.
+The increasing complexity of architectures leads to the conclusion that the usefulness of the results of WCET analysis strongly depends on the architecture of the employed processor~\cite{Heckmann2003processor}.
+Modern processors employ features that improve average performance at the expense of worst-case performance, creating a large variation in execution time from the processor. 
+These features are controlled and manage completely in hardware, not explicitly exposed to the software.
+As a result, decrypting the state of the processor to obtain reasonable execution time estimates is often extremely difficult, if not impossible, on modern architectures.   
 
-Timing should be a repeatable property of a \textit{program}, not
-of a program executing on a particular processor implementation.
-That is, our notion of ``correct'' execution of a sequence
-of instructions should include timing
-properties. This requires changes to the semantics of instruction sets.
+\section{Precision Timed Machines}
+In this thesis we introduce the design and implementation of PREcision Timed (PRET) machines~\cite{Edwards2007PRETcase}. 
 
-A few researchers have addressed the problem of repeatable
-timing.
-Precision-timed (PRET)
-machines~\cite{LeeEdwards:07:PRET,pret:cases:2008} modify
-the instruction set for repeatable timing.
-Mueller's VISA ~\cite{meuller:03:visa} runs a standard fast
-processor in concert with a slow (repeatable) one, switching
-over if the fast one lags behind.
-Schoeberl has implemented a Java processor where time-repeatability
-of individual bytecode instructions was the major design
-goal~\cite{jop:jnl:jsa2007}. Whitham and Audsley's
-MCGREP~\cite{whitam:06:mcgrep} use
-programmable microcode to accelerate hotspots that are otherwise too
-slow.
+places timing predictability and composability as its first class citizen.   
 
-In this paper, we focus on two intertwined obstacles to
-repeatable timing:
-pipelines and memory hierarchy. We show that repeatable
-timing can be reconciled with pipelining and memory hierarchy,
-both of which are required to get competitive performance.
+We aim to present architectures
+%proposed a paradigm shift in the design of computer architectures, focusing on timing predictability instead of average-case performance.
+%provide better wcet
+%use thread-interleaved pipline and dram controller
+%ISA extensions
+%needed for autosar etc
+
+With designs being pushed to higher and higher levels of abstraction, we need lower levels to provide robust, non brittle fundamentals in which we can reason about timing guarantees.
 
 
-\subsection{composability}
 As Wilhelm et al. \cite{wilhelm2009} quoted:
 \begin{quote} \textit{
   ``The applicability of the AUTOSAR idea depends on availability of
@@ -325,114 +286,27 @@ As Wilhelm et al. \cite{wilhelm2009} quoted:
 }
 \end{quote}
 
-
-%section - architecture
-%composability - multithread and multicore
-Modern embedded computing architectures are becoming increasingly parallel by using multiprocessing techniques such as multicores and simultaneous multithreading (SMT).
-These parallel architectures deliver higher performance and also address the need for concurrency.
-However, ensuring that real-time requirements are met is a challenge in such architectures. 
-A major problem is that multiprocessing techniques can introduce temporal interference even between logically independent behaviors.
-
-For example, in a multicore machine with shared caches, the processes running on one core can affect the timing of processes on another core even when there is no communication between these processes.
-Similarly, SMT~\cite{Eggers97simultaneousmultithreading} shares a wide-issue superscalar pipeline across multiple hardware threads with instructions dispatched using scoreboaring mechanisms.
-This allows threads to occupy more pipeline resources when other threads are idle or stalled for long latency operations. 
-This results in temporal interference between the threads because of the contention for pipeline
-resources.\footnote{
-% Could remove this if we run out of space.
-Several research groups have introduced ways to mitigate the temporal interference in SMTs by allocating a real-time thread with the highest priority ~\cite{Barre2008RTSMT}, time-sharing the real-time thread ~\cite{Mische2008SMT}, and partitioning the instruction cache ~\cite{Metzlaff2008MethodcacheSMIT}.}
-On the other hand, symmetric multiprocessing (SMP) techniques use multiple processing units connected with an on-chip communication interconnect such as a bus or network-on-chip.
-SMP exploits thread-level parallelism by designating a thread to a different processing unit.
-While this removes temporal interference caused by sharing pipeline resources between multiple threads, temporal interference is reintroduced at the on-chip communication interconnect.
-For instance, sharing the same off-chip memory between processing units requires arbitration and coherence, which results in temporal interference.
-In fact, any sharing of resources such as busses, memories, switches, buffers, and I/O devices can
-result in temporal interference.
-
-\subsection{Predictability}
-\label{bookmark:timing_anomalies}
-
-
-However, all of these programming models rely on the underlying assumption of a WCET bound of the basic code block. 
-In reality, the determining of WCET bounds is a challenging research topic just by itself, as a tremendous amount of research effort is being put to it\cite{Wilhelm2008survey}. 
-The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} estimation on the execution time of a program. 
-\textit{Safe} in the perspective that the execution time will never exceed the estimated time. 
-\textit{Precise} in the perspective that the estimated time is as close to the absolute worst case execution time as possible. 
-Several factors make a safe and precise WCET analysis difficult. 
-One cause is software analysis. 
-In general, there is no way of determining if a program terminates, thus there is no way of bounding the execution time. 
-Real time systems often use a more restricted form of programming to aid in analysis. 
-The main cause however stems from the underlying architectures. 
-Reinhold et al.~\cite{Heckmann2003processor} quoted:
-\begin{quote} \textit{ ``The architecture of tools for the
-    determination of worst case execution times (WCETs) as well as the
-    precision of the results of WCET analyses strongly depend on the
-    architecture of the employed processor.''}
-\end {quote} 
-Because modern processors often exhibit features that improve average case performance at the expense of worst case performance, there is a large variation in the execution time of the
-processor. 
-The control of these features are completely implemented in hardware and not exposed to the programmer, leaving WCET tool providers the challenge of decrypting the state of the processor. 
-
-As much work is focused on the software analysis techniques for WCET, this research contributes mainly to the computer architecture level of the abstraction layers. 
-
-
-
-
-%predictability -   
-  % C code example
-  % modern architecture improvements
-  
-  Timing anomalies~\cite{Reineke06adefinition,Lundqvist1999} are known to occur in dynamic processors which result in difficulties and imprecision in
-bounding the WCET of programs.
-  % WCET is important and good, but architecture designs make this extremely difficult
-
-\section{Precision Timed Machines}
-
-
-\section{notes}
-
-\begin{itemize}
-  \item Discuss the problem
-  \item show the difficulty in execution time analysis of a simple c code
-  \item show the variability different architecture improvements have introduced to improve average case execution time (Sami's graph)
-  \item not saying WCET is useless, just saying that with more precise architecture designs, WCET can be more precise, less program variation
-\end{itemize}
-
-With designs being pushed to higher and higher levels of abstraction, we need lower levels to provide robust, non brittle fundamentals in which we can reason about timing guarantees.
-
-The key challenges we help overcome are the difficulty of designing timing-predictable systems and the difficulty of integrating functions when designing complex large-scale systems.
-Edwards and Lee~\cite{Edwards2007PRETcase} proposed a paradigm shift in the design of computer architectures, focusing on timing predictability instead of average-case performance. 
-In this paper, we review the goals of that work, and outline progress in an ongoing project at Berkeley toward the goals.
-We describe a realization of PRET that is designed for timing predictability, to enable simple architectural timing analysis for each context. 
-This realization provides interference-free concurrent execution of multiple contexts to allow for simple and efficient integration of multiple independent functions.
-
-
-% \subsection{Concepts that need Clearing up}
 % \begin{itemize}
-% \item Repeatability, to what extent to we need this? According to
-%   Edward's definition we need a repeatable execution regarding inputs
-%   and outputs. Well we need to define what inputs and outputs
-%   are. Does that mean output includes execution time? So we need to
-%   exclude anything that includes ``state'' in the processor. If we use
-%   scratchpad, we can always move data in and out when task starts. Or
-%   method caches will allow for analysis, since you always know what's
-%   loaded in and out of the cache.
-% \item How are modern architectures not repeatable? Caches preserve
-%   state. Pipelines preserve state (branch prediction table, out of
-%   order dispatch queue)
-% \item But do we need such a strict requirement for real time systems?
-%   What does having this property really gain us? Higher programming
-%   models that design for time-predictable systems utilize WCET anyway,
-%   so why can't we just design a processor that lowers WCET? For low
-%   jitter processors we can always just pad the execution to worst case
-%   time... How can higher level programming model benefit from
-%   repeatability? The ability to compose?
-% \item One thing we looked at was to replace special purpose hardware
-%   peripherals with PRET to allow algorithms to be done in software
-%   instead of HDL. But would this still hold now that a lot of work is
-%   being done for code generation to HDL? (http://www.myhdl.org)
+% \item \emph{Low jitter} -- Small variance in execution time for a given code block, enabling a tight WCET bound.
+% \item \emph{Continuous}~\cite{Henzinger2008} -- small changes in the input result in small changes in the output.
+% \item Precise timing control, which is the ability to control temporal
+%   properties in the architecture.
+% \item Reasonable performance, or else someone could use a processor
+%   from 20 years ago to achieve some of the effects above.
+% \item Repeatable performance, mainly that the same execution yields
+%   the same output. Including execution time. (\textcolor{red}{This
+%     needs careful defining... what counts as input and what counts as
+%     output?})
+% \item Composability - The ability to compose two tasks without
+%   interference. This is an extremely important property to preserve
+%   because when we design systems, we want to design larger systems
+%   from smaller components. We want to test those smaller systems
+%   separately, then compose them and still have those tested properties
+%   hold true. 
 % \end{itemize}
+% Through this, enable evaluation on the effects and implications on the composition, communication and synchronization of software components or tasks on a predictable architecture.
 
 The remaining chapters are organized as follows. 
-Chapter~\ref{chapter:related} surveys the related research that has been done on architectures to make them more analyzable.
-Chapter~\ref{chapter:pret} explains the architecture of PRET including the \thdint pipeline and memory hierarchy, Chapter~\ref{chapter:pret_wcet}, Chapter~\ref{chapter:app}, Chapter~\ref{chapter:summary},
+Chapter~\ref{chapter:pret} explains the architecture of PRET including the \thdint pipeline and memory hierarchy, Chapter~\ref{chapter:ptarm}, Chapter~\ref{chapter:app}, Chapter~\ref{chapter:related}, Chapter~\ref{chapter:summary}.
 
 
