@@ -14,6 +14,7 @@
 \usepackage{hyperref}
 \usepackage{wrapfig}
 \usepackage{subfigure}
+\usepackage{multirow}
 \usepackage{algorithm2e}
 
 
@@ -27,6 +28,13 @@
 \vspace{-4mm}}
 \newcommand{\hpstar}[2]{#1}
 
+\newcommand{\IL}[1]{{{\textcolor{Blue}{(IL: #1)}}}}
+\newcommand{\HP}[1]{{{\textcolor{Purple}{(HP: #1)}}}}
+\newcommand{\JR}[1]{{{\textcolor{Green}{(JR: #1)}}}}
+\newcommand{\EAL}[1]{{{\textcolor{Red}{(EAL: #1)}}}}
+
+%\renewcommand*\thesubsection{\thesection.\roman{subsection}}
+\renewcommand*\thesubsubsection{\thesubsection.\alph{subsubsection}}
 
 \begin{document}
 \title{Precision Timed Machines
@@ -135,7 +143,7 @@ I would like to thank everyone else that made this possible
 %\input{chapters/ptarm6.tex}
 
 \bibliographystyle{abbrv}
-\bibliography{thesis}  
+\bibliography{thesis,PretOneDCFDApp,survey}  
 
 
 % That's all folks!
