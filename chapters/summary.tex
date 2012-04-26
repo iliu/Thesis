@@ -1,24 +1,42 @@
-\section{Summary of Results}
+In order to propel the use of CPS for safety critical systems, we contend that changes must be made to conventional abstraction layers to introduce ``time'' as its first class citizen.
+In this thesis we focused on the ISA abstraction layer and below.  
+We explored instruction extensions to the ARM ISA in order to bring temporal semantics to the programs from the ISA.  
+We also presented the precision timed ARM (PTARM), an implementation of a PRET machine, in order to provide a timing predictable and composable platform for deterministic execution time.  
 
-This is my summary
+To bring temporal semantics to the ISA abstraction layer, we presented a few instruction extensions to the existing instruction set. 
+The instructions operate on a platform clock that is synchronous with the execution of instructions. 
+The instructions extensions allow programmers to specify the timing properties of program segments, and throw hardware exceptions when the timing specifications are not met.
+In this way, our instruction extensions does not over constrain the temporal semantics of the ISA, and still allows architecture innovation to improve program performance. 
+These extensions allows programmers to begin reasoning about temporal properties of the programs independent of the underlying execution platform, provided that the ISA is faithfully implemented.
 
-%temporally isolation can be relaxed, but must be controlled
-It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful. 
-But only by achieving predictability in the hardware architecture can we begin to reason about more dynamic behavior in software.
-For example, we discussed that dynamically scheduling threads in hardware causes timing interference. 
-However, it is not the switching of threads that is unpredictable, but how the thread switching is triggered that makes it predictable.   
-For example, the Giotto~\cite{henzinger_giotto} programming model specifies a periodic software execution model that can contain multiple program states. 
-If such a programming model was implemented on a thread-interleaved pipeline, different program states might map different tasks to threads or have different number of threads executing within the pipeline.
-But by explicitly controller the thread switches in software, the execution time variances introduced is transparent at the software level, allowing potential for timing analysis.
+PTARM exploits thread-level parallelism for performance by employing a predictable thread-interleaved pipeline. 
+This removes the unpredictability when handling pipeline hazards, and provides temporal isolation for all hardware threads within the pipeline.
+PTARM uses scratchpads instead of caches to expose the memory hierarchy, which enables simpler and tighter WCET analysis. 
+With a bank privatized DRAM controller, PTARM gives predictable memory access latencies to the DRAM for each hardware thread, and preserves temporal isolation for each hardware thread that accesses the DRAM as a shared resource.
+We show that PTARM offers both timing predictability and composability, equipping CPS platforms the tools to interact with physical processes deterministically.
 
-\section{Publications}
+We also demonstrated the the benefits of a PRET machine in the context of a real-time engine fuel rail simulator and embedded security.
+For simulating engine fuel rails in real time, we showed a platform that uses multiple PTARM cores which communicate through local shared buffers. 
+The predictable timing of PTARM enables a software timing based synchronization between the cores that is implemented with the timing instruction extensions.  
+In the context of embedded security, the underlying architecture implementing encryption algorithms are susceptible to timing side-channel attacks, which allows attackers to exploit the uncontrollable execution time variance to derive the key. 
+We show that with a predictable architecture and controllable timing properties of the program, we not only defend against all timing side-channel attacks, but eliminate its root cause. 
 
-\section{Future Work}
 
-Here is what you can keep doing
+Several open challenges and questions were mentioned in this thesis, which provides grounds for future research opportunities.  
+First, we continue to explore and formalization of the timing extensions to the ISA. 
+The introduction of temporal semantics in the ISA should be platform independent; our implementation in PTARM merely open up opportunities for further experimentation and research. 
+Nailing down the formal semantics of each extension is key to a consistent meaning of ``time'' independent of the underlying platform implementation. 
+Second, how a predictable pipeline and memory controller handles external interrupts and I/O devices still remains an open question.
+With the plethora of complex interfaces and protocols for modern high speed I/O interactions, typical I/O controllers are implemented in hardware.
+However, we envision a predictable architecture with precise timing control to enable software implementations of protocols typically implemented in hardware. 
+This can enable flexibility and more efficient design effort, leading to faster time-to-market and more feature rich designs.        
+Third, the interfacing with a timing predictable bus or interconnect can give means to implementing a predictable multicore architecture.
+We showed a primitive multicore implementation of PRET cores when simulating engine fuel rails in real time.
+However, as communication schemes get more complex, how synchronization and communication of multiple PRET cores is done remains an open question and research challenge. 
 
-Talk about future research challenges for a predictable architecture.
-\begin{itemize}
-  \item synchronization of threads, atomic primitives and memory barrier?
-  \item Bus and I/O architectures
-\end{itemize}
+It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful.
+However, the dynamic behavior must be controllable and predictable. 
+For example, dynamically scheduling hardware threads in the architecture causes uncontrollable timing interference because the triggering of thread switches is hidden from, and cannot be explicitly controlled by, the programmer.
+We argue that only by achieving predictability in the architecture and platforms can we begin to reason about more dynamic behavior in software.
+With a predictable architecture and the introduction of temporal semantics in the ISA, we hope to provide a deterministic foundation to enable larger and more efficient designs of cyber-physical systems. 
+
