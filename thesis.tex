@@ -17,7 +17,7 @@
 \usepackage{multirow}
 \usepackage{algorithm2e}
 \usepackage{listings}
-\usepackage{caption}
+\usepackage[small]{caption}
 
 \lstdefinelanguage{pret}
 {morekeywords={get_time, delay_until, delay_and_set, exception_on_expire, deactivate_exception}}
@@ -34,6 +34,7 @@
 		
 \captionsetup[lstlisting]{singlelinecheck=false}
 
+
 \newcommand{\gettime}{\textit{get\_time}}
 \newcommand{\delayuntil}{\textit{delay\_until}}
 \newcommand{\delayandset}{\textit{delay\_and\_set}}
@@ -47,6 +48,8 @@
 \newcommand{\Delayandset}{\textit{Delay\_and\_set}}
 \newcommand{\Exceptiononexpire}{\textit{Exception\_on\_expire}}
 \newcommand{\Deactivateexception}{\textit{Deactivate\_exception}}
+
+\newcommand{\platformclock}{\emph{platform clock}}
 
 \newcommand{\rt}{real-time}
 \newcommand{\Rt}{Real-time}
