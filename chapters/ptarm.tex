@@ -676,29 +676,42 @@ When using the timing instructions to
   \label{fig:ptarm_vhdl_high_level}
   \vspace{-10pt}
 \end{wrapfigure}   
-The PTARM soft core is written in VHDL according to the described architecture.
+The PTARM soft core is written in VHDL.
 It includes the pipeline, scratchpad memories, predictable memory controller and connects to several I/O devices on the FPGA.
+These include several LEDS, the UART, DVI controller and the DDRII DRAM.
+All I/O devices are connected through the I/O bus, while the DDRII DRAM is connected directly to the DRAM controller.
 Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the PTARM soft core.
 
-The I/O devices PTARM connects to include the UART, DVI controller and the DDRII DRAM on the FPGA.
+The LEDs are memory mapped and can be toggled by setting and clearing bits.
 PTARM communicates to the UART through the UART gateway, which queues read and write requests from the core and relays it to the UART.
 The default buffer size on the UART gateway is one.
-The status of the UART gateway can be polled from status registers mapped to memory I/O locations.
-Currently all read and write requests to the UART is done through blocking procedures.
-We poll the status 
- 
-The soft core build of PTARM does not yet include the DMA units for each thread.
-Thus, to transfer content from the DRAM to the scratchpads, one must do it in the software manually. 
+The UART gateway status registers are mapped to memory I/O locations so programs can poll them to determine that status of the UART.  
+Currently all read and write operations to the UART is done through blocking procedure calls. 
+The UART runs at a baud rate of 115200 and can send and receive bytes.
+
+The DVI controller is used to control the DVI input port on the FPGA, so a monitor can be connected.
+\todo{look at documentation of the DVI controller, what mode we're using it.}
+We demo a DVI controller application similar to the one presented in~\cite{ip2006processor}, where a vga controller is managed purely in software through the deadline instructions presented in the paper.
+Here, we use the timing constructs presented in section~\ref{sec:programming_models} to control the sending out of vertical and horizontal sync signals in software.
+As one hardware thread manages the sync signals, other hardware threads in our core can be used to calculate and draw to the screen buffer.  
+Because hardware threads are temporally isolated, the timing of hardware sync signals are not affected by the operations on other hardware threads.  
 
 We synthesized the core on a Virtex-5 lx110t FPGA to obtain the maximum clock frequency and resource usage. 
 \todo{show area and clock speed on FPGA}  
-We clocked PTARM at $100MHz$ and the memory con
-
- 
-Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller
+We current clock PTARM at $100MHz$ and the memory controller at $200MHz$. 
+All VHDL source code, software code samples, and instruction manual can be downloaded from http://chess.eecs.berkeley.edu/pret.   
 
 \subsection{PTARM Simulator}
 \label{sec:ptarm_sim}
+Along with the VHDL soft core, we also developed a C++ cycle accurate software simulator of our architecture.
+The simulator is meant for architectural exploration, and provides better debugging for software written for PTARM.  
+The C++ simulator models the pipeline and memory hierarchy, including the predictable DRAM controller.  
 
-Talk about experimentation with DMA and memory hierarchy
-%Talk about the exploration of DMA memory, and different memory access latencies
+The simulator provides a framework that allows us to do more architectural exploration and observe the behavior.
+For example, the DMA units for each thread mentioned in section~\ref{sec:ptarm_dram_integration} that 
+provide threads with the ability to transfer contents from the DRAM to the scratchpads in the background is currently only implemented on the simulator. 
+The simulator allows us to quickly test out different software behaviors and verify our assumptions. 
+The simulator and corresponding documentation can be downloaded from http://chess.eecs.berkeley.edu/pret. 
+
+\todo{present benchmark numbers on the simulator and compare to others}
+

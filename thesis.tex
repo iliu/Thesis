@@ -16,6 +16,26 @@
 \usepackage{subfigure}
 \usepackage{multirow}
 \usepackage{algorithm2e}
+\usepackage{listings}
+
+
+\lstdefinelanguage{pret}
+{morekeywords={get_time, delay_until, delay_and_set, exception_on_expire, deactivate_exception}}
+
+\lstset{frame=shadowbox, numbers=right, basicstyle=\footnotesize, keywordstyle=\textbf, language=pret}
+
+\newcommand{\gettime}{\textbf{get\_time}}
+\newcommand{\delayuntil}{\textbf{delay\_until}}
+\newcommand{\delayandset}{\textbf{delay\_and\_set}}
+\newcommand{\exceptiononexpire}{\textbf{exception\_on\_expire}}
+\newcommand{\deactivateexception}{\textbf{deactivate\_exception}}
+\newcommand{\mtfd}{\textbf{mtfd}}
+
+\newcommand{\Gettime}{\textbf{Get\_time}}
+\newcommand{\Delayuntil}{\textbf{Delay\_until}}
+\newcommand{\Delayandset}{\textbf{Delay\_and\_set}}
+\newcommand{\Exceptiononexpire}{\textbf{Exception\_on\_expire}}
+\newcommand{\Deactivateexception}{\textbf{Deactivate\_exception}}
 
 
 \newcommand{\rt}{real-time}
