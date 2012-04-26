@@ -1,13 +1,4 @@
 \section{PTARM 6 stage Architecture}
-\begin{figure}
-  \vspace{-20pt}
-  \begin{center}
-    \includegraphics[scale=.6]{figs/ptarm_pipeline_six_stage}
-  \end{center}
-  \vspace{-20pt}
-  \caption{Block Level View of the PTARM 6 stage pipeline}
-  \label{fig:ptarm_pipeline_six_stage}
-\end{figure}
 
 The pipeline of PTARM implements a thread-interleaved pipeline for the ARM instruction set.
 PTARM is written in VHDL and targets Xilinx Virtex-5 Family FPGAs, thus a the design decisions made tailored the PTARM architecture towards optimizing the design for the Xilinx V5 FPGA.
@@ -19,7 +10,6 @@ There contains multiple copies of the Program Counter(PC), Thread States, and Re
 Most of the pipeline design follows a typical Hennesy and Patterson\todo{citation} 5 stage pipeline, but the thread interleaved pipeline also allows us to strip away the branch predictor and the data forwarding logic used to handle data-hazards.
 The six stages in the pipeline are -- Fetch, Decode, Shift, Execute, Memory, Writeback.
 We will briefly describe the functional blocks of each stage, and later show how most instruction types are implemented in the pipeline.  
-%TODO: Talk about register file, 3 read and 1 write port
 
 The fetch stage of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction scratchpad.
 A simple $Log(n)$ bit upcounter is used to keep track of which thread current to fetch.  

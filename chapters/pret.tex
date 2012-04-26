@@ -340,7 +340,6 @@ An in depth study of WCET analysis of TDMA access schedules is beyond the scope 
 But these are possibilities now because there is no timing interference between the threads. 
 A queue based mechanism would not be able to achieve better execution time analysis without taking into account the execution context of all other threads in the pipeline.
 
-%Discuss that statically in software we can introduce different mechanims to disrupt timing
 It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful. 
 But only by achieving predictability in the hardware architecture can we begin to reason about more dynamic behavior in software.
 For example, we discussed that dynamically scheduling threads in hardware causes timing interference. 
@@ -349,7 +348,6 @@ For example, the Giotto\todo{cite} programming model specifies a periodic softwa
 If such a programming model was implemented on a thread-interleaved pipeline, different program states might map different tasks to threads or have different number of threads executing within the pipeline.
 But by explicitly controller the thread switches in software, the execution time variances introduced is transparent at the software level, allowing potential for timing analysis.
 
-%FIXME: Show a simple timing analysis of thread-interleaved pipelines and how easy it is, compare it to a timing analysis of single threads?
 %TODO: Talk about the trade-offs of threaded interleaved pipelines to summarize 
 In this section we introduced a predictable thread-interleaved pipeline design that provides temporal isolation for all threads in the architecture.
 The thread-interleaved pipeline favors throughput over single thread latency, as multiple threads are executed on the pipeline in a round robin fashion.  

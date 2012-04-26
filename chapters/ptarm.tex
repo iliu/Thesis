@@ -14,14 +14,14 @@ This is useful to compact code that is reading through an array in a loop, as on
 In addition, almost all of the ARM instructions are conditionally executed.
 The conditional execution improves architecture throughput with potential added benefits of code compaction\todo{Citation}.     
 ARM programmer's model specifies 16 general purpose registers (R0 to R15) to be accessed with its instructions, with register 15 being the program counter (PC). 
-Writing to R15 triggers a branch, and reading from R15 reads the current PC plus 8.    
+Writing to R15 triggers a branch, and reading from R15 reads the current PC plus 8.
 
 ARM has a rich history of versions for their ISA, and PTARM implements the ARMv4 ISA, currently without support for the thumb mode.
 PTARM uses scratchpads instead of caches, and a DDR2 DRAM for main memory managed by the timing predictable memory controller.
 PTARM also implements the timing instructions introduced in chapter~\ref{chapter:programming_models}.   
 %We will first discuss the architectural details of PTARM, then present the C++ software simulator.   
 
-\section{PTARM Architecture}
+\section{Thread-Interleaved Pipeline}
 PTARM implements a thread-interleaved pipeline for the ARM instruction set.
 PTARM was initially written to target Xilinx Virtex-5 Family FPGAs, thus several design decisions were made to optimized the PTARM architecture for Xilinx V5 FPGAs.
 PTARM has a 32 bit datapath in a five stage pipeline with four threads interleaving through the pipeline. 
@@ -31,10 +31,9 @@ However, having more threads in the pipeline increases single thread latency, si
 Lee and Messerschmitt~\cite{lee1987pip} showed that the minimum number of threads required to remove hazards is actually less than the number of pipeline stages in the pipeline. 
 In our design, we implement a five stage thread-interleaved pipeline with four threads by carefully designing the PC writeback mechanism one pipeline stage earlier.
 
-\subsection{Thread-Interleaved Pipeline}
 Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
 Some multiplexers within the pipeline have been omitted in the figure for a simplified view of the hardware components that make up the pipeline.
-There contains four copies of the Program Counter(PC), Thread States, and Register File, which abstracted away in the figure.
+There contains four copies of the Program Counter(PC), Thread States, and Register File.
 Most of the pipeline design follows a typical Hennessy and Patterson\todo{citation} five stage pipeline, with the five stages in the pipeline being -- Fetch, Decode, Execute, Memory, Writeback.
 We will briefly describe the functionality of each stage, and leave more details when we discuss how instructions are implemented in section~\ref{sec:ptarm_instructions}.
 
@@ -48,11 +47,12 @@ We will briefly describe the functionality of each stage, and leave more details
   \label{fig:ptarm_pipeline_five_stage}
 \end{figure}
 
-The \emph{fetch} and \emph{decode} stages setup the data operands and control signals for the later stages to execute the instruction.
+%The \emph{fetch} and \emph{decode} stages setup the data operands and control signals for the later stages to execute the instruction.
 The \emph{fetch stage} of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction memory. 
 The PC forward path forwards a loaded address from main memory for instructions that load to R15, which causes a branch.
 We will discuss the need for the forwarding path below when we describe the \emph{writeback stage}.
-A simple $Log(n)$ bit upcounter is used to keep track of which thread current to fetch.
+A simple $log(n)$ bit upcounter is used to keep track of which thread current to fetch.
+
 The \emph{decode stage} contains the pipeline controller which does the full decoding of instructions and sets the correct pipeline signals to be propagated down the pipeline.
 Most of ARM instructions are conditionally executed, so the pipeline controller first checks the condition bis to determine whether the instruction is to be executed or not.  
 Typically the controller needs to know the current instructions in the pipeline to detect the possibility of pipeline hazards and stall the current instruction.
@@ -66,6 +66,7 @@ Store instructions also read a third register to obtain the register value that 
 However, both instructions have different bit locations in the instruction encoding to determine what register to read from.
 Thus, a small register address decoding logic is inserted for a quick decoding of the register addresses from the instruction bits.
 The \emph{PC Adder} is used to increment the PC.
+%FIXME: Talk about the design of the ISA to optimize pipeline implementation, which in our case did not make things easier
 The ARM ISA programmer's model states that reading from R15 reads the current PC+8, the PC adder not only increments the PC by 4 to get the potential next PC, but it also increments the current PC by 8 to be used as an operand. 
 Single threaded pipelines need to increment the PC immediately in the fetch stage to prepare for the next instruction fetch.  
 For thread-interleaved pipelines, since the next PC from the current thread is not needed until several cycles later, it doesn't need to be in the fetch stage. 
@@ -82,7 +83,6 @@ The load/store multiple instruction uses a 16 bit vector to represent each of th
 The bits that are set in that bit vector represents a load/store on that register.
 The an offset is added to the base memory address for the instruction, and that offset depends on how many bits are set. 
 Thus, the load/store multiple offset logic block does a bit count on the bit vector and adjusts the offset to be passed into the ALU for load/store multiple instructions.
-%We will later describe in detail how the load/store multiple instructions are executed within the pipeline.
 The \emph{timer adder} logic block is a 32 bit add/subtract unit.
 Time in the pipeline is a 64 bit value representing nanoseconds. 
 Thus, any timing instruction that interacts with the timer in the pipeline needs to operate on 64 bit values.
@@ -90,6 +90,7 @@ We could have reuse the existing ALU at the expense of having all timing instruc
 But we chose to include an addition add/subtract unit specifically for the implementation of the delay\_until instruction so it can check for deadline expiration every cycle, which we will discuss in detail in section~\ref{sec:ptarm_instructions} when we show how delay\_until is implemented.    
 A 32 bit \emph{ALU} does most of the logical and arithmetic operations, including data-processing operations and branch address calculations.
 The results is passed to the \emph{memory stage}, which either uses it as an address to interact with the data memory, or forwards it along to the \emph{writeback stage} to commit back to the registers.
+
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace{-20pt}
   \begin{center}
@@ -109,12 +110,11 @@ For most instructions, the next PC calculation is completed before the memory st
 However, the ARM ISA allows instructions to write to register 15 (PC), which acts as a branch to the value written to R15.   
 This means a load instruction can write to R15 and cause a branch whose target is not known until after the memory read.   
 Thus, a PC forwarding path is added to forward the PC back from memory if a load instruction writes to R15.  
-The forwarding path does not cause any timing analysis difficulties because the statically the forwarding path is only used when a load instruction writes to R15, which can be statically deteremined. 
+The forwarding path does not cause any timing analysis difficulties because the statically the forwarding path is only used when a load instruction writes to R15, which can be statically determined. 
 Also, this causes no stall in the pipeline, and does not effect the timing of any following instructions. 
 This allows us to interleave four threads in our five stage pipeline instead of five.    
 
-
-\subsection{Memory Hierarchy} 
+\section{Memory Hierarchy} 
 The instruction memory is currently composed of an instruction scratchpad and a boot ROM. 
 The boot ROM \todo{mention bootROM size} is shared between all the threads and contains the initialization code for each thread. 
 It also contains the exception vector table that stores entries for handling different exceptions that occur in the pipeline, along with some of the exception handlers. 
@@ -126,43 +126,83 @@ The data memory
 
 \section{Instruction Implementations}
 \label{sec:ptarm_instructions}
-In this section we will go into more details about how each instruction type is implemented and how the hardware blocks shown in the previous sections are used.
-We will go through different instruction types and also discuss the timing implications of our implementation. 
-We will summarize with a table with all instructions and the cycle count it takes to execute them.   
+In this section we go into more details on how each instruction type is implemented and how each hardware block in the pipeline shown in figure~\ref{fig:ptarm_pipeline_five_stage}. 
+We will go through different instruction types and discuss the timing implications each instruction in our implementation.
+%FIXME: Talk about the difference between thread cycle and regular processor cycle
+We will summarize with a table with all instructions and the cycle count it takes to execute them.
+   
 \subsection{Data-Processing}
+We begin by explaining how data-processing instructions are implemented.
+These instructions are used to manipulate register values by executing register to register operations. 
+Most data-processing instructions take two operands.
+One operand is always a register value, the second operand is labeled the shifter operand. 
+The shifter operand could be an immediate value or a register value, both which can be shifted to form the final operand that is fed into the ALU.
+Figure~\ref{fig:data_processing_pipeline_implementation} explains how data-processing instructions are executed through the pipeline.
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.54]{figs/data_processing_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Data Processing Instruction Execution in the PTARM Pipeline}
+  \label{fig:data_processing_pipeline_implementation}
+\end{figure}
 
+Because R15 is PC, so data-processing instructions that use R15 as an operand will read the value of PC+8 as the operand. 
+Any instruction that uses R15 as the destination register will trigger a branch to the result of the computation.
+As discussed earlier, our pipeline commits the next PC in the memory stage, so to trigger a branch from data-processing instructions simply means storing back the results from the ALU as the next PC.
+In our thread-interleaved pipeline, when the next PC from the current thread is fetched, it will contain already contain the target address to branch to when we issue a data-processing instruction that writes to R15. 
+
+Data processing instructions can also update the program condition code flags that are stored in the thread state. 
+The condition code flags are used to predicate execution for ARM instructions, and consists of four bits: Zero (Z), Carry (C), Negative (N) and Overflow (V). 
+The high four bits of each instruction forms a conditional field that is checked against the thread state condition code flags to determine whether or not the instruction is executed. 
+The conditional execution for each instruction is checked in the pipeline controller. 
+Data-processing instructions provide a mechanism to update the condition code flags according to the results of data operations.
+The instructions that update the flags do not write any data back to the registers, they simply update the condition code flags.
+
+All data-processing instructions only take one pass through the pipeline, even instructions that read from or write to R15, so all data-processing instructions take one thread cycle to execute. 
 \subsection{Branch}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
-    \includegraphics[scale=.6]{figs/branch_pipeline_implementation}
+    \includegraphics[scale=.54]{figs/branch_pipeline_implementation}
   \end{center}
   \vspace{-20pt}
-  \caption{Branch Instruction Execution in the Ptarm Pipeline}
+  \caption{Branch Instruction Execution in the PTARM Pipeline}
   \label{fig:branch_pipeline_implementation}
 \end{figure}
-Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB. 
-Because the general purpose register 15 is the PC, any write to R15 is also considered a branch instruction that branches to the address written into R15.
-Figure~\ref{fig:branch_pipeline_implementation} show how the branch instruction is executed in the thread-interleaved pipeline. 
-The hardware units involved are highlighted in gray and the lines are in bold.
-The branch instructions for the ARM ISA calculate the address based upon an offset added to PC incremented by 8. 
-Thus, the PC adder, in addition to incrementing the PC by 4, also increments the PC by 8 to pass to the ALU for correct address calculation. 
-Once the address is calculated, it is written back to the PC for the corresponding thread.
-If the instruction is a branch and link ($bl$), PC+4 will be written back to the link register (R14).   
-In the case of a conditional branch, the PC is only written back if the condition holds true, or else PC+4 is written back to the PC. 
-Because of the thread interleaved pipeline, we are not concerned that the pipeline will be stalled waiting for result of the branch to execute the next instruction. 
-Instead, instructions from other threads will be fetched before the results of the branch is needed.     
-Thus, we can write back to the PC at the end of the pipeline without creating hazards.
-\subsection{Loads and Stores}
+Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB.
+There is no explicit conditional branch instruction in ARM.
+Conditional branches are implemented using the ARM predicated instruction mechanism.
+So the condition used to determine if a conditional branch is taken is simply the condition code flags in the thread state. 
+Figure~\ref{fig:branch_pipeline_implementation} show how branch instructions are executed in the thread-interleaved pipeline.
+
+The branch instructions for the ARM ISA calculate the branch target address by adding a 24 bit signed offset, specified in the instruction, to the current PC incremented by 8. 
+Thus, the PC adder, in addition to incrementing the PC by the conventional offset of 4, also increments the PC by 8, to be used as an operand for the ALU to calculate the target branch address.
+Once the address is calculated, it is written back to its thread's next PC ready to be fetched. 
+If the instruction is a branch and link ($bl$) instruction, PC+4 is propagated down the pipeline and written back to the link register (R14).   
+
+All branch instructions, whether conditionally taken or not, all take only one thread cycle to execute.
+But more importantly, the next instruction after the branch, whether it is a conditional branch or not, is not stalled or speculatively executed. 
+The execution time of instructions from the same thread after the branch is not stalled nor affected by the branch instruction.  
+The thread-interleaved pipeline simplified the implementation of the branch instruction and control hazard handling logic, as the pipeline will not need the results of the branch target address calculation the very next processor cycle.  
+Instead, instructions from other threads will be fetched before the results of the branch is needed.
+
+\subsection{Memory Operations}
+
+\subsubsection{Load/Store Registers}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
-    \includegraphics[scale=.6]{figs/ldstr_pipeline_implementation}
+    \includegraphics[scale=.54]{figs/ldstr_pipeline_implementation}
   \end{center}
   \vspace{-20pt}
   \caption{Load/Store Instruction Execution in the Ptarm Pipeline}
   \label{fig:ldstr_pipeline_implementation}
 \end{figure}
+Very similar to data processing instructions, except the ALU results gets used for the memory access.
+Write about incrementing the base register 
+
 For load and store instructions, the memory access address is formed by combining a base register and an offset value. 
 ARM also specifies the ability to update the base register after any memory operation. 
 This compacts code that reads arrays, as a load or store instruction can access memory and updates the base register so the next memory access is done on the updated base register.
@@ -171,19 +211,73 @@ Pre-indexed addressing mode calculates the memory address by first using the val
 Post-indexed addressing mode first updates the base register, then uses the updated base register value along with the offset to form the memory address. 
 The base register could be incremented or decremented when it is being updated.   
 Because there is only one write port to our register file however, we cannot simultaneously write back a load result from memory and the updated base register to the register file in a single cycle. 
-As a result, 
+As a result,
 
+\subsubsection{Load/Store Multiple}
+
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.54]{figs/ldstrm_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Load/Store Multiple Instruction Execution in the PTARM Pipeline}
+  \label{fig:ldstrm_pipeline_implementation}
+\end{figure}
+
+\subsubsection{Load to PC}    
+  
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.54]{figs/ld_to_pc_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Load to R15 Instruction Execution in the PTARM Pipeline}
+  \label{fig:ld_to_pc_pipeline_implementation}
+\end{figure}
 \subsection{Exception Handling}
 
 \subsection{Timing Instructions}
 
-\subsection{Synthesis Results}
-Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.  
-\section{PTARM Simulator}
-\label{sec:ptarm_sim}
+\subsubsection{Get\_Time}    
+
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.54]{figs/get_time_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Get\_Time Instruction Execution in the PTARM Pipeline}
+  \label{fig:get_time_pipeline_implementation}
+\end{figure}
+
+\subsubsection{Delay\_Until}    
+
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.54]{figs/delay_until_pipeline_implementation}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Delay\_Until Instruction Execution in the PTARM Pipeline}
+  \label{fig:delay_until_pipeline_implementation}
+\end{figure}
+
+\subsubsection{Exception\_on\_Expire, Deactivate\_Exception}    
 
 \section{Worst Case Execution Time Analysis}
 \label{sec:wcet}
+ 
+\section{PTARM VHDL Soft Core}
+Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.
+
+Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller  
+
+\section{PTARM Simulator}
+\label{sec:ptarm_sim}
+
+Talk about experimentation with DMA and memory hierarchy
 
 
 
