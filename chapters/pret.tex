@@ -1,14 +1,14 @@
 In this chapter we present the design principles of a PREcision Timed (PRET) Machine.
 Specifically, we discuss the implementation of a predictable pipeline and memory controller, and present timing extensions to the ISA. 
 It is important to understand why and how current architectures fall short of timing predictability and repeatability.
-Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and trade-offs when designing architectures for predictable and repeatable timing.
+Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and trade offs when designing architectures for predictable and repeatable timing.
 
 \section{Pipelines}
-The introduction of pipelining vastly improved the performance of processors.
+The introduction of pipelining vastly improves the performance of processors.
 Pipelining increases the number of instructions that can be processed at one time by splitting up instruction execution into multiple steps.
 It allows for faster clock speeds, and improves instruction throughput compared to single cycle architectures.
 Ideally each in processor cycle, one instruction completes and leaves the pipeline as another enters and begins execution. 
-In reality, different pipeline hazards occur which reduce the throughput and create stalls in the pipeline.
+In reality, different pipeline hazards occur that reduce the throughput and create stalls in the pipeline.
 The techniques introduced to mitigate the penalties of pipeline hazards greatly effect to the timing predictability and repeatability of architectures.     
 We analyze several commonly used techniques to reduce the performance penalty from hazards, and show their effects on execution time and predictability. 
 
@@ -26,7 +26,7 @@ We analyze several commonly used techniques to reduce the performance penalty fr
   \label{fig:sample_data_dependent_code}
 \end{wrapfigure}
 
-Data hazards occur when the data needed by an instruction is not yet available.
+Data hazards occur when the data needed by an instruction are not yet available.
 Pipelines begin the execution of instructions before preceding ones are finished, so consecutive instructions that are data-dependent could simultaneously be executing in the pipeline.
 For example, the code in figure~\ref{fig:sample_data_dependent_code} shows assembly instructions from the ARM instruction set architecture (ISA) that each depend on the result of its previous instruction.
 Figure~\ref{fig:data_depend_execution_non_interleaved} shows two ways data hazards are commonly handled in pipelines. 
@@ -52,16 +52,16 @@ This is shown in the top of figure~\ref{fig:data_depend_execution_non_interleave
 The dependencies between instructions are explicitly shown in the figure to make clear why the pipeline delays are necessary.
 The performance penalty incurred in this case comes from the pipeline delays inserted.
 
-\emph{Data forwarding} is commonly used to mitigate the need for inserting delays when data hazards occur.
+\emph{Data forwarding} is commonly used to mitigate the delays when data hazards occur.
 Pipelines split up the execution of instructions into different execution stages. 
 Thus, the results from an instruction could be ready, but waiting to be committed in the last stage of the pipeline.
-Data forwarding utilizes this and introduces backwards data paths in the pipeline, so earlier pipeline stages can access the data from instructions in later stages that have not yet committed.
-This greatly reduces the amount of delays inserted in the pipeline, as instructions can access the results of previous instructions before they commit.
-The circuitry of data forwarding usually consists of the backwards data paths and multiplexers in the earlier pipeline stages to select the correct data to be used.    
-The pipeline controller dynamically detects whether a data-dependency exists, and changes the selection bits of the multiplexers accordingly to select the correct operands.
+Data forwarding introduces backwards data paths in the pipeline, so earlier pipeline stages can access the data from instructions in later stages that have not yet committed.
+This greatly reduces the delays inserted in the pipeline.
+The circuitry for data forwarding usually consists of the backwards data paths and multiplexers in the earlier pipeline stages to select the correct data to be used.    
+The pipeline controller dynamically detects whether a data dependency exists, and changes the selection bits of the multiplexers accordingly.
 
 The bottom of figure~\ref{fig:data_depend_execution_non_interleaved} shows the execution sequence of the previous example in a pipeline with data forwarding.
-No pipeline delays are inserted for the first \emph{sub} and \emph{ldr} instruction because the data they depend on are forwarded with the forwarding paths.
+No pipeline delays are inserted for the first \emph{sub} and \emph{ldr} instruction because the data they depend on are forwarded.
 However, delays are still inserted for the second \emph{sub} instruction after the \emph{ld} instruction.
 For longer latency operations, such as memory accesses, the results are not yet available to be forwarded by the forwarding paths, so pipeline delays are still required. 
 This illustrates the limitations of data forwarding.
@@ -72,16 +72,16 @@ The handling of data hazards in pipelines can cause instructions to exhibit dyna
 For example, figure~\ref{fig:data_depend_execution_non_interleaved} shows the \emph{sub} instruction, in both top and bottom figures, exhibiting different execution times. 
 To determine the execution time of instructions on pipelines that stall for data hazards, we need to determine when a stall is inserted, and how long the pipeline is stalled for.
 Stalls are required when the current instruction uses the results of a previous instruction that is still in execution in the pipeline.
-Thus, depending on the pipeline depth, a window of previous instructions needs to be checked to determine if any stalls are inserted.     
-The length of the stall is determined by the execution time of the dependent instruction, because the pipeline will stall until that instruction completes.
+Thus, depending on the pipeline depth, a window of previous instructions needs to be checked to determine whether any stalls are inserted.     
+The length of the stall is determined by the execution time of the dependent instructions, because the pipeline will stall until those instructions complete.
 Data forwarding does not remove the data hazards, but only reduces the number of stalls required to take care of the data hazards.  
 Thus, to determine the execution time when data forwarding is used, timing analysis needs to determine when the data forwarding circuitry cannot not forward the data for data hazards.
-This can similarly be done by observing the window of instructions not yet committed in the pipeline.  
-The difference is, instead of all data dependencies, only data dependencies from long latency operations need to be detected.
+%This can similarly be done by observing the window of instructions not yet committed in the pipeline.  
+%The difference is, instead of all data dependencies, only data dependencies from long latency operations need to be detected.
 
-Both techniques used for handling data hazards caused the execution time of instructions to depend on a window of previous instructions.
-The deeper the pipeline, the larger the window of instructions execution time will depend on. 
-Thus, static execution time analysis needs to model and account for this additional the window of instructions on pipelined architectures that use stalling or forwarding to handle the data hazards. 
+Both stalling and forwarding cause the execution time of instructions to depend on a window of previous instructions.
+The deeper the pipeline, the larger the window.
+Thus, execution time analysis needs to model and account for this additional window of instructions on pipelined architectures that use stalling or forwarding to handle the data hazards. 
 
 \subsubsection{Control Hazards}
 \begin{wrapfigure}{r}{0.5\textwidth}
@@ -94,7 +94,7 @@ Thus, static execution time analysis needs to model and account for this additio
   \label{fig:sample_gcd_code}
 \end{wrapfigure}
 
-Branches are the most common cause of control-flow hazards (or control hazards) in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
+Branches cause control-flow hazards (or control hazards) in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
 Conditional branches further complicates matters, as whether or not the branch is taken depends on an additional condition that could also be unknown when the conditional branch is in execution. 
 The code segment in figure~\ref{fig:sample_gcd_code} implements the \emph{Greatest Common Divisor} (GCD) algorithm using the conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than) in the ARM ISA.  
 Conditional branch instructions in ARM branch based on conditional bits that are stored in a processor state register.
@@ -122,17 +122,17 @@ Branch instructions typically calculate the target address in the execute stage,
 The reasoning applies to the two pipeline delays inserted before the \emph{sub} instruction. 
 The performance penalty (often referred to as the \emph{branch penalty}) incurred in this case is the two delays inserted after every branch instruction, to wait for the branch address calculation to complete.
 
-To mitigate the branch penalty, some architectures enforce the compiler to insert one or more non-dependent instructions after each branch instruction.
+To mitigate the branch penalty, some architectures require the compiler to insert one or more non-dependent instructions after each branch instruction.
 These instruction slots are called branch delay slots, and are always executed before the pipeline branches to the target address. 
 This way, instead of wasting cycles to wait for the target address calculation, the pipeline continues to execute useful instructions before it branches.
 However, if the compiler cannot place useful instructions in the branch delay slot, \emph{nops} need to be inserted into those slots to ensure correct program execution.
-Thus, branch delay slots are less effective for deeper pipelines because more delay slots need to be filled by the compiler to account for the branch penalty.
+Thus, branch delay slots are less effective for deeper pipelines, because more delay slots need to be filled by the compiler to account for the branch penalty.
   
 Instead of stalling, \emph{branch predictors} are commonly employed to predict the branch condition and target address so the pipeline can speculatively continue execution. 
 Branch predictors internally maintain some form of state machine that is used to determine the prediction of each branch.  
 The internal state is updated after each branch according to the results of the branch. 
 Different prediction schemes have been proposed, and some can even accurately predict branches up to 98.1\%~\cite{Mcfarling_Branch_predict}.  
-If the branch prediction is correct, no penalty is incurred for the branch because the correct instructions were speculatively executed.  
+If the branch prediction is correct, no penalty is incurred for the branch because the correct instructions are speculatively executed.  
 %With branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively.
 However, when the prediction is incorrect (often referred as a \emph{branch midpredict}), the speculatively executed instructions are flushed, and the correct instructions are re-fetched into the pipeline for execution.
 
@@ -146,10 +146,10 @@ In our example, the misprediction penalty is 2, as branches are resolved after t
 This penalty only occurs on a branch mispredict, thus branch predictors with high success rates typically improve average performance of pipelines drastically, compared to architectures that simply stall for branches.
 %However, for more complex architectures with caches or other hardware states, the effects of incorrectly fetched instructions on the state of the processor less well-known and studied. 
 
-The two methods of handling control hazards exhibit vastly different effects on execution time.    
+Stalling and branch predicting exhibit vastly different effects on execution time.    
 When stalls are used to handle control hazards, the execution time effects are static and predictable.   
 The pipeline will simply \emph{always} insert pipeline delays after a branch instruction.
-Thus, no extra complexity is added to the execution time analysis; the latency of branch instructions simply need to be adjusted to include the branch penalty.
+Thus, no extra complexity is added to the execution time analysis; the latency of branch instructions simply needs to be adjusted to include the branch penalty.
 On the other hand, if a branch predictor is employed, the execution time of each branch will vary depending on the result of the branch prediction.  
 To determine the success of a branch prediction, both the prediction and the branch outcome, both of which can dynamically change in run-time, must be known.   
 Program path analysis can attempt to analyze the actual outcome of branches statically from the program code. 
@@ -160,21 +160,20 @@ There has been work on explicitly modeling branch predictors for execution time 
 Caches and other processor states are assumed to be perfect. 
 In reality, the speculative execution on the predicted program paths lead to further complications that need to be accounted for.
 Other internal states exist in the architecture that could be affected by speculatively executing instructions.
-For example, if caches were used, their internal state could be updated during speculative execution of a mispredicted path.
-As architectures grow in complexity, the combined modeling of all hardware states in the architecture often lead to an infeasible explosion in state space for the analysis.    
+For example, if caches are used, their internal state could be updated during speculative execution of a mispredicted path.
+As architectures grow in complexity, the combined modeling of all hardware states in the architecture often leads to an intractable explosion in state space for the analysis.    
 This makes a tight static execution time analysis extremely difficult, if not impossible.
 
-The difference in execution time effects between stalling and employing a branch predictor highlight an important trade-off for architecture designs.    
+The difference in execution time effects between stalling and employing a branch predictor highlights an important trade off for architecture designs.    
 It is possible to improve average-case performance by making predictions, and speculatively executing based upon them.
-However, this comes at the cost of predictability, and a potential prolonging of the worst-case performance.  
-For real-time and safety critical systems, the challenge remains to improve worst-case performance while maintaining predictability.
-How pipeline hazards are handled play an integral part of tackling this challenge.           
+However, this comes at the cost of predictability, and a potential decreasing of the worst-case performance.  
+For real-time and safety critical systems, the challenge remains to improve worst-case performance while maintaining predictability, and how pipeline hazards are handled plays a key role in tackling this challenge. 
  
-Although less often mentioned, the presence of interrupts and exceptions in the pipeline also create control hazards. 
-Exceptions can occur during the execution of any instruction, and changes the control flow of the program to execute the exception handler.
+Although less often mentioned, the presence of interrupts and exceptions in the pipeline also creates control hazards. 
+Exceptions can occur during the execution of any instruction and change the control flow of the program to execute the exception handler.
 For single threaded pipelines, this means that all instructions fetched and not committed in the pipeline are speculative, because when an exception occurs, all uncommitted instructions in the pipeline become invalid.
 Pipelines often handle this by flushing all instructions and fetching the exception handler for execution.      
-These effects are acknowledged, but often ignored in static analysis because it is simply impossible to model every possible exception, and its effect on the architecture states. 
+These effects are acknowledged, but often ignored in static analysis because it is simply impossible to model every possible exception and its effect on the architecture states. 
  
 \subsubsection{Structural Hazards}
 \emph{Structural hazards} occur when a processor's hardware component is needed by two or more instructions at the same time. 
@@ -192,7 +191,7 @@ Advanced architectures, such as \emph{superscalar} and \emph{VLIW} machines, emp
 Both architectures issue multiple instructions every cycle, and superscalar machines dynamically execute instructions out-of-order if no dependency is detected.    
 These architectures exploit \emph{instruction-level parallelism} to overlap the execution of instructions from a single thread whenever possible.         
 On the contrary, \emph{multithreaded architectures} exploit \emph{thread-level parallelism} to overlap the execution of instructions from different hardware threads. 
-Each hardware thread in a multithreaded architecture has its own physical copy of a processor state, such as the registers file and program counter etc.
+Each hardware thread in a multithreaded architecture has its own physical copy of a processor state, such as the register file and program counter.
 When a pipeline hazard arises from the execution of a hardware thread, another hardware thread can be fetched for execution to avoid stalling the pipeline. 
 This improves the instruction throughput of the architecture.
 
@@ -205,7 +204,7 @@ This improves the instruction throughput of the architecture.
 \label{fig:multi-thread pipeline simplified}
 \end{figure}
 Figure~\ref{fig:multi-thread pipeline simplified} shows the implementation of a simple multithreaded pipeline.
-It contains 5 hardware threads, so it has 5 copies of the Program Counter (PC) and Register files.
+It contains 5 hardware threads, so it has 5 copies of the Program Counter (PC) and register files.
 The rest of the pipeline remains similar to a classic five stage RISC pipeline, with the addition of a few multiplexers used to select the thread states.
 Thus, the extra copies of the processor state and multiplexers are most of the hardware additions needed to implement hardware multithreading.
 When a hardware thread executes in the pipeline, its corresponding thread state is passed into the pipeline to be used.
@@ -214,26 +213,26 @@ This is not to be confused with the common notion of \emph{threads}, which descr
 It will be explicitly noted when we refer to the software notion of threads. 
 %The selection of threads for execution is one of the most important factors to fully utilize thread-level parallelism.
 %If a thread is stalled waiting for memory access but gets selected to execute in the pipeline, then that instruction slot is wasted and the processor isn't fully utilized.
-Ungerer et al.~\cite{Ungerer:2003:survey_multithreading} surveyed different multithreaded architectures and categorized them based upon the \emph{thread scheduling} policy and the \emph{execution width} of the pipeline.
+Ungerer et al.~\cite{Ungerer:2003:survey_multithreading} survey different multithreaded architectures and categorize them based upon the \emph{thread scheduling} policy and the \emph{execution width} of the pipeline.
 
 The \emph{thread scheduling} policy determines which threads are executing, and how often a context switch occurs.  
-\emph{Coarse-grain} policies manage threads similar to the way operation systems manage software threads.
+\emph{Coarse-grain} policies manage threads similarly to the way operation systems manage software threads.
 A thread gains access to the pipeline and continues to execute until a context switch is triggered.
-Context switches occur less frequently via this policy, so less threads are required to fully utilize the processor.
+Context switches occur less frequently via this policy, so fewer threads are required to fully utilize the processor.
 Different coarse-grain policies trigger context switches with different events. 
 Some policies trigger context switches on dynamic events, such as a cache miss or an interrupt; some policies trigger context switches on more static events, such as specialized instructions.
-\emph{Fine-grain} policies switch context much more frequently -- some as frequent as every processor cycle.
-The \emph{execution width} of the pipeline is to the number of instructions fetched each cycle.  
+\emph{Fine-grain} policies switch context much more frequently -- some as frequently as every processor cycle.
+The \emph{execution width} of the pipeline is the number of instructions fetched each cycle.  
 Multithreaded architectures with wider pipeline widths can fetch all instructions a single thread, or mix instructions from different threads.
 The Sumultanous Multithreaded (SMT) architecture~\cite{Tullsen1995SMT} is an example where instructions are fetched from different threads each cycle.
 
 Multithreaded architectures present several challenges for static execution time analysis.
-As figure~\ref{fig:multi-thread pipeline simplified} illustrated, threads share the hardware components within the pipeline.
+As figure~\ref{fig:multi-thread pipeline simplified} illustrates, threads share the hardware components within the pipeline.
 If a hardware component, such as a branch predictor, maintains internal state, that internal state can be modified by all threads in the pipeline.
 As the internal states of the hardware components affect the execution time of the individual instructions, each thread can affect the execution time of all threads in the pipeline. 
-If the threads' execution time are interdependent, their timing cannot be separately analyzed.
-As a result, in order to precisely model the hardware states, the execution order of instructions from all threads need to be known.
-The interleaving of threads depend heavily on the thread scheduling policy, execution width, and hazard handling logic employed in the pipeline.
+If the threads' execution times are interdependent, their timing cannot be separately analyzed.
+As a result, in order to precisely model the hardware states, the execution order of instructions from all threads needs to be known.
+The interleaving of threads depends heavily on the thread scheduling policy, execution width, and hazard handling logic employed in the pipeline.
 The compounding effect of these can create an overwhelming combination of possible thread interleavings, making static timing analysis nearly impossible, even if only a conservative estimation is desired.   
 
 Nonetheless, we contend that thread-level parallelism (TLP) \emph{can} be exploited to handle pipeline hazards predictably. 
