@@ -168,25 +168,6 @@ It is stored in registers r4 and r5.
 The loop period is set to be $4 \mu s$, which is $4000 ns$ (100 thread cycles).
 We add the loop period to the \emph{deadline timestamp} each loop iteration (lines 13 and 14 in the listing).  
 
-\newcommand{\currentt}{\emph{current\_timestamp}}
-\newcommand{\deadlinet}{\emph{deadline\_timestamp}}
-
-The need for the \emph{offset} can be observed at the beginning of loop iteration 2.
-At time $t+4080ns$, \gettime\ is called to initiate the miss detection sequence.
-The previous \deadlinet\ is $t+4000$, which was met in the first iteration.  
-However, \gettime\ updates the \currentt\ to $t+4080$, because the execution of \delayuntil\ and \emph{b loop} took 2 thread cycles combined. 
-Thus, our miss detection accounts for this by subtracting the 2 thread cycles ($80ns$) overhead from \currentt\ before comparing it with \deadlinet.
-In general, the overhead that needs to be account for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
-Intuitively this is because we want to check whether the previous \delayuntil\ executed before the previous \deadlinet, so the \emph{offset} is used to calculate the time of execution of the previous \delayuntil.  
-
-
-When the first loop iteration executes, the \currentt\ will first be checked against the \deadlinet\ that was setup before the loop began execution.
-The compensation for the loop offset in this case also helped compensate for the initial loop setup time.
-Without it, the \currentt\ would be greater than \deadlinet\ from the execution time of the setup \gettime instruction, and cause a false missed deadline detection.
-Because it takes 2 thread cycles ($80ns$) to execute \gettime, the value the \textbf{offset} at a minimum must be 2 thread cycles so the first iteration will not falsely detect a missed deadline.  
-As execution continues, the first iteration executes the normal task, and the \delayuntil\ is executed before the first deadline of $t+4000ns$.
-
-
 \begin{table}
 \vspace{-5mm}
 \begin{center}
@@ -249,6 +230,37 @@ As execution continues, the first iteration executes the normal task, and the \d
 \caption{Self compensating timed loop timing details (TC = thread cycles)}
 \label{table:timed-loop-compensate-timing}
 \end{table}
+
+
+\newcommand{\currentt}{\emph{current\_timestamp}}
+\newcommand{\deadlinet}{\emph{deadline\_timestamp}}
+
+The need for the \emph{offset} can be observed at the beginning of the second loop iteration.
+At time $t+4080ns$, \gettime\ is called to initiate the miss detection sequence.
+The previous \deadlinet\ is $t+4000$, which was met in the first iteration.  
+However, \gettime\ updates the \currentt\ to $t+4080$, because the execution of \delayuntil\ and \emph{b loop} took 2 thread cycles combined. 
+Thus, our miss detection accounts for this by subtracting the 2 thread cycles ($80ns$) overhead from \currentt\ before comparing it with \deadlinet.
+In general, the overhead that needs to be account for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
+Intuitively this is because we want to check whether the previous \delayuntil\ executed before the previous \deadlinet, so the \emph{offset} is used to calculate the time of execution of the previous \delayuntil.  
+
+\begin{figure}[h]
+  \vspace{-3mm}
+  \begin{center}
+    \includegraphics[scale=.7]{figs/setup_loop_timing}
+  \end{center}
+  \vspace{-10mm}
+  \caption{Jitter caused by initial timed loop setup}
+  \label{fig:setup_look_timing}
+\end{figure}
+
+In our code, the loop setup
+When the first loop iteration executes, the \currentt\ will first be checked against the \deadlinet\ that was setup before the loop began execution.
+The compensation for the loop offset in this case also helped compensate for the initial loop setup time.
+Without it, the \currentt\ would be greater than \deadlinet\ from the execution time of the setup \gettime instruction, and cause a false missed deadline detection.
+Because it takes 2 thread cycles ($80ns$) to execute \gettime, the value the \textbf{offset} at a minimum must be 2 thread cycles so the first iteration will not falsely detect a missed deadline.  
+As execution continues, the first iteration executes the normal task, and the \delayuntil\ is executed before the first deadline of $t+4000ns$.
+
+
 
 
 \subsection{Exceptions}
