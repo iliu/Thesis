@@ -94,7 +94,7 @@ Thus, static execution time analysis needs to model and account for this additio
   \label{fig:sample_gcd_code}
 \end{wrapfigure}
 
-Branches cause control-flow hazards (or control hazards) in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
+Branches are the most common cause of control-flow hazards (or control hazards) in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
 Conditional branches further complicates matters, as whether or not the branch is taken depends on an additional condition that could also be unknown when the conditional branch is in execution. 
 The code segment in figure~\ref{fig:sample_gcd_code} implements the \emph{Greatest Common Divisor} (GCD) algorithm using the conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than) in the ARM ISA.  
 Conditional branch instructions in ARM branch based on conditional bits that are stored in a processor state register.
@@ -128,40 +128,62 @@ This way, instead of wasting cycles to wait for the target address calculation, 
 However, if the compiler cannot place useful instructions in the branch delay slot, \emph{nops} need to be inserted into those slots to ensure correct program execution.
 Thus, branch delay slots are less effective for deeper pipelines because more delay slots need to be filled by the compiler to account for the branch penalty.
   
-In attempt to remove the need of inserting pipeline bubbles, \emph{branch predictors} were invented to predict the results of a branch before it is resolved\todo{citation}.
-%Branch predictors have been heavily researched.
-Many clever branch predictors have been proposed, and they can accurately predict branches up to 93.5\%\todo{citation}.
+Instead of stalling, \emph{branch predictors} are commonly employed to predict the branch condition and target address so the pipeline can speculatively continue execution. 
+Branch predictors internally maintain some form of state machine that is used to determine the prediction of each branch.  
+The internal state is updated after each branch according to the results of the branch. 
+Different prediction schemes have been proposed, and some can even accurately predict branches up to 93.5\%\todo{citation}.  
+If the branch prediction is correct, no penalty is incurred for the branch because the correct instructions were speculatively executed.  
 %With branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively.
-Branch predictors predict the condition and target addresses of branches, so pipelines can speculatively continue execution based upon the prediction.  
-If the prediction was correct, no penalty occurs for the branch, and execution simply continues. 
-However, when a mispredict occurs, then the speculatively executed instructions need to be flushed and the correct instructions need to be refetched into the pipeline for execution.
+However, when the prediction is incorrect (often referred as a \emph{branch midpredict}), the speculatively executed instructions are flushed, and the correct instructions are re-fetched into the pipeline for execution.
+
 The right of figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of GCD in the case of a branch misprediction.
-After the \emph{beq} instruction, the branch is predicted to be taken, and the \emph{add} and \emph{mov} instructions from the label \emph{end} is directly fetched into execution. 
-When the \emph{cmp} instruction is completed, a misprediction is detected, so the \emph{add} and \emph{mov} instruction are flushed out of the pipeline while the correct instruction \emph{blt} is immediately re-fetched and execution continues.
-The misprediction penalty is typically the number of stages between fetch and execute, as those cycles are wasted executing instructions from an incorrect execution path.
-This penalty only occurs on a mispredict, thus branch prediction typically yields better average performance and is preferred for modern architectures.
+The \emph{beq} branch is predicted to be taken, so the \emph{add} and \emph{mov} instructions from label \emph{end} are directly fetched into execution. 
+When \emph{beq} progresses past the execute stage, \emph{cmp} has forwarded its results used to determine the branch condition, and the branch target address has been calculated, so the branch is resolved.
+At this point, the misprediction is detected, so the \emph{add} and \emph{mov} instruction are flushed out of the pipeline. 
+The next instruction from the correct path, the \emph{blt} instruction, is immediately re-fetched, and execution continues.
+The performance penalty of branch mispredictions is derived from the number of pipeline stages between instruction fetch and branch resolution.  
+In our example, the misprediction penalty is 2, as branches are resolved after the execute stage.
+This penalty only occurs on a branch mispredict, thus branch predictors with high success rates typically improve average performance of pipelines drastically, compared to architectures that simply stall for branches.
 %However, for more complex architectures with caches or other hardware states, the effects of incorrectly fetched instructions on the state of the processor less well-known and studied. 
-Nonetheless, it is important to understand the effects of branch prediction on execution time. 
 
-Typical branch predictors predict branches based upon the history of previous branches encountered.  
-As each branch instruction is resolved, the internal state of the predictor, which stores the branch histories, is updated and used to predict the next branch.
-This implicitly creates a dependency between branch instructions and their execution history, as the prediction is affected by its history.
-In other words, the execution time of a branch instruction will depend on the branch results of previous branch instructions.
-During static execution timing analysis, the state of the branch predictor is unknown because is it often infeasible to keep track of execution history so far back.   
+The two methods of handling control hazards exhibit vastly different effects on execution time.    
+When stalls are used to handle control hazards, the execution time effects are static and predictable.   
+The pipeline will simply \emph{always} insert pipeline delays after a branch instruction.
+Thus, no extra complexity is added to the execution time analysis; the latency of branch instructions simply need to be adjusted to include the branch penalty.
+On the other hand, if a branch predictor is employed, the execution time of each branch will vary depending on the result of the branch prediction.  
+To determine the success of a branch prediction, both the prediction and the branch outcome, both of which can dynamically change in run-time, must be known.   
+Program path analysis can attempt to analyze the actual outcome of branches statically from the program code. 
+The predictions made from the branch predictor depend on the internal state stored in the hardware unit.
+This internal state, updated by each branch instruction, must be explicitly modeled in order to estimate the prediction. 
+If the predictor state is unknown, the miss penalty must conservatively be accounted for.
 There has been work on explicitly modeling branch predictors for execution time analysis\todo{citation}, but the results are \todo{the results of branch predictor modeling for execution time analysis}.
-The analysis needs to conservatively account for the potential branch mispredict penalty for each branch, which leads to overestimated execution times.
-To make matters worse, as architectures grow in complexity, more internal states exist in architectures that could be affected by the speculative execution. 
-For example, cache lines could be evicted when speculatively executing instructions from a mispredicted path, changing the state of the cache.  
-%When instructions from the correct execution path are re-fetched at branch resolution, a cache miss could be resulted from the change in cache because of the branch misprediction.    
-This makes a tight static execution time analysis extremely difficult, if not impossible; explicitly modeling all hardware states and their effects together often lead to an infeasible explosion in state space. 
-On the other hand, although the simple method of inserting pipeline bubbles for branches could lead to more branch penalties, the static timing analysis is precise and straight forward, as no prediction and speculative execution occur. 
-The timing analysis simply adds the branch penalty to the instruction after a branch. 
-Additional penalties from a conditional branch can be accounted for by simply checking for instructions that modify the conditional flag above the conditional branch.
-We explicitly showed this simple method of handling branches to point out an important trade-off between speculative execution for better average performance and consistent stalling for better predictability.
-Average-case performance can be improved by speculation at the cost of predictability and potentially prolonging the worst-case performance.  
-The challenge remains to maintain predictability while improving worst-case performance, and how pipeline hazards are handled play an integral part of tackling this challenge.           
+To make matters worse, the speculative execution on the predicted program paths lead to further complications that need to be accounted for.
+Other internal states exist in the architecture that could be affected by speculatively executing instructions.
+For example, if caches were used, their internal state could be updated during speculative execution of a mispredicted path.
+As architectures grow in complexity, the combined modeling of all hardware states in the architecture often lead to an infeasible explosion in state space for the analysis.    
+This makes a tight static execution time analysis extremely difficult, if not impossible.
 
+The difference in execution time effects between stalling and employing a branch predictor highlight an important trade-off for architecture designs.    
+It is possible to improve average-case performance by making predictions, and speculatively executing based upon them.
+However, this comes at the cost of predictability, and a potential prolonging of the worst-case performance.  
+For real-time and safety critical systems, the challenge remains to improve worst-case performance while maintaining predictability.
+How pipeline hazards are handled play an integral part of tackling this challenge.           
+ 
+Although less often mentioned, the presences of interrupts and exceptions in the pipeline are also a form of control hazards. 
+Exceptions can occur during the execution of any instruction, which changes the control flow of the program to execute the exception handler.
+For single threaded pipelines, this means that all instructions fetched and not committed in the pipeline are speculative, because when an exception occurs, all uncommitted instructions in the pipeline become invalid.
+Pipelines often handle this by flushing all instructions and fetching the exception handler for execution.      
+These effects are acknowledged, but often ignored in static analysis because it is simply impossible to model every possible exception, and its effect on the architecture states. 
+ 
 \subsubsection{Structural Hazards}
+\emph{Structural hazards} occur when a processor's hardware component is needed by two or more instructions at the same time. 
+For example, a single memory unit accessed both in the fetch and memory stage results in a structural hazard. 
+The design of the pipeline plays an integral part in eliminating structural hazards. 
+For example, the classic RISC five stage pipeline only issues one instruction at a time, and uses separate instruction and data caches to avoid structural hazards.
+Structural hazards are generally much more prevalent in architectures that issue multiple instructions at a time.
+If structural hazards cannot be avoided, then the pipeline must stall to access the contended hardware component sequentially.
+The execution time effects of structural hazards are specific to how contention is managed for each pipeline design.
+Here we omit a general discussion of the timing effects, and later address them specifically for our proposed architecture. 
 
 \subsection{Pipeline Multithreading}
  Multithreaded architectures were introduced to improve instruction throughput over instruction latency.
@@ -169,11 +191,11 @@ The architecture optimizes thread-level parallelism over instruction-level paral
 Multiple hardware threads are introduced into the pipeline to fully utilize thread-level parallelism. 
 When one hardware thread is stalled, another hardware thread can be fetched into the pipeline for execution to avoid stalling the whole pipeline. 
 To lower the context switching overhead, the pipeline contains physically separate copies of hardware thread states, such as registers files and program counters etc, for each hardware thread.
-\begin{figure}
+\begin{figure}[h]
 \begin{center}
 \includegraphics[scale=.8]{figs/multithreaded_pipeline_block}
 \end{center}
-\vspace{-30pt}
+\vspace{-3mm}
 \caption{Simple Multithreaded Pipeline}
 \label{fig:multi-thread pipeline simplified}
 \end{figure}
