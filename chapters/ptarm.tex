@@ -117,6 +117,12 @@ This allows us to interleave four threads in our five stage pipeline instead of 
 
 \section{Memory Hierarchy}
 \label{sec:ptarm_memory}
+
+%Remention why we expose the memory hierarchy to the programmer
+%talk about the scratchpad access regions and what memory address they are mapped to
+%talk about the front end implementation to access the ptarm memory controller, and the access latencies that is generated   
+%talk about the I/O memory region, and how the protocol is implemented to determine if memory access is completed yet
+
 The instruction memory is currently composed of an instruction scratchpad and a boot ROM. 
 The boot ROM \todo{mention bootROM size} is shared between all the threads and contains the initialization code for each thread. 
 It also contains the exception vector table that stores entries for handling different exceptions that occur in the pipeline, along with some of the exception handlers. 
@@ -491,19 +497,47 @@ The software overhead involves managing a list of deadlines and ensuring that th
 It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
 However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
-\section{Worst Case Execution Time Analysis}
+\section{Time Analysis of PTARM}
 \label{sec:wcet}
+
+%mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
+%but do a brief summary on how it's done, cite wilhelm's group's research summary
+
+%give a table of instruction execution
+
+%give more specific examples of exception timing analysis
+
+%give example timiong analysis  
  
 \subsection{Precision of timing instructions}
 \label{subsec:precision_timing_inst_ptarm}
 
+%discuss the granularity that each thread can obtain with the deadline instructions
+%mention that there is no way we can get absolute timing to the finest precision, everything implementation descretizes time 
+
 \section{PTARM VHDL Soft Core}
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.6]{figs/ptarm_vhdl_high_level}
+  \end{center}
+  \vspace{-20pt}
+  \caption{PTARM Block Level View}
+  \label{fig:ptarm_vhdl_high_level}
+  \vspace{-10pt}
+\end{wrapfigure}   
+
 Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.
 
+Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the Softcore.
+ 
 Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller
 
 \section{PTARM Simulator}
 \label{sec:ptarm_sim}
+
+%Talk about the exploration of DMA memory, and different memory access latencies
 
 Talk about experimentation with DMA and memory hierarchy
 
