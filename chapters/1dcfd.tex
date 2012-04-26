@@ -1,4 +1,4 @@
-\todo{Talk about other potential PRET applications, and that PRET can be used to more tightly integrate software and hardware.}
+%\todo{Talk about other potential PRET applications, and that PRET can be used to more tightly integrate software and hardware.}
 In this chapter we will present two applications that have been implemented with our Precision Timed Architecture.
 The first application is a real-time one dimensional computational fluid dynamics (1D-CFD) simulator.
 This simulator runs in real-time to simulate the fuel rail pressure and flow rate for improved engine efficiently when injecting fuel.
@@ -190,7 +190,7 @@ This thread-interleaved pipeline follows the same design principles as discussed
 The memory footprint for each of the computational nodes range from roughly 100 to 1000 bytes.  
 Thus, scratchpad memories are sufficient to hold all instructions and data for all threads within a PTARM core, no external memory is required. 
 The pipeline also contains hardware floating point units to support the applications needs of floating point computations.
-The floating point units are single-precision, and generated using the Xilinx Coregen tool~\todo{cite}. 
+The floating point units are single-precision, and generated using the Xilinx Coregen tool~\cite{xilinx_coregen}. 
 They are pipelined to accept input every cycle, which avoids structural hazards, as explained in section~\ref{section:pret_thread_pipeline}.   
 The floating point operations supported are: add, subtract, multiply, float-to-fix, fix-to-float, divide and square root. 
 
@@ -264,8 +264,8 @@ Once input values are read, the computation occurs according to the specific flu
 The final phase of each time step, the computed results are posted to be used in the next time step.
 For global and mechanical nodes, the two phases consists of reading in external values for calculation, and posting results.
 We synchronize the data exchange between nodes to ensure avoid data races and ensure that all data operated on is consistent and from the same time step. 
-This communication model is very similar to Giotto~\todo{cite}, where tasks communicate explicitly through ports, and only at the end of execution of the tasks to ensure deterministic communication between the tasks. 
-While implementations of Giotto use an explicit run-time system to enforce the execution model~\todo{cite}, we use the timing instructions provided by the PRET architecture to implement our system.   
+This communication model is very similar to Giotto~\cite{henzinger_giotto}, where tasks communicate explicitly through ports, and only at the end of execution of the tasks to ensure deterministic communication between the tasks. 
+While implementations of Giotto use an explicit run-time system to enforce the execution model, we use the timing instructions provided by the PRET architecture to implement our system.   
 
 \begin{figure}
 \centering
@@ -277,8 +277,8 @@ While implementations of Giotto use an explicit run-time system to enforce the e
 
 In section~\ref{sec:programming_models} we introduced ISA extensions that provide programmers with explicit timing control in software.  
 The implementation of the various timing instructions for PTARM is explained in section~\ref{sec:ptarm_instructions}.
-Specifically for this application, we use the specialized timing instruction \emph{delay\_and\_set} as introduced in section~\ref{sec:programming_models}.
-The semantics of the \emph{delay\_and\_set} instruction is similar to the deadline instruction introduced by Ip and Edwards\todo{cite}. 
+Specifically for this application, we use a specialized timing macro \emph{delay\_and\_set}, which uses \delayuntil, as introduced in section~\ref{sec:programming_models}.
+The semantics of the \emph{delay\_and\_set} instruction is similar to the deadline instruction introduced by Ip and Edwards~\cite{ip2006processor}. 
 When it is decoded, it first enforces the previously specified timing constraint, then it sets a new timing constraint for the next code block. 
 The instruction enforces a minimum execution time within the code, which we use to enforce the synchronized execution of time steps for all nodes.  
 Fig.~\ref{fig:1dcfd-software_model} shows the program synchronization points that our timing instruction enforces.
@@ -341,13 +341,12 @@ For these examples, we used a mapping heuristic that grouped nodes requiring sam
 In the sections below we will show that this heuristic allows us to save hardware resources by synthesizing less floating point units. 
 
 \subsubsection{Timing Requirements Validation}
-%\todo{Talk about the shared BRAM makes all communication single cycle.}
 In order to ensure that the worst-case computational element can meet the timing requirements, static timing analysis is done on all computational nodes to determine the worst-case execution of each time step.
 As discussed in section~\ref{sec:1dcfd-software_architecture}, the computation code within each time step only consists of a single path, simplifying the timing analysis.
 The thread-interleaved pipeline provides temporal isolation for all hardware threads, so no timing interference occurs between the threads.
 We can safely use the timing analysis done separately for each computational node even as they are executed simultaneously in the architecture.
 Because all code, data, and communication channels reside on the BRAMs of the FPGA, the access latency is all deterministically one cycle.
-The PTARM architecture provides deterministic execution time for each instruction implemented, and the full list of instruction execution cycles is listed in table~\todo{refer to table in ptarm section}.
+The PTARM architecture provides deterministic execution time for each instruction implemented, and the full list of instruction execution cycles is listed in table~\ref{table:ptarm_instruction_timing}.
 Most floating point instructions take only a single thread cycle, as the latency is fully hidden by interleaving the hardware threads in the pipeline.
 The more complex floating point square root and divide operations take four thread cycles.
 Using the deterministic instruction execution cycles and the compiled code, we are able to obtain the exact thread cycles required for each computational node, which is shown in table~\ref{tab:1dcfd-inst-count}.  
@@ -373,7 +372,6 @@ Cap 							&4 / 8		&2 / 6 		&1 / 1		&0 / 0 		&0 / 0		&39 / 48 \\
 Pipe ``T" 		&16 / 28 	&13 / 25 		&3 / 0		&0 / 0 		&4 / 4		&72 / 111 \\ 
 \hline  
 \end{smalltabular}
-\vspace{-5mm}
 \end{center}
 \caption{Computational Intensity of Supported Types}
 \label{tab:1dcfd-inst-count}
@@ -409,7 +407,6 @@ Float with sqrt  & 987 & 992 & 1146 & 1172 \\  \hline
 Float with div  & 1039 & 1051 & 1231 & 1237 \\ \hline
 Float with div \& sqrt  & 1237 & 1249 & 1403 & 1413 \\ \hline
 \end{tabular}
-\vspace{-6mm}
 \end{center}
 \caption{Number of Occupied Slices per Core on the Virtex 6 (xc6vlx195t) FPGA.}
 \label{tab:1cfd-Cores_vs_features}
@@ -464,7 +461,6 @@ Pump	& hom.	&	&	& 16635 / 103	& 44.0 / 15.0\\
 Rail	& hom.	&	&	& \multicolumn{2}{c|}{N/A} \\ 
 \hline
 \end{smalltabular}
-\vspace{-6mm}
 \end{center}
 \caption{Total Resource Utilization of Examples Synthesized on the Virtex 6 (xc6vlx195t) FPGA}
 \label{table:1dcfd-example_results}
@@ -483,7 +479,7 @@ We see that the BRAM utilization ratio is far below the logic cell utilization, 
 
 %-------------------------------------------------------------------------
 \subsection{Conclusion}
-\todo{add more explanation of why this app is important for PRET}
+%\todo{add more explanation of why this app is important for PRET}
 In this application, we presented a novel framework for solving a class of heterogeneous micro-parallel problems.  
 Specifically we showed that our approach is sufficient to model a diesel fuel system in real time using the 1D-CFD approach on FPGAs.
 To the best of our knowledge, we believe this is the first attempt to attack real-time CFD on this timescale and complexity of problem.

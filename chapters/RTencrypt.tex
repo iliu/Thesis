@@ -225,7 +225,7 @@ SPMs occupy a distinct address space, which exposes the memory hierarchy to the 
 The allocation of data between memory and SPM is done with explicit instructions, either at compile time by the compiler or manually by the programmer.
 This gives the software control over memory access latencies, and provides a predictable execution time of the program.
 The performance of SPMs vary based on the data access patterns of the application, but since the control is in software, it is possible to tune the allocation scheme to achieve even better performance than a generic cache for specific applications. 
-There are abundant ongoing research on allocation schemes and methods for optimizing the performance of SPMs~\cite{avissar2002oma,Bandyopadhyay:EECS-2006-105,Patel:EECS-2008-115,WCETSPM,compilerSPM}. 
+There are abundant ongoing research on allocation schemes and methods for optimizing the performance of SPMs~\cite{avissar2002oma,Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous,Patel:EECS-2008-115,Suhendra2005WCETSPM,compilerSPM}. 
 SPMs can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provide 16KB of SPM per thread-bundle~\cite{8800gpu}.
 Although this comes at the cost of more programing effort, but it is not uncommon to see platform specific tuning of software for performance purposes. 
 For example, high performance parallel algorithms are often fine tuned to work on block sizes depending on the cache size and replacement policy of the platform, and re-tuned when running on different platform.

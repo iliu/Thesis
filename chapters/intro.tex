@@ -1,6 +1,6 @@
 %Cyber physical systems - different than traditional embedded systems that interact with real world. Timing requirements, but large, and safety critical
 \section{Motivation}
-\emph{Cyber-Physical Systems} (CPS) are integrations of computation with physical processes~\todo{cite}.
+\emph{Cyber-Physical Systems} (CPS) are integrations of computation with physical processes~\cite{Lee08_CyberPhysicalSystemsDesignChallenges}.
 In these systems, computation and physical process often form a tight feedback loop, affecting the behavior of each other.
 The embedded platforms and networks employed not only control the physical process, but at the same time monitor and adapt to the changes of the physical process.
 An enormous amount of applications can benefit from the potential of CPS.
@@ -19,7 +19,7 @@ These include the programing language, the operating system, the tool-chains, an
 However, these techniques are designed for general purpose systems that do not require stringent interaction with the physical environment. 
 Thus, they emphasize on improving average performance over predictability.   
 As a result, when computing systems absolutely must meet tight timing constraints, these recent computing advances often do more harm than good~\cite{LeeOnTime2005}.
-%this is contrary to reality~\cite{halang:DSP:2004:4,thiele_et_al:DSP:2004:2}.
+%this is contrary to reality~\cite{halang:DSP:2004:4,thiele:04:predictable}.
 The scale and complexity of traditional embedded systems allowed designers to compensate with extra effort in design and analysis. 
 However, these solutions begin to break down when transitioning to CPS.   
 
@@ -33,23 +33,23 @@ The lack of \emph{time} in the abstraction layers lead to the following conseque
 This often is manifested when components share resources. 
 For example, software threads are the typical abstractions for concurrent software written in C or Java. 
 Because there is no guarantee of when a shared variable will be accessed by each thread, locks and semaphores are required to avoid race conditions. 
-This not only introduces bugs, but also introduces complex and almost impossible to analyze interactions between threads~\cite{Lee2006threads}. 
+This not only introduces bugs, but also introduces complex and almost impossible to analyze interactions between threads~\cite{leethreads}. 
 As a result, there is great difficulty when synchronizing and communicating between components or tasks.
 
 \item \emph{Unnecessary complexities in interactions across layers} -- 
 For example, scheduling could be done at multiple levels simultaneously without any coordination. 
-As tasks or software threads are scheduled for execution in the OS, an explicit multithreaded dynamic dispatch architecture could also be scheduling instructions from different hardware threads without the knowledge of the OS~\cite{thiele_et_al:DSP:2004:2}.
+As tasks or software threads are scheduled for execution in the OS, an explicit multithreaded dynamic dispatch architecture could also be scheduling instructions from different hardware threads without the knowledge of the OS~\cite{thiele:04:predictable}.
 
 \item \emph{Misleading or pessimistic analysis results when analyzing the whole system} -- 
 For example, task scheduling and context switching cost may vary from the cache or pipeline state change after executing each tasks. 
-This is often not factored into the analysis~\cite{thiele_et_al:DSP:2004:2}. 
-Furthermore, because the  large variation of execution time in modern complex processors, WCET analysis techniques often lead to overly conservative results for safety~\cite{Wilhelm2008survey}. 
+This is often not factored into the analysis~\cite{thiele:04:predictable}. 
+Furthermore, because the  large variation of execution time in modern complex processors, WCET analysis techniques often lead to overly conservative results for safety~\cite{wilhelm-survey-paper}. 
 As the WCET is often the basis for priority of any scheduling scheme, the conservativeness is propagated throughout the system.
 \end{itemize}
 %explain composability
 
 When the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers, and understand thoroughly the complex underlying details and its affect on execution time. 
-This not only increases the design complexity and effort, but the designed systems are \emph{brittle} and extremely sensitive to change~\cite{Sangiovanni-Vincentelli2007automotive, Edwards2007PRETcase}.  
+This not only increases the design complexity and effort, but the designed systems are \emph{brittle} and extremely sensitive to change~\cite{Sangiovanni-Vincentelli2007automotive, edwards2007case}.  
 For example, Sangiovanni-Vincentelli et al.\cite{Sangiovanni-Vincentelli2007automotive} showed that when increasing the execution time of a task, any priority based scheduling scheme results in discontinuity in the timing of all tasks besides the task with the highest priority. 
 At a lower level, adding a few instructions can easily result in a huge variation in program execution time; the state of the hardware dynamic prediction and speculation units, such as caches and pipelines, can easily be affected by the minimum program additions, causing misprediction penalties.
 Thus, in order to verify the timing of safety critical systems, the verification must be done on both the software system and its execution platform, they cannot be separated. 
@@ -59,7 +59,7 @@ For avionics manufactures, this means stockpiling the same hardware for the life
 
 
 \subsection{Timing Predictable Systems}
-Thiele et al.~\cite{thiele_et_al:DSP:2004:2}, Henzinger~\cite{Henzinger2008} and Lee~\cite{LeeOnTime2005} have all identified the importance and difficulties of designing \emph{timing-predictable systems}.
+Thiele et al.~\cite{thiele:04:predictable}, Henzinger~\cite{Henzinger2008} and Lee~\cite{LeeOnTime2005} have all identified the importance and difficulties of designing \emph{timing-predictable systems}.
 Timing-predictable systems should exhibit the following property: \textit{a small change in the input must not result in a large change in the output}~\cite{Henzinger2008}.
 If the definition of \emph{output} includes the timing behavior exhibited by the system, then current abstracts disrupts this property at almost all levels. 
 
@@ -90,7 +90,7 @@ Modern abstractions result in unnecessary complexity in the interaction of concu
 This hinders the ability to compose functions together on a shared resource while maintaining timing properties. 
 
 These challenges are present not only in research, but also in industry.  
-The Integrated Modular Avionics (IMA) concept~\todo{cite} aims to replace numerous separate processors and line replaceable units (LRU) with fewer, more centralized processing units in order to significant reduce the weight and maintenance savings in new generation of commercial airliners.
+The Integrated Modular Avionics (IMA) concept~\cite{IMA} aims to replace numerous separate processors and line replaceable units (LRU) with fewer, more centralized processing units in order to significant reduce the weight and maintenance savings in new generation of commercial airliners.
 AUTOSAR (AUTomotive Open System ARchitecture)\cite{autosarsite} is an architecture for automotive systems that is jointly being developed by manufacturers, suppliers and tool developers which attempts to defined standards and protocols to help modularize the design of these complex systems.
 We contend that in order for these standards to be safely defined, modern layers of abstractions that have been adopted from conventional computing advances must be redefined to allow for  predictable composition of components.  
 
@@ -99,7 +99,7 @@ In order to keep up with the continuous passage of time in physical processes, t
 \textit{Timing predictability} is the ability to predict timing properties of the system.
 Timing composition plays a big part of this when features are integrated, but even individually, it is difficult to analyze the execution time of programs.
 
-Wilhelm et al.~\cite{Wilhelm2008survey} described the abundant amount of research and effort that has been put into bounding the worst-case execution time(WCET).   
+Wilhelm et al.~\cite{wilhelm-survey-paper} described the abundant amount of research and effort that has been put into bounding the worst-case execution time(WCET).   
 Not only is determining the worst case program flow a challenge, but the precision and usefulness of the analysis also depends on the underlying architecture\cite{Heckmann2003processor}. 
 Conventional architectures have proposed techniques that target the improvement of average case execution time (ACET) at the expense of execution time variability.    
 As a result, it's extremely complex, if not impossible to obtain a precise bound of the execution time on modern architectures.
@@ -144,7 +144,7 @@ However, with both the ISA extensions and the predictable architecture, we can e
 a solid foundation to propel the design of CPS at higher levels of abstractions.       
  
 % 
-% We use the definition from Thiele et al.\cite{thiele_et_al:DSP:2004:2} for predictability:
+% We use the definition from Thiele et al.\cite{thiele:04:predictable} for predictability:
 % \begin{quote}
 %   \textit{Predictability}: The timing predictability of a system is
 %   related to the differences between best case and lower bound on the
@@ -188,7 +188,7 @@ First, the \emph{observable execution times} may not observe all \emph{possible 
 This is important because far too often we rely on testing and end-to-end measurement to determine the WCET.
 This will, in general, overestimate the BCET and underestimate the WCET, and is not safe when timing must be guaranteed. 
 Second, it is often difficult to determine the \emph{actual} WCET, thus the worst case guarantee that is given is usually a bound on the WCET.    
-The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} bound on the WCET of a program~\cite{Wilhelm2008survey}. 
+The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} bound on the WCET of a program~\cite{wilhelm-survey-paper}. 
 \textit{Safe} means that the execution time will never exceed the bounded time. 
 \textit{Precise} means that the bounded time is as close to the absolute WCET as possible. 
 
@@ -232,7 +232,7 @@ Superscalar architectures can execute instructions out-of-order, thus data-depen
 Further complications arise as architectures become increasingly parallel with multiprocessing techniques such as multicore and multithreading.
 These techniques allow the architecture to inherently handle concurrency, but can easily introduce temporal interference even between logically independent behaviors.
 For example, in a multicore machine with shared caches, the processes running on one core can affect the timing of processes on another core even when there is no communication between these processes.
-Similarly, Simultaneous Multithreading ~\cite{Eggers97simultaneousmultithreading} architectures share a wide-issue superscalar pipeline across multiple hardware threads.
+Similarly, Simultaneous Multithreading ~\cite{Tullsen1995SMT} architectures share a wide-issue superscalar pipeline across multiple hardware threads.
 Instructions are dispatched from all threads simultaneously using scoreboaring mechanisms.
 However, the contention for pipeline resources between threads can easily vary the execution time of a particular thread. 
 
@@ -264,7 +264,7 @@ These features are controlled and manage completely in hardware, not explicitly 
 As a result, decrypting the state of the processor to obtain reasonable execution time estimates is often extremely difficult, if not impossible, on modern architectures.   
 
 \section{Precision Timed Machines}
-In this thesis we introduce the design and implementation of PREcision Timed (PRET) machines~\cite{Edwards2007PRETcase}. 
+In this thesis we introduce the design and implementation of PREcision Timed (PRET) machines~\cite{edwards2007case}. 
 
 places timing predictability and composability as its first class citizen.   
 
@@ -278,7 +278,7 @@ We aim to present architectures
 With designs being pushed to higher and higher levels of abstraction, we need lower levels to provide robust, non brittle fundamentals in which we can reason about timing guarantees.
 
 
-As Wilhelm et al. \cite{wilhelm2009} quoted:
+As Wilhelm et al. \cite{Wilhelm_future_arch_09} quoted:
 \begin{quote} \textit{
   ``The applicability of the AUTOSAR idea depends on availability of
   architectures on which software composition does not lead to

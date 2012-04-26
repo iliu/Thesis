@@ -2,7 +2,7 @@ While pipelines designs continue to improve, memory technology has been struggli
 Even though memory bandwidth can be improved with more bank parallelization, the memory latency remains the bottle neck to improve memory performance.
 Common memory technologies used in embedded systems contain a significant trade off between access latency and capacity. 
 Static Random-Access Memories (SRAM) provide a shorter latency that allows single cycle memory access from the pipeline.
-However, the hardware cost to implement each memory cell discourages prevents SRAM blocks to be implemented with high capacity.
+However, the hardware cost to implement each memory cell prevents SRAM blocks to be implemented with high capacity.
 On the other hand, Dynamic Random-Access Memories (DRAM) uses a more compact memory cell design that can easily be combined into larger capacity memory blocks.
 But the memory cell of DRAMs must be constantly refreshed due to charge leakage, and the large capacity often prohibits faster access latencies.
 %TODO: talk about about embedded systems seldom need disk?
@@ -29,13 +29,12 @@ When a cache is used, all memory accesses is routed through the cache.
 If the data from the memory access is on the cache, then a cache hit occurs, and the data is returned right away.
 However, if data is not on the cache, then a cache miss occurs, and the cache controller fetches the data from the larger memory and adjusts the memory contents on the cache. 
 The replacement policy of the cache is used to determine which cache line, the unit of memory replacement on caches, to replace. 
-A variety of cache replacement policies have been researched~\todo{cite} and used to optimize for different memory access patterns of applications. 
+A variety of cache replacement policies have been researched and used to optimize for different memory access patterns of applications. 
 In fact, modern memory hierarchies often contain multiple layers of hierarchy to balance the trade-off between speed and capacity.
 A commonly used memory hierarchy is shown in figure~\ref{fig:conventional_mem_hierarchy}.
 If the data value is not found in the L1 cache, then it is searched for in the L2 cache. 
 If the L2 cache also misses, then the data is retrieved from main memory, and sent back to the CPU while the L1 and L2 cache updates its contents.
 Different replacement policies can be used at different levels of the memory hierarchy to optimize the hit rate or miss latency of the memory access.
-Benchmarks have show that caches can have hit rates up to \todo{find number}\% \todo{and cite}. 
 
 When caches are used, the program is oblivious to the different levels of memory hierarchy because it is abstracted away from the program; the cache gives its best-effort to optimize memory access latencies.
 Whether or not an access hits the cache or goes all the way out to main memory is hidden from the program.
@@ -54,7 +53,7 @@ In order to acquire tighter execution time analysis, the cache must be modeled a
 The ease of such modeling depends on the replacement policy used in the cache.
 
 For example, the \emph{Least Recent Used} (LRU) replacement policy replaces the least recently used cache line whenever an eviction occurs. 
-Within a basic block, a code segment without a control flow change, the contents of a cache with $N$ cache lines can be fully known after $N$ different memory accesses~\todo{cite}.  
+Within a basic block, a code segment without a control flow change, the contents of a cache with $N$ cache lines can be fully known after $N$ different memory accesses~\cite{Heckmann2003processor}.  
 The $N$ different memory accesses will evict all cache lines in the cache prior to the basic block, and fill it with the memory contents of the $N$ accesses. 
 In this case, the analysis assumes $N$ initial cache misses before the cache state is known.
 However, the cache state is destroyed when analysis hits a control flow merge with another path.
@@ -77,8 +76,8 @@ As a result, the hardware threads have no control over which level in the memory
 For multicore architectures, caches create a data coherency problem when data needs to be consistent between the multiple cores.
 When the multiple cores are sharing memory, each core's private cache may cache the same memory address. 
 If one core writes to a memory location that is cached in its private cache, then the other core's cache would contain stale data. 
-Various methods such as bus snooping\todo{cite} or implementing a directory protocol\todo{cite} have been proposed to keep the data consistent in all caches. 
-However, doing this scalably and efficiently is still a hot topic of research today\todo{cite all work on cache coherency}.
+Various methods such as bus snooping or implementing a directory protocol~\cite{Stenstrom:1990:SCC:79809.79810} have been proposed to keep the data consistent in all caches. 
+Implementing a scalable and efficient cache coherence scheme is still a hot topic of research today.
 
 \subsubsection{Scratchpads}
 We cannot argue against the need for a memory hierarchy, as there is an undeniable gap between processor and DRAM latency.
@@ -117,7 +116,7 @@ The allocation could either be automatically generated and inserted by the compi
 
 Embedded system designs often deal with limited resources and other design constraints, such as limited memory or hard timing deadlines.    
 Thus, the design of such systems often require analysis on memory usage etc to ensure that the constraints are met. 
-Actor oriented models of computations, such as Dataflow\todo{cite} or Giotto\todo{cite}, allow users to design systems at a higher level.
+Higher level models of computations, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto}, allow users to design systems at a higher level.
 The higher level models expose the structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
 Bandyopadhyay~\cite{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous} presented an automated memory allocation of scratchpads for the execution of Heterochronous Dataflow models.
 The Heterochronous Dataflow (HDF) model is an extension to the Synchronous Dataflow (SDF) model with finite state machines (FCM). 
@@ -232,7 +231,7 @@ $t_{WL}$			& $t_{CL}-1=2$			& \textbf{Write latency}: time after write command u
 $t_{WR}$			& 3						& \textbf{Write recovery time}: time between the end of a write data burst and the start of a precharge command.\\
 %$t_{CCD}$			& $\burstlength/2$ 				& CAS to CAS command delay. Minimum time between two read commands or two write commands.\\
 $t_{WTR}$ 			& 2 					& \textbf{Write to read time}: time between the end of a write data burst and the start of a column-read command.\\% Allows the sense amplifiers to restore the data in the DRAM array.\\
-$t_{RP}$			& 3						& \todo{\textbf{name?:}} Time to precharge the DRAM array before next row activation.  \\
+$t_{RP}$			& 3						& \textbf{Row precharge time:} time to precharge the DRAM array before next row activation.  \\
 %$t_{RTRS}$			& 1\todo{check this}	& Rank-to-rank switching time.\\ 
 $t_{RFC}$			& 21					& \textbf{Refresh cycle time}: time interval between a refresh command and a row activation.\\
 %$t_{REFI}$			& 1560    				& Refresh to refresh interval \\

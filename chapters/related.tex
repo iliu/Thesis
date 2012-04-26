@@ -1,3 +1,4 @@
+\label{sec:related_arch_mod}
 We are certainly not the first or only one to tackle the unpredictability of computer architecture designs.
 In this chapter we survey the abundance of related research to our goal of predictable architectures.
 Timing analysis techniques, compiler techniques and architectural techniques all play a role in tackling the unpredictability of computer architectures.
@@ -229,670 +230,225 @@ Contention between the real-time threads on the high priority slot however are n
 
 \subsection{Others}
 \subsubsection{Virtual Simple Architecture}
-\paragraph{Virtual Simple Architecture (VISA): Exceeding the Complexity Limit in Safe Real-Time Systems~\cite{Anantaraman2003VISA}}
+Anantaraman et al.~\cite{Anantaraman2003VISA} propose the virtual simple architectures (VISA), which uses dynamic checking to ensure tasks are meeting the deadlines. 
+The microarchitecture is split into two modes. 
+A simple mode, which conforms to the the timing of a hypothetical simple pipeline that is amenable to safe and tight WCET analysis. 
+And a high performance mode, which the architecture can use arbitrary performance-enhancing features.
+A task that executes on the VISA is divided into multiple sub-tasks, to gauge progress on the complex pipeline.
+Each sub-task is assigned an interim deadline, based on the hypothetical simple pipeline.  
+When tasks are executed on the VISA, they are first speculatively executed in high-performance mode.
+If no checkpoints are missed, then the high performance mode has met the timing requirements. 
+If a checkpoint is missed, the architectures switches to a simple mode to bound the remaining task times to attempt at meeting the timing constraints.
+The results showed that the high performance mode had average executions times of 3 to 4 times faster than the simple mode, and dicussed possible power savings by scaling the voltage in high performance mode.
+However, the tasks and programs must have sufficient slack time to allow for dynamic checking of deadlines, and it is unclear if the simple mode will always be able to make up the time if the high performance mode missed its checkpoint. 
 
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Modern processors include feature like deep pipelining, dynamic branch prediction, multiple instruction issue, multithreading, out-of-order execution.
-	These features increase average-case performance and energy-efficiency.
-	However, deriving tight and safe bounds on the WCETs of tasks on such processors is intractable. 
-\item What is the main goal?\\
-	The goal is to profit from architectural advances, which are intractable for WCET analysis, but improve throughput and energy consumption, without sacrificing safety.
-\item What did they do to achieve this goal?\\
-	They propose virtual simple architectures (VISA).
-	A VISA specifies the timing of a hypothetical simple pipeline that is amenable to safe and tight WCET analysis.
-	A microarchitecture should have a simple mode in which it conforms to the VISA specification.
-	Outside of this safe mode, it can use arbitrary performance-enhancing features.
-	Splitting tasks into subtasks allows to profit from the advantages of the modern processor in the average case:
-	Tasks are speculatively executed in high-performance mode, as long as execution time is within WCET bounds determined under the VISA specification.
-	Only if this is ``close to become unsafe'' is execution switched to safe mode, which is then still able to meet the deadline.
-	In most executions, this will not happen, and one can benefit from the architectural improvements in terms of energy efficiency and performance.
-	The paper specifically studies the use of dynamic voltage scaling (DVS):
-	Because tasks are typically executed much faster in high-performance mode the operating frequency can be reduced to safe energy.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They use six benchmarks from the C-lab real-time benchmark suite.
-	These benchmarks are then split into five to ten subtasks.
-	Simulated execution times in high-performance mode are between three and six times higher than in safe mode.
-	Accordingly, the processor frequency can be significantly reduced by reducing frequency to 125 to 225 MHz in high-performance mode as opposed to 375 to 600 MHz in safe mode.
-	This yields energy savings between 10\% and 70\%.
-\item What other work is listed as future work?\\
-	Instead of using slack to save energy, one could execute other soft-real-time and non-real-time tasks.\\
-	Another direction would be to investigate methods for ensuring VISA-compliance that do not require a simple mode of operation, but rather comply by design.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	Because of overheads due to switching between high performance and safe mode and a limited number of checkpoints, there has to be some slack to begin with.
-  	In other words, a system that is barely schedulable according to the WCET bounds cannot profit from the described approach.\\
-  	A ``real'' safe architecture may be run at a slightly higher clock frequency\footnote{The paper assumes 50\%.}, than the safe mode of a high-performance architecture, rendering some task sets unschedulable on the high-performance architecture, that would have been schedulable on a ``real'' safe architecture.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	Hardware: entire system. Task execution has to be split up into sub-tasks.
-\end{itemize}
-
-
-
-\subsubsection{Java Architectures}
+\subsubsection{Java Optimized Processor}
 \label{sec:RTJava}
-Schoeberl designed the Java Optimized Processor (JOP)~\cite{jop:wcet}
-to propose using Java for real time embedded systems. The design of
-JOP includes a two level stack cache architecture
-~\cite{jop:stack}. Instead of using a large register file to store the
-stack like in PicoJava\cite{McGhan1998PicoJava}, it only uses two
-registers to store the top two entries of the stack (Register A and
-Regiser B). Leveraging the stack based architecture of JavaVM,
-whenever an arithmetic operation occurs, the result is always stored
-back to the top of the stack (Register A). Any push or pop operation
-simply results in a shift of values between the two registers and the
-stack cache, which only requires one read and one write port for the
-memory. This architecture does have any data hazards and has very few
-pipeline stages (no need for an explicit commit/writeback
-stage). Because of the few pipeline stages, it only has a small branch
-delay penalty. Also, all bytecode on JOP is translated into a fixed
-length microcode. Each microcode executes in a fixed amount of cycles
-(mostly 1 cycle) independent of its surrounding instruction, thus the
-WCET analysis only requires a lookup table of bytecode translated into
-microcode, and it knows the execution time. 
+Schoeberl presented the Java Optimized Processor (JOP)~\cite{jop:wcet} which uses Java for real time embedded systems. 
+The design of JOP includes a two level stack cache architecture ~\cite{jop:stack}. 
+Instead of using a large register file to store the stack like in PicoJava\cite{McGhan1998PicoJava}, it only uses two registers to store the top two entries of the stack (Register A and Regiser B). 
+Leveraging the stack based architecture of JavaVM, whenever an arithmetic operation occurs, the result is always stored back to the top of the stack (Register A). 
+Any push or pop operation simply results in a shift of values between the two registers and the stack cache, which only requires one read and one write port for the memory. 
+This architecture does not have any data hazards and has very few pipeline stages (no need for an explicit commit/writeback stage). 
+Because of the few pipeline stages, it only has a small branch delay penalty, so no branch predictor is used.
+All bytecode on JOP is translated into a fixed length microcode. 
+Each microcode executes in a fixed amount of cycles, independent of its surrounding instruction.
+Thus, the WCET analysis only requires a lookup table of bytecode translated into microcode, rendering it a predictable architecture. 
 
 \subsubsection{MCGREP}
-Whitham and Audsley's MCGREP~\cite{whitam:06:mcgrep} use programmable microcode to accelerate hotspots that are otherwise too slow.
+Whitham introduced the Microprogrammed Coarse Grained Reconfigurable Processor (MCGREP)~\cite{whitam:06:mcgrep}, which is a reconfigurable predictable architecture.
+The architecture of MCGREP contains multiple execution units, but each operation is implemented in microcode. 
+The pipeline architecture is extremely simple, reassembling a two stage pipeline with a fetch/decode stage and an execute stage.
+No internal state is stored in the pipeline, and instructions do not affect each others execution time. 
+A fast internal RAM without cache is used to store the program and be used as memory for data.    
+The microcode operations are predictable in the MCGREP architecture, taking a fixed number of cycles to complete.
+Advanced operations can be dynamically loaded as new microcode, which enables application specific instructions to improve performance.
+All MCGREP instructions take a fixed number of clock cycles to complete and are unaffected by execution history, making MCGREP a predictable processor. 
 
-\subsubsection{PRET}
-Craven et. al~\cite{Craven_PRET_implementation_2010} implements PRET thread interleaved pipeline as an open source core using OpenFire 
+% \subsubsection{PRET}
+% Craven et. al~\cite{Craven_PRET_implementation_2010}  implements PRET thread interleaved pipeline as an open source core using OpenFire 
 
 \section{Memory-Focused Techniques}
-
-Metzlaff et al.~\cite{Metzlaff2008MethodcacheSMIT} (also Theo Ungerer)
-also proposed a method to deal with instruction caching. First they
-propose a separate scratchpad for each thread. Then they used method
-cache~\cite{Kirner2007ModelFunctionCache} with scratchpads and give
-priority to the top thread when a filling is needed. If the thread is
-stalled when a method is being filled into the scratchpad, then it
-seems there would be no data cache access conflict. By using a SMT
-machine, if the high priority thread is filling its cache, the lower
-priority threads could still fill the pipeline and gain utilization
-and throughput.
-
 \subsection{Caches}
-The basic block of caches is a cache line. A cache line can contain
-$B$ words. When the cache is filled, the whole line is filled. When a
-replacement is needed, the whole line is replaced. The cache can be
-$N$-way associative, where N is the number of lines in each set. If a
-cache is 1-way associative(direct mapped) with size $S$, then it has
-$M = S \div B$ sets, where $M$ is the number of sets in the cache. A
-cache size therefore is determined by $S = M \times N \times B$.
+The dynamic behavior of caches cause headaches for real-time systems when trying to predict memory access latencies.
+Reineke et al.~\cite{Reineke07TimingPredictability} presented a study on the predictability of different cache replacement policies.
+They evaluate the Least Recently Used (LRU), First In First Out (FIFO), Pseudo LRU (PLRU) and Most Recently Used (MRU) replacement policies to determine if LRU was more predictable than other policies, as observed by Heckmann et al.~\cite{Heckmann2003processor}.    
+The results confirmed that the LRU replacement policy was significantly more predictable than other policies, and recommended any real-time system with caches to use LRU for its replacement policy. 
+It also revealed potential for improvement in existing analyses of PLRU and FIFO.
 
-If a cache is direct mapped, it does not need replacement policy,
-since you always know which line needs to be evicted. However, if
-the cache is more than one way, then a replacement policy is needed to
-determine which way is to be replaced.
+Puat and Decotigny~\cite{Puaut02} proposed to use partitioned and lock caches to eliminate the intra- and inter-task interferences when a cache is used. 
+Intra-task interferences occur when different memory blocks of the same task compete for cache blocks.
+Inter-task interferences occur where a preempting task's memory blocks cause cache reloads in the preempted task.
+By using cache partitioning, a part of the cache is reserved for a particular task, and inter-task interference is eliminated.
+To eliminate intra-task interference, cache locking is used to lock the contents of cache.
+The cache contents can be locked statically, which are fixed at system start for the whole run time, or dynamically, where the contents may change.   
+By locking and partitioning caches, the memory access latencies will have more predictable behavior. 
 
-\textcolor{red}{Talk about tradeoff in cache size/cache way etc}
-\subsubsection{Unified vs Separate Cache} Typically a cache of an architecture is
-structured in 2 ways. A \textit{Unified Cache} is one where
-instruction and data are in the same cache. A \textit{Separated Cache}
-is one where instruction and data are on separate caches, each with
-independent state information. A unified cache introduces interference
-between instruction and data accesses. Thus, this complicates the WCET
-analysis even more because data caches are harder to model or
-determine the value. Thus, Separate caches for instruction and data
-should be used to help obtain a more precise and simpler analysis.
-
-\subsubsection{Replacement Policies} 
-To read: \cite{Heckmann2003processor}
-
-\paragraph{Timing Predictability of Cache Replacement Policies~\cite{Reineke07TimingPredictability}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	It had been observed in previous work, e.g. \cite{Heckmann2003processor} that cache analyses for LRU (least-recently-used) were more precise than analyses for other policies like FIFO and PLRU. 
-	However, it was not clear, whether this was because analyses of FIFO and PLRU were less developed than those of LRU, or whether LRU was simply more ``predictable'' than other policies, and analyses of similar precision were unattainable for FIFO and PLRU.
-\item What is the main goal?\\
-	To study the predictability of cache replacement policies and to explain empirical observations.
-\item What did they do to achieve this goal?\\
-	Cache analyses have to cope with uncertainty. Sources of uncertainty are, among others:
-	\begin{itemize}
-      \item The cache contents when a task is started are usually unknown.
-      \item If the address of a data accesses cannot be precisely determined, this introduces uncertainty about the cache state.
-      \item Preempting tasks may change the cache state at preemption points.
-    \end{itemize} 
-    These sources of uncertainty are independent of the particular cache organization.
-    The precision of cache analyses is therefore determined by the speed at which information about the cache state is obtained.
-	They defined two predictability metrics that determine how quickly knowledge about cache hits and misses can be (re-)obtained for a particular cache replacement policy. These metrics are independent of any particular cache analysis, i.e. they mark the precision limit for any possible cache analysis.
-	They go on to evaluate the policies LRU, FIFO, PLRU, and MRU under these metrics.
-	The values of the different policies confirm the expectation that LRU is significantly more predictable than other policies.
-	It, however, also revealed potential for improvement in existing analyses of PLRU and in particular FIFO.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They compare their results to previous empirical evidence in cache analysis, which was based on specific static cache analyses.
-\item What other work is listed as future work?\\
-	To investigate the precision of cache analyses and to develop new cache analyses that are optimal w.r.t. the metrics (partly solved in subsequent work).
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	A limitation of the metrics is that they assume complete uncertainty, whereas partial information about the cache state is often available.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	This work does not propose a new feature. However, it recommends the use of LRU replacement in caches, which affects the cache itself and the WCET analysis.
-\end{itemize}
-
-
-
-\subsubsection{Instruction Cache}
-
-\paragraph{A Time Predictable Instruction Cache for a Java Processor~\cite{jop:jtres_cache}}
-\label{sec:func_cache}
-Schoeberl~\cite{jop:jtres_cache} was the first to propose Method
-Caches (Called function cache in\cite{Metzlaff2008MethodcacheSMIT})
-for the instruction cache. The idea of a method cache is that the
-granularity of the cache block replacement size is now not a cache
-block, but a method instead. When a method is called, the cache
-content is loaded with that method. The cache could contain a single
-block, two block, or variable blocks to load the caches. The different
-block size gives different trade offs. The single block gives perfect
-predictability, but bad performance, since every time a method is
-called or returned to, it needs to be loaded. Not only that, some
-methods are loaded only to execute a few instructions before calling
-another method, resulting in high overhead. The two block method cache
-can cache two methods. The replacement policy would be LRU. This gives
-better performance, because on a return to the caller method, the
-cache will yield a hit (if no other methods were called). The
-performance of the two block is about two times better than a single
-block. To further improve, the cache could be split into several
-blocks. A method could have the size of several blocks, but some
-methods may only need one block. When a method is loaded, it occupies
-the amount of blocks it needs. When a method is evicted, all blocks it
-occupies are evicted. A pointer stores the next block to replace or
-load methods in. This could give better performance because depending
-on the block size you chose and the method sizes, you could more
-efficiently using the cache blocks. But if there are a lot of blocks,
-it could also increase the WCET difficulty.
-
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Standard cache organizations improve the average-case execution time but are difficult to predict for WCET analysis.
-	\JR{Unfortunately, this is really the only motivational part I could find in the paper.}
-\item What is the main goal?\\
-	A cache organization that is amenable to simpler and more accurate WCET analysis.
-	Performance should not be completely neglected.
-\item What did they do to achieve this goal?\\
-	Schoeberl proposes the method cache.
-	Instead of caching memory blocks of fixed size as in a traditional cache organization, the method cache caches entire methods.
-	This simplifies cache analysis as there are fewer points in a program at which the cache is filled: this may only happen on calls and returns.
-	It is claimed that tag memory and address translation are not necessary in a method cache. \JR{Something like a tag memory is still necessary to remember which methods are cached.}
-	Several variants of the method cache are introduced: single method cache, two block cache, variable block cache.
-	The single method cache always caches the current method and nothing else.
-	The two block (why not method?) cache can cache up two methods. It can easily be implemented with LRU replacement.
-	To reduce the waste of cache memory the variable block cache is introduced, which can store more than two methods.
-	The variable block cache can store a fixed number of blocks, which are similar to cache lines in traditional designs.
-	In this organization, LRU replacement cannot be realized.
-	Two replacement policies are proposed: next block (FIFO) and stack oriented.
-	WCET analysis is briefly sketched.  
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	The new cache design is evaluated by simulations of a single application from one node of a distributed motor control system.
-	For one cache size (2KB) and the variable block cache with 32 blocks, the method cache outperforms a direct-mapped cache of equal size.
-	The improvement in predictability is not quantitatively evaluated.
-	It is argued, that the single method cache is more predictable than the two-block cache which is in turn more predictable than the variable block cache.
-	WCET analysis of the variable block is ``nevertheless simpler than that with the direct-mapped cache''.
-	Filling the cache only on method invocations and returns removes potential competition with data accesses.
-\item What other work is listed as future work?
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	It deals with instruction caches only.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	The java processor and the WCET analysis.
-\end{itemize}
-
-\subparagraph{Static Analysis of the Method Cache~\cite{Kirner2007ModelFunctionCache}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	The method cache was introduced as a time-predictable instruction cache.
-	However, only simple variants had been statically analyzed before.
-\item What is the main goal?\\
-	To develop a precise static analysis of the method cache.
-\item What did they do to achieve this goal?\\
-	They adapted the techniques of Ferdinand et al. to method caches and introduced the notion of local persistence analysis.
-	Local persistence analyses determine whether a memory reference within a scope (therefore local) can cause more one cache miss.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	The new analyses is evaluated on a small synthetic benchmark consisting of ``a few functions, two loops and a [sic] if statement''.
-	They compare the WCET bound obtained with the proposed analysis to the WCET bounds obtained with two previous analyses and a measured execution time.
-\item What other work is listed as future work?\\
-	To finish the implementation of the analysis and to compare it to existing analyses of set-associative caches on a collection of benchmarks.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	According to Martin Schoeberl, this analysis is incorrect.
-  	The abstract updates are not described in the paper.
-  	With the given domains, sound updates should not yield any ``non-trivial'' classifications.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	WCET analysis.
-\end{itemize}
-
-
-\paragraph{Trace Cache}
-
-\subsubsection{Static Cache Locking}
-
-\paragraph{Low-Complexity Algorithms for Static Cache Locking in Multitasking Hard Real-Time Systems~\cite{Puaut02}}
-
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Schedulability analysis depends on safe bounds on the WCETs of tasks.
-	Caches have a strong influence on the execution times of tasks.
-	It is hard to statically predict execution times in the presence of caches:
-	Such an analysis has to consider both intra- and inter-task interferences. 
-	Intra-task interferences occur when different memory blocks of the same task compete for cache blocks.
-	Inter-task interferences, imply a so-called cache-related preemption delay, where a preempting task's memory blocks cause cache reloads in the preempted task.
-	Analyses for both intra- and inter-task interferences have been developed.
-	An alternative to analyzing these interferences is eliminating them.
-	Task/cache partitioning and cache locking have been proposed for this purpose.
-	In cache partitioning a part of the cache is reserved for a particular task.
-	This eliminates inter-task interferences, but intra-task interferences remain.
-	Similarly, the data layout of tasks can be adapted in such a way that different tasks do not interfere in the cache.
-	This is known as task partitioning.
-	Finally, cache locking has been proposed to eliminate both inter- and intra-task interferences.
-	In cache locking, the contents of the cache are loaded and locked at fixed times.
-	In \emph{static cache locking} they are fixed at system start for the whole system lifetime, whereas the contents may be changed in \emph{dynamic cache locking}, for instance at preemptions.
-	As what is being locked into the cache is decided statically, it is usually~\footnote{Cache locking techniques could, in principle, mimic the dynamic behavior of a cache.} easy to predict the memory access times.
-	
-\item What is the main goal?\\
-	To explore the use of static cache locking of instruction caches in multitasking real-time systems.
-	
-\item What did they do to achieve this goal?\\
-	They propose two algorithms for static cache locking.
-	The first algorithm minimizes the utilization of a task set.
-	Typically, lower utilization results in better schedulability.
-	Sufficient (and in some cases necessary) schedulability conditions based on the utilization exist for different scheduling regimes.
-	For fixed-priority scheduling, necessary and sufficient response-time analysis (RTA) methods have been developed.
-	The second proposed algorithm tries to increase schedulability by minimizing interference between different tasks, which is considered in RTA.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They compare their two static cache locking approaches with a regular unlocked cache.
-	They analyze the WCET in case of an unlocked cache using a (at the time) state of the art instruction cache analysis~\cite{Mueller00}.
-	To estimate the cache-related preemption delay (CRPD) they assume that all blocks of a task have to be reloaded after a context switch (At the time a more accurate analysis of CRPD was available: Lee et al.~\cite{Lee96}. More precise analyses based on the original approach have been developed recently).
-	They analyze two task sets, each consisting of four tasks. For these tasks, they choose a period that would result in a utilization of 1.3 if no cache would be employed. 
-	For a number of cache configurations of varying associativity and size, they report the utilization determined by static analysis.
-	In addition to reporting utilization, they also indicate whether the task set was deemed schedulable by schedulability analysis.
-	For small associativities, the unlocked cache significantly outperforms statically locked caches in terms of utilization and schedulability.
-	For higher associativities, the static cache locking techniques perform better, as they are more flexible in their decisions of which instructions to lock.
-	On the other hand, the static analysis of the unlocked cache is less precise for higher associativities\footnote{This is surprising and not explained.}.
-	For associativities greater than 4 or 8, static cache locking outperforms static analysis of unlocked caches.
-	
-\item What other work is listed as future work?\\
-	To investigate average-case performance of static cache locking.
-	The proposed algorithms assume a fixed ``worst-case execution path''. In future work, they would like to investigate how sensitive the algorithms are to this path.
-	They would like to compare their algorithms to genetic algorithms proposed by Campoy et al.
-	For large programs, they plan to explore dynamic cache locking strategies.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	The cache supports locking contents.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	Compiler, WCET analysis.
-\end{itemize}
-
-
+Schoeberl~\cite{jop:jtres_cache} proposed to use method caches for the instruction cache of the JOP architecture~\cite{jop:wcet}.
+Conventional caches use a cache line as its basic unit of replacement. 
+Method caches use \emph{methods} as its unit of replacement. 
+A cache can contain different block sizes that are used to store methods. 
+There exists a trade off between performance and predictability for the block sizes of the method cache. 
+Methods can occupy more than one block, depending on the method size. 
+When a method is called, the cache loads the whole method into the cache, occupying any number of blocks it needs.
+The LRU replacement policy is used, since the end of a method usually returns to its parent method. 
+When a method is evicted, all blocks it occupies are evicted. 
+Thus, the instruction cache is more predictable, because it only changes on method calls. 
+Within a method, all instructions are known to be in the cache, so no cache miss results from the instruction cache.
+ 
+%method cache SMT
+Metzlaff et al.~\cite{Metzlaff2008MethodcacheSMIT} used a method cache mechanism with the real-time SMT architecture in ~\cite{Mische2008SMT}.
+They partitioned the scratchpad for each different thread so no inter-thread interference would exist.   
+Then, they implemented the method cache~\cite{Kirner2007ModelFunctionCache} with scratchpads, and give priority to the high priority thread when a filling is needed.
+THey called this the function scratchpad.  
+If the thread is stalled when a method is being filled into the scratchpad, other threads occupy the pipeline, so throughput is preserved with multiple threads. 
 
 \subsection{Scratchpads}
-Scratchpads (ARM refers to this as Tightly Coupled Memory - TCM) are a
-form of fast access memory, except the allocation of the data on the
-scratchpad is controlled by software, where as caches are controlled
-in hardware. This is done often by mapping a memory space as the
-scratchpad space, where all accesses to that space will go to
-scratchpad and all other accesses will go to memory. This allows more
-precise WCET analysis~\cite{Wehmeyer2005SPM}~(in the absence of caches)
-because based upon what memory location is being accessed, you can
-categorize the access latency (of course one difficulty in WCET is
-knowing what the actual memory location is). There are two allocation
-schemes that are employed by the compiler. A \textit{static allocation
-  scheme} allocates the data before the program runs, and the
-allocation doesn't change throughout the program (see
-\nameref{sec:SPM_static_allocation}). A \textit{dynamic allocation
-  scheme} can change the mapping of data on the scratchpad during run
-time in attempt to increase performance (See
-\nameref{sec:SPM_dyn_allocation}).
-
-
-\subsubsection{Static allocation schemes}
-\label{sec:SPM_static_allocation}
-Static allocation schemes allocate the content on the scratchpad a
-priori, and the content stays the same throughout the whole
-execution. Most static scratchpad allocation schemes
-(\textcolor{red}{Find some citations}) use some sort of heuristic to
-find the most commonly executed instructions or data structures, and
-then allocate them statically on the scratchpad to improve the ACET
-(average case execution time). Suhendra et
-al.~\cite{Suhendra2005WCETSPM} (Abhik Roychoudhury) was the first to
-propose using static data scratchpad allocation to improve the worst
-case execution time. They first identified the difficulty in
-constructing such an algorithm that optimally allocates data to
-improve the WCET because once data is allocated on the SPM, the worst
-case execution path will change. Also, it's possible that the WCEP
-that's resulted from static analysis is actually infeasible, so the
-detection of infeasible task is also needed. As a result, they
-proposed a greedy method that allocates contents of the SPM in attempt
-to reduce the WCET. They first assume that no allocation is done for
-any memory location. They find the WCEP, and allocate the most used
-data block (not too sure of what size, does it depend on the data
-structure? Is it fixed size?)  from that path onto the SPM, then
-reiterates the algorithm to find the new WCEP. This iterates until the
-SPM space is exhausted. Note that is is sub-optimal because allocated
-content will not be reconsidered. This means that if the first WCEP
-and the second WCEP don't share that data structure, the first
-allocation does not contribute to improving the WCEP.
-
-Patel et al.~\cite{Patel2008PRETSPM} proposed another static
-allocation scheme based on \cite{Suhendra2005WCETSPM}, except that the
-allocation criteria wasn't to minimize the WCET, but to meet all
-deadlines in the program. The greedy approach worked by synthesizing
-timing constructs (deadline blocks) into test programs. The algorithm
-works by identifying the deadline blocks that miss their
-deadline. Then a profile is constructed based on the number of
-accesses to a data block in the missed deadline blocks. Based on the
-profile, a data block is selected to be allocate on the scratchpad,
-and then the algorithm reiterates itself, until either all deadlines
-can be guaranteed to be met, or if the SPM exhausts its space. In the
-first case, the remaining space can be optimized by another method. In
-the second case, the program is deemed un-schedulable, and the
-deadlines cannot be met. 
-
-\subsubsection{Dynamic allocation schemes}
-\label{sec:SPM_dyn_allocation}
-
-\subsection{Caches vs. Scratchpad}
-Puaut et al.~\cite{Puaut2007SPMvsCache} did a comparison of locked
-caches and scratchpads. Some architectures support locking cache lines
-and software controlled loading of content into the cache. Puaut
-showed that the difference between using locked caches and scratchpads
-was minor. Most benchmarks provided similar WCET estimates. The
-differences stem from the granularity of blocks. For locked caches,
-the basic allocation unit is a cache line. Thus, it's independent of
-the basic block size of the allocation. However, this results in
-the \textit{pollution} of locked content. \textit{Pollution} occurs
-when a cache line that's locked contain words that aren't part of the
-allocation scheme, but simply locked in because it belonged to the
-same cache line. Also, depending on the associativity of the cache, a
-cache line that should be locked could possibly be in conflict with
-another cache line that's also locked, and thus lose its ability to be
-locked in the cache. For scratchpads, the basic allocation is only
-determined by the allocation scheme. However, if the basic allocation
-block is big, it's possible that due to the fragmentation, a big
-allocation block doesn't fit in the scratchpad at the end. In the
-paper, this resulted in a 30\% drop in the on-chip access ratio of
-total memory accesses. 
-
-\paragraph{Scratchpad Memories vs Locked Caches in Hard Real-Time Systems: A Quantitative Comparison~\cite{Puaut2007SPMvsCache}}
-
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Caches are used to bridge the increasing performance gap between the processor and the off-chip memory.
-	Allocation and deallocation of memory blocks from the cache is managed by hardware in a transparent manner to the programmer and the compiler.
-	In hard real-time systems, caches are a source of unpredictability.
-	A lot of progress has been made to statically predict cache behavior.
-	Due to lack of documentation about the employed replacement policies, this work is not always applicable.
-	In addition, such analyses are relatively pessimistic for some replacement policies, such as pseudo round-robin, pseudo-LRU, or random replacement.\\
- 	Many processors allow to lock (also: freeze) the contents of the cache. Static and dynamic cache locking techniques have been developed.
- 	An alternative to caches is scratchpad memory (SPM).
- 	In contrast to caches, scratchpads are under software-control.
- 	The compiler or programmer needs to allocated code and/or data to the scratchpad memory.
- 	Significant work has been done to develop allocation techniques for SPMs, most aimed at reducing average-case execution time.
- 	Only one previous paper~\cite{Suhendra2005WCETSPM} was concerned with WCET-oriented \emph{static} scratchpad allocation.
-\item What is the main goal?\\
-	To develop a dynamic WCET-oriented instruction scratchpad allocation and cache-locking algorithm.
-	This algorithm should minimize the WCET estimate.
-	The second goal is to quantitatively compare cache locking with scratchpad allocation.
-\item What did they do to achieve this goal?\\
-	Their scratchpad allocation/cache locking algorithm proceeds in two steps:
-	\begin{enumerate}
-      \item Selection of reload points
-      \item Selection of on-chip memory contents
-    \end{enumerate}
-    In the first step, a subset of the loop pre-headers is selected as potential reload points.
-    Only at these points, will the algorithm consider to load memory contents into the scratchpad/cache.
-    The second step iteratively and greedily decides which blocks to allocate to the fast memory (scratchpad/cache).
-    To decide which blocks are most beneficial to improve the WCET estimate, WCET analysis is performed.
-    The WCET analysis determines execution frequencies of basic blocks that maximize the execution time of the task.
-    These execution frequencies are taken into account when deciding which block to allocate to the fast memory.
-    As allocations to the fast memory may change the execution frequencies maximizing execution time, WCET analysis has to be performed again after allocating blocks.
-    The algorithm allows to trade off the number of costly WCET analysis invocations and the quality of the allocation.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	The paper focuses on comparing scratchpad allocation with cache locking.
-	It does not compare the (worst-case) performance of unlocked caches with that of locked caches or scratchpads.
-	The two possibilities are compared regarding the WCET estimates obtained with the Heptane WCET analysis tool.
-	Five benchmarks, four from the MŠlardalen benchmark suite and one from the UTDSP benchmark suite are used.
-	In their initial analysis, the differences between WCET estimates for locked caches and scratchpads are not very large:
-	sometimes locked caches outperform scratchpads, sometimes vice-versa.
-	This is linked to the cache block size and the basic block size.
-	Large cache blocks lead to pollution, where unimportant instructions are locked, as cache blocks can only be locked as a whole.
-	Depending on the alignment of basic blocks with cache blocks, this problem is more or less severe.
-	As the locking of SPM contents is performed at the level of basic blocks, large basic blocks can be problematic:
-	they cause fragmentation, as very large basic blocks might not fit onto the scratchpads.
-	Fragmentation could be a more significant problem with large data structures such as large arrays.
-\item What other work is listed as future work?
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	Splitting basic blocks to reduce fragmentation.
-  	Allocation of data.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	Compiler, WCET analysis.
-\end{itemize}
-
-
-\bigskip
-\textbf{Preemption} - Although scratchpads are more predictable, the
-hardware replacement policy of caches could be advantageous,
-especially for systems that have preemption of tasks. Locked caches
-can lock content in the cache, and when a preemption occurs, the
-hardware can still take advantage of a hardware replacement for lines
-that aren't locked, while still maintaining a certain amount of
-predictability when the original task resumes (because of the locked
-content that aren't replaced). For statically allocated scratchpads,
-the allocation scheme needs to take into account the preempted task,
-and allocate space for that task. This will reduce the available
-allocation space for all other tasks. For dynamically scheduled
-schemes, it will be extremely difficult to find reload points to
-adjust the scratchpad. If a preempted task loads its optimal content
-when it preempts a task, it's unclear what to load back for the
-original task, and when to load it. There needs to be some sort of OS
-that keeps track of what was loaded off the scratchpad. It is unclear
-what overhead this could result in. (\textcolor{red}{Read papers about
-  this} \JR{Write paper about how to do this ;-)})
-
-\subsection{DRAM}
-
-\paragraph{Predator: A predictable SDRAM memory controller~\cite{Akesson2007CODES,Akesson2009DSD,Akesson2010}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-   Contemporary multi-processor SoCs (systems-on-chip) feature a large number of intellectual property components, which communicate through 	shared memory. Some of these IPs have hard real-time requirements. The memory traffic generated by the different components is dynamic and not fully known at design time. Standard DDR2 SDRAM memory controllers schedule the requests of the different components dynamically. Predicting the execution time of a particular component in such a system is difficult, because
-   \begin{itemize}
-     \item the time to service a request depends on past requests,
-     \item in particular, it depends on past requests by other requestors
-   \end{itemize}
-   Due to interference on shared resources, verification complexity of real-time requirements increases dramatically on multi-processor systems.
-   If the behavior of different applications can be completely isolated, they can be verified in isolation.
-\item What is the main goal?\\
-	The first main goal is to provide a memory controller design that provides a guaranteed minimum bandwidth and a maximum latency to each of the requestors (\emph{predictability}) independently of the behavior of other requestors. It should efficiently utilize the memory chip. The second main goal is to provide complete isolation of requestors, i.e. the behavior of one requestor should not influence the service experienced by other requestors (\emph{composability}, this part occurs only in~\cite{Akesson2009DSD,Akesson2010}).
-\item What did they do to achieve this goal?\\
-	The predictability goals is accomplished in two steps:
-	\begin{itemize}
-    	\item First, a set of of read and write groups, with corresponding static sequences of SDRAM commands, are determined. These groups determine the minimum request size, which can be, for instance, the size of a cache line. Longer groups will increase memory efficiency, as long as no unnecessary data is fetched. On the other hand, longer groups will increase latency.
-    	\item Secondly, a Latency-Rate scheduler (in this case a Credit-Controlled Static-Priority (CSSP) scheduler) is employed to provide the different requestors with the requested service independently of the behavior of the other requestors. CSSP allows to decouple allocated latency from rate, in contrast to TDMA approaches.
-    \end{itemize}
-    The composability goal is achieved by a special front-end~\cite{Akesson2009DSD,Akesson2010}.
-    Essentially, the front-end delays each response by the predictable back-end (memory controller) up to its worst-case bound.
-    It may also reject new requests, if the request queues would be full, assuming worst-case behavior of the memory controller.
-    In this way, interactions between different requestors are completely eliminated.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	The predictable memory controller Predator is evaluated by simulation of a SystemC model. 
-	Four hard real-time requestors are mimicked by traffic generators.
-	These traffic generators have a combined bandwidth requirement of 660 MB/s. 
-	In the simulations, the maximum observed delays for the requestors are recorded.
-	These are then compared with the analytical bounds.
-	Reassuringly, the analytical bounds are never exceeded during simulation and all requestors receive their allocated rate.
-	However, for lower priority requestors, the latency bounds are fairly pessimistic as the worst-case is extremely unlikely.
-	In a second experiment, one of the requestors asks for more resources than allocated. The well-behaved requestors are unaffected by this behavior and continue to receive their allocated rate within the analytical latencies.
-\item What other work is listed as future work?\\
-	Developing an algorithm for automatic generation of memory access groups, given a set of memory timings and a burst size (proposed in \cite{Akesson2007CODES}, done in \cite{Akesson2010}).
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	It seems that the guaranteed latency is rather high. Guaranteed bandwidth is close to the maximum that can be provided. However, having to account for potential refreshes and performing rather long bursts (through all banks), results in long worst-case latencies, in particular for lower priority tasks, as noted in \cite{Paolieri2009ESL}. This can be partly alleviated by a different arbiter, like round-robin or TDMA, which in turn has other disadvantages.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	WCET analysis is simplified.
-\end{itemize}
-
-
-\paragraph{An Analyzable Memory Controller for Hard Real-Time CMPs~\cite{Paolieri2009ESL}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	Multicore processors provide the performance required by current and future hard real-time systems.
-	However, due to interferences on shared resources, it is difficult to compute tight bounds on the WCETs of tasks running on such processors.
-\item What is the main goal?
-	An analyzable JEDEC-compliant DDRx SDRAM memory controller for hard real-time multicores.
-	The WCET estimation of a task should be independent of the memory behavior of other corunning tasks (composability).
-	Furthermore, the controller and corresponding analysis should be adaptable to arbitrary JEDEC-compliant DDRx SDRAM devices.
-\item What did they do to achieve this goal?\\
-	They schedule memory accesses hard real-time tasks (HRTs) in a round-robin fashion.
-	These accesses are prioritized over those of non hard real-time tasks (NHRTs).
-	Memory requests are serviced in bursts, which are interleaved over all banks. \JR{Note, that this approach interleaves accesses belonging to the same request as opposed to our PRET approach.}
-	They analyze the maximal delay a memory access can suffer due to a previous access using generic DDR timing constraints.
-	Based on this delay they compute the maximum access delay taking into account the round-robin scheduling. 
-	The resulting ``upper bound delay'' (UBD) can be used in WCET analysis.
-	They do not change the auto-refresh mechanism.
-	They propose synchronizing the start of a HRT with the the occurrence of a refresh operation at analysis and runtime.
-	\JR{How much this helps w.r.t. to WCET analysis is questionable.}
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They use a hard real-time application from Honeywell, a collision avoidance algorithm to evaluate their approach quantitatively.
-	They consider four scenarios: WCET mode $i$, with $i \in \{1,2,3,4\}$. In WCET mode $i$, there are $i-1$ corunning HRTs and one NHRT. For each of these modes they perform simulations (MOET) and a WCET analysis using the UBDs (AMC). They also perform a WCET analysis assuming a private SDRAM for each task (PRMC). In both cases, the WCET analyses account for interferences on on-chip resources. They also vary the size of the caches from 128KB to 8KB. The smaller, the cache, the more memory requests will be generated by the HRTs. The NHRT is configured to constantly access the memory and to thereby interfere in the strongest possible way. In WCET mode 1, i.e. the HRT competes with no other HRTs but one NHRT, the three analyses (MOET, AMC, PRMC) yield very similar results. In WCET mode 4 and 8KB cache, measurements (MOET) show a slowdown compared with PRMC of around 1.3. AMC computes a bound which is about 1.7 times higher than PRMC, indicating an overestimation around 1.3.
-	
-	They compare their approach with Predator~\cite{Akesson2007CODES}. The first argument in favor of their approach is its applicability to arbitrary JEDEC-compliant DRAM devices. However, this requirement was also lifted in Akesson's PhD thesis.
-	They also compare the UBDs provided by Predator with those provided by their own approach. 
-	In Predator each HRT is assigned a priority, with decreasing priority, the UBDs rise.
-	While the UBD of the highest priority task is slightly better than the UBD of AMC (their approach), the guarantees for lower priority tasks are much worse in Predator.
-	This is caused purely by Predator's backend, which could be easily replaced by any Latency-Rate server, such as the one presented in this work.
-\item What other work is listed as future work?
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)
-\end{itemize}
-
-
-\paragraph{Making DRAM Refresh Predictable~\cite{Bhat2010PredictableDRAM}}
-\begin{itemize}
-\item What is the background of this work? What is the motivation?\\
-	DRAM cells leak charge and have to be refreshed periodically to retain their state.
-	This is usually done through auto-refreshes issued by the DRAM controller.
-	From a task's perspective such auto-refreshes occur asynchronously.
-	Refreshes affect timing of memory accesses in two ways:
-	\begin{itemize}
-      \item by stalling DRAM accesses during refreshes,
-      \item by closing DRAM rows, which leads to additional precharges to reopen them.
-    \end{itemize}
-	Therefore they are difficult to account for in WCET analysis.
-\item What is the main goal?\\
-	Eliminate interferences between refreshes and memory accesses of tasks, such that WCET analysis can be performed without considering refreshes.
-\item What did they do to achieve this goal?
-	They execute refreshes in bursts.
-	These refresh bursts are scheduled in periodic tasks.
-	This way they can be taken into account during schedulability analysis.
-	They present two implementations of bursty refreshes.
-	One purely software-based, the other relying on the auto-refresh capabilities of the DRAM controller.
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-	They evaluate their approach by measurements on a DSP and an ARM platform.
-	To analyze the effect of refreshes on execution times they deactivate the instruction and data caches.
-	This way every memory access goes to the DRAM.
-	With standard DRAM auto-refresh they observe a small jitter of less than 0.1\% in the execution times of the bubble sort algorithm.
-	Their approach eliminates this jitter completely and improves execution times slightly, by 0.18\% to 2.8\%.
-	The overhead incurred by the two bursty refresh mechanisms is between 3 and 16\%.
-	They also observe, using measurements of the energy consumption of the DRAM module, savings of about 5\%.
-	However, it should be noted, that the overhead incurred by the refresh tasks is not taken into account in these savings.
-	They will likely be greater than the savings.
-	The savings will also be reduced by the use of scratchpads or caches. 
-\item What other work is listed as future work?\\
-	They would like to pursue FPGA-based motifications to the DRAM controller to add native support for burst refreshes in hardware.
-	Burst refreshes could be overlaid with non-memory based activities.
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-  	This work considers unpredictability of DRAM accesses due to refreshes.
-  	It does not consider variations in access times due to the access history or due to competing requestors.
-  	These variations are somewhat different in nature as they can in principle be analyzed in the WCET analysis of a task.
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-  	Scheduling, possibly the DRAM controller
-\end{itemize}
-
-Several research groups have introduced ways to mitigate the temporal interference in SMTs by allocating a real-time thread with the highest priority ~\cite{Barre2008RTSMT}, time-sharing the real-time thread ~\cite{Mische2008SMT}, and partitioning the instruction cache ~\cite{Metzlaff2008MethodcacheSMIT}.
-
-\paragraph{Implementing Time-Predictable Load and Store Operations~\cite{whitham:09:timepredLoadStore} }
-
-\begin{itemize}
-\item Basic definitions: \\
-\textbf{Pointer aliasing:} The same memory location may be referenced using different names (pointers). 
-\textbf{Pointer invalidation:} An object in a memory location is moved out from that memory location.  As a result, an alias that points to the object before the move, ends up pointing to an incorrect object. 
-\textbf{Whole-program Pointer analysis:} Determine which pointers can point to which variables and storage locations in the entire program.
-\item What is the background of this work? What is the motivation?\\
-Scratchpad (SPM) memories provide time-predictable accesses for data.  However, the time-predictable SPM allocation strategies for data only support statically allocated data or stack data.  Dynamic data, on the other hand, is only supported by non time-predictable allocation schemes if whole-program pointer analysis identifies every memory operation that could access each variable. 
-\item What is the main goal? \\
-The objective of this paper is to implement a scratchpad memory management unit that transfers data between external memory and scratchpad memories such that pointer aliasing and pointer invalidation are eliminated. 
-This approach lifts some of the restrictions (i.e. eliminate pointers entirely from program code or no support for dynamic data) forced by the limitations of WCET analysis. 
-\item What did they do to achieve this goal?\\
-They implemented a scratchpad memory management unit (SPMMU) in hardware that performs a mapping from logical addresses (used by the program) to physical addresses (identifying where an object resides).  In addition, the SPMMU performed DMA transfers between the external memory and SPM.  The program dictates when the transfers take place via explicit OPEN and CLOSE commands in the code. The user specifies the base address for the object, the size of the object and the physical address at which the object is being loaded to.  The SMMU then performs the transfer but updates an internal table mapping the logical address to the new physical location of the object.  
-\item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-They use three approaches to evaluate their work.  
-Their first approach simply looks at the hardware cost incurred.  In particular, they observe that since the mapping must take place in the same cycle that the request is made, it must be implemented as combinational logic; hence, a part of the critical path.  They determine this critical path and its effect on the clock frequency. 
-The second approach compares their approach for a particular function of a JPEG decode algorithm with a data cache with estimated access latencies.  They show that the SMMU is not as effective as a data cache in ideal conditions, they are much better in the worst case. 
-The third approach is a case-study implementation of the entire JPEG decode algorithm with the SMMU. 
-\item What other work is listed as future work?
-Integrating one of the SPM allocation techniques with the SMMU to determine the where to place OPEN and CLOSE commands. 
-\end{itemize}
-Additional questions:
-\begin{itemize}
-  \item What are the limitations/assumptions of this work?\\
-The user must specify the size of the object and the physical address. 
-They claim that there are algorithms that determine the best physical address, but I haven't read that work yet. 
-  \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-They require the following modifications: 1) hardware, 2) WCET analysis, and 3) compilers to generate the OPEN/CLOSE commands. 
-\end{itemize}
-
-% \section{Interconnect}
+Scratchpads are known to allow more precise WCET analysis~\cite{Wehmeyer2005SPM} because the contents are managed in software. 
+Puaut et al.~\cite{Puaut2007SPMvsCache} presented a comparison of locked caches and scratchpads, and showed that were only subtle differences between the two in terms of performance. 
+Most benchmarks provided similar WCET estimates. 
+The difference stems from the granularity of allocation units. 
+For locked caches, the basic allocation unit is a cache line. 
+Thus, it is possible to \emph{pollute} the contents of the cache line with contents that are not part of the allocation scheme. 
+Also, depending on the associativity of the cache, a cache line that should be locked could possibly be in conflict with another cache line that is also locked, and thus lose its ability to be locked in the cache. 
+For scratchpads, the basic allocation unit is only determined by the allocation scheme, so the contents cannot be polluted. 
+However, if the basic allocation block is big, it is possible that the allocation block will not fit in the scratchpad at the end due to fragmentation.  
+ 
 % 
-% \paragraph{Real-Time Control of I/O COTS Peripherals for Embedded Systems~\cite{Pellizzoni08,Bak09}}
+% \bigskip
+% \textbf{Preemption} - Although scratchpads are more predictable, the
+% hardware replacement policy of caches could be advantageous,
+% especially for systems that have preemption of tasks. Locked caches
+% can lock content in the cache, and when a preemption occurs, the
+% hardware can still take advantage of a hardware replacement for lines
+% that aren't locked, while still maintaining a certain amount of
+% predictability when the original task resumes (because of the locked
+% content that aren't replaced). For statically allocated scratchpads,
+% the allocation scheme needs to take into account the preempted task,
+% and allocate space for that task. This will reduce the available
+% allocation space for all other tasks. For dynamically scheduled
+% schemes, it will be extremely difficult to find reload points to
+% adjust the scratchpad. If a preempted task loads its optimal content
+% when it preempts a task, it's unclear what to load back for the
+% original task, and when to load it. There needs to be some sort of OS
+% that keeps track of what was loaded off the scratchpad. It is unclear
+% what overhead this could result in. (\textcolor{red}{Read papers about
+%   this} \JR{Write paper about how to do this ;-)})
+% 
+
+% Scratchpad (SPM) memories provide time-predictable accesses for data.  
+% However, the time-predictable SPM allocation strategies for data only support statically allocated data or stack data.  
+% Dynamic data, on the other hand, is only supported by non time-predictable allocation schemes if whole-program pointer analysis identifies every memory operation that could access each variable.
+ 
+Whitham and Audsley~\cite{whitham:09:timepredLoadStore} introduced a hardware scratchpad memory management unit (SPMMU) that manages the transfers of data between memory and the data scratchpad to eliminate \emph{pointer aliasing} and \emph{pointer invalidation}.
+\emph{Pointer aliasing} occurs when the same memory location is referenced using different names (pointers). 
+\emph{Pointer invalidation} occurs when an object in a memory location is moved out from that memory location.  
+As a result, an alias that points to the object before the move, ends up pointing to an incorrect object.
+They propose to separate \emph{logical addresses} (used by the program) and \emph{physical addresses} (identifying where an object resides).  
+THe SPMMU maintains a table mapping the logical address and physical address.   
+Although the SPMMU resides in hardware, its contents are controlled by software via explicit OPEN and CLOSE commands in the code.  
+The user specifies the base address for the object, the size of the object and the physical address at which the object is being loaded to. 
+The SMMU then performs the transfer, and updates an internal table mapping the logical address to the new physical location of the object.  
+This simplifies analysis because it eliminates the need for whole-pointer analysis in the program. 
+
+% \paragraph{Implementing Time-Predictable Load and Store Operations~\cite{whitham:09:timepredLoadStore} }
+% 
 % \begin{itemize}
+% \item Basic definitions: \\
+% \textbf{Pointer aliasing:} The same memory location may be referenced using different names (pointers). 
+% \textbf{Pointer invalidation:} An object in a memory location is moved out from that memory location.  As a result, an alias that points to the object before the move, ends up pointing to an incorrect object. 
+% \textbf{Whole-program Pointer analysis:} Determine which pointers can point to which variables and storage locations in the entire program.
 % \item What is the background of this work? What is the motivation?\\
-% 	Due to mass production, commercial-off-the-shelf (COTS) peripherals are not only cheaper than custom made systems, but also provide performance orders of magnitude higher (e.g. PCI Express vs. the real-time SAFEbus). It is thus tempting to employ COTS components in real-time systems. However, their unpredictable timing makes their use in such systems difficult: they are typically designed paying little attention to worst-case timing behavior. This paper considers the I/O subsystem. Modern real-time systems may include several high-bandwidth I/O devices. Connecting these devices to the processor through COTS interconnects yields unpredictable delays and may cause deadline misses. In contrast to CPus, where real-time scheduling is common, it is not supported by COTS interconnect systems such as the PCI bus.
-% 	
-% \item What is the main goal?\\
-% 	The goal is to enable the use of COTS interconnect in real-time systems.
-% 
+% Scratchpad (SPM) memories provide time-predictable accesses for data.  However, the time-predictable SPM allocation strategies for data only support statically allocated data or stack data.  Dynamic data, on the other hand, is only supported by non time-predictable allocation schemes if whole-program pointer analysis identifies every memory operation that could access each variable. 
+% \item What is the main goal? \\
+% The objective of this paper is to implement a scratchpad memory management unit that transfers data between external memory and scratchpad memories such that pointer aliasing and pointer invalidation are eliminated. 
+% This approach lifts some of the restrictions (i.e. eliminate pointers entirely from program code or no support for dynamic data) forced by the limitations of WCET analysis. 
 % \item What did they do to achieve this goal?\\
-% 	They designed a real-time I/O management system. This system consists of a real-time bridge for each COTS peripheral connecting the peripheral to the COTS interconnect, and a reservation controller. The reservation controller decides at any point in time which real-time bridge may access the COTS intereconnect. It can implement a variety of real-time scheduling policies, such as EDF or RM.
-% They extend the Real-Time Calculus to determine I/O delay bounds and each bridge's necessary buffer size to guarantee lossless traffic delivery.
-% 
+% They implemented a scratchpad memory management unit (SPMMU) in hardware that performs a mapping from logical addresses (used by the program) to physical addresses (identifying where an object resides).  In addition, the SPMMU performed DMA transfers between the external memory and SPM.  The program dictates when the transfers take place via explicit OPEN and CLOSE commands in the code. The user specifies the base address for the object, the size of the object and the physical address at which the object is being loaded to.  The SMMU then performs the transfer but updates an internal table mapping the logical address to the new physical location of the object.  
 % \item How do they evaluate their approach? Does it achieve the goal? Do they compare it with other work?\\
-% 	They evaluate their approach through measurements of synthetic benchmarks on a COTS PC platform.
-% 	As the speed of the PCIe is running at 2.5 GHz is very high, they extended the reservation controller to poll the state of the bus at a resolution of one microsecond.
-% 	They also reduced the FSB frequency to achieve a typical bandwidth value for embedded platforms.
-% 	The synthetic benchmark consists of four real-time flows competing for main memory.
-% 	The tasks' periods are harmonic, and the total utilization is 100\%.
-% 	So the task set is schedulable under RM.
-% 	First, they execute this task set on an unmodified system.
-% 	One of the tasks misses its deadline at a near-critical instant.
-% 	Once the real-time I/O management is employed, no deadline misses are observed.
-% \item What other work is listed as future work?\\
-% 	In future work, they want to distinguish traffic from the same peripheral, i.e. giving different priorities to different traffic from the same peripheral. They also plan to provide hardware-based preprocessing and filtering on the real-time bridge to drop less important packets if the main CPU is overloaded.
+% They use three approaches to evaluate their work.  
+% Their first approach simply looks at the hardware cost incurred.  In particular, they observe that since the mapping must take place in the same cycle that the request is made, it must be implemented as combinational logic; hence, a part of the critical path.  They determine this critical path and its effect on the clock frequency. 
+% The second approach compares their approach for a particular function of a JPEG decode algorithm with a data cache with estimated access latencies.  They show that the SMMU is not as effective as a data cache in ideal conditions, they are much better in the worst case. 
+% The third approach is a case-study implementation of the entire JPEG decode algorithm with the SMMU. 
+% \item What other work is listed as future work?
+% Integrating one of the SPM allocation techniques with the SMMU to determine the where to place OPEN and CLOSE commands. 
 % \end{itemize}
 % Additional questions:
 % \begin{itemize}
 %   \item What are the limitations/assumptions of this work?\\
-%   	Requires redevelopment of drivers for peripherals on host and real-time bridge side.
+% The user must specify the size of the object and the physical address. 
+% They claim that there are algorithms that determine the best physical address, but I haven't read that work yet. 
 %   \item Which parts of a system/design process are modified by this work? (e.g. hardware (which feature?), WCET analysis, scheduling, compiler, programming language, \ldots)\\
-%   	Hardware: real-time bridges and reservation controller. Software: drivers for bridges and hosts.
+% They require the following modifications: 1) hardware, 2) WCET analysis, and 3) compilers to generate the OPEN/CLOSE commands. 
 % \end{itemize}
 
-\label{sec:related_arch_mod}
+% \subsubsection{Static allocation schemes}
+% \label{sec:SPM_static_allocation}
+% Static allocation schemes allocate the content on the scratchpad a
+% priori, and the content stays the same throughout the whole
+% execution. Most static scratchpad allocation schemes
+% (\textcolor{red}{Find some citations}) use some sort of heuristic to
+% find the most commonly executed instructions or data structures, and
+% then allocate them statically on the scratchpad to improve the ACET
+% (average case execution time). Suhendra et
+% al.~\cite{Suhendra2005WCETSPM} (Abhik Roychoudhury) was the first to
+% propose using static data scratchpad allocation to improve the worst
+% case execution time. They first identified the difficulty in
+% constructing such an algorithm that optimally allocates data to
+% improve the WCET because once data is allocated on the SPM, the worst
+% case execution path will change. Also, it's possible that the WCEP
+% that's resulted from static analysis is actually infeasible, so the
+% detection of infeasible task is also needed. As a result, they
+% proposed a greedy method that allocates contents of the SPM in attempt
+% to reduce the WCET. They first assume that no allocation is done for
+% any memory location. They find the WCEP, and allocate the most used
+% data block (not too sure of what size, does it depend on the data
+% structure? Is it fixed size?)  from that path onto the SPM, then
+% reiterates the algorithm to find the new WCEP. This iterates until the
+% SPM space is exhausted. Note that is is sub-optimal because allocated
+% content will not be reconsidered. This means that if the first WCEP
+% and the second WCEP don't share that data structure, the first
+% allocation does not contribute to improving the WCEP.
+% 
+% Patel et al.~\cite{Patel2008PRETSPM} proposed another static
+% allocation scheme based on \cite{Suhendra2005WCETSPM}, except that the
+% allocation criteria wasn't to minimize the WCET, but to meet all
+% deadlines in the program. The greedy approach worked by synthesizing
+% timing constructs (deadline blocks) into test programs. The algorithm
+% works by identifying the deadline blocks that miss their
+% deadline. Then a profile is constructed based on the number of
+% accesses to a data block in the missed deadline blocks. Based on the
+% profile, a data block is selected to be allocate on the scratchpad,
+% and then the algorithm reiterates itself, until either all deadlines
+% can be guaranteed to be met, or if the SPM exhausts its space. In the
+% first case, the remaining space can be optimized by another method. In
+% the second case, the program is deemed un-schedulable, and the
+% deadlines cannot be met. 
+
+\subsection{DRAM}
+DRAM cells leak charge and have to be refreshed periodically to retain their state.
+However, the refreshes of DRAMs stalls other DRAM accesses, and potentially closes DRAM rows, which require additional precharges to reopen them.
+This causes DRAMs to be unpredictable for real-time systems, as the DRAM refreshes are usually controlled in hardware. 
+Bhat and Muller~\cite{Bhat2010PredictableDRAM} tackled this specific issue of DRAM refreshes by scheduling burst refreshes.
+They accounted for the DRAM refresh requirements into the software, and schedule refresh tasks to handle DRAM refreshes predictably. 
+Two implementations are provided. 
+The first is a pure software implementation, and use RAS-only refreshes to manually refresh the DRAM rows during the refresh task. 
+The second implementation uses a hybrid software-hardware solution, where the software initiates a hardware DRAM refresh. 
+Depending on the application needs, each refresh can contain smaller bursts at the cost of scheduling more refreshes. 
+By scheduling the DRAM refresh, other DRAM accesses are more predictable because no conflict will arise from refreshes.  
+
+Akesson et al.~\cite{Akesson2007CODES,Akesson2009DSD,Akesson2010} introduced the Predator, a predictable SDRAM memory controller. 
+Here,``predictable'' provides a guaranteed maximum latency and minimum bandwidth to each client, independent of the behavior of each client. 
+Standard DDR2 SDRAM memory controllers schedule the requests of the different components dynamically. 
+Predicting the execution time of a particular component in such a system is difficult, because of interference on the shared DRAM resource. 
+Predator is a hybrid between static and dynamic memory controllers.
+Predator precomputes a set of of read and write groups with corresponding static sequences of SDRAM commands.
+These static sequences allow the computing of latency bounds, and are scheduled by the backend dynamically. 
+As predictor is meant to service multiple clients, requests by different clients are scheduled using a Credit-Controlled Static-Priority arbiter (CCSP). 
+This provides a maximum latency and bandwidth to the clients based upon the guarantees of the backend. 
+The front-end also may delay each response by the back-end up to its worst-case bound.
+This eliminates interactions between different requestors.
+
+Paolieri et al.~\cite{Paolieri2009ESL} presented the Analyzable Memory Controller (AMC), which uses a very similar approach to the Predator. 
+The main difference between AMC and Predator is that the AM uses a Round-Robin (RR) arbiter, instead of a CCSP arbiter employed in Predator. 
+The RR arbiter provides the same latency and bandwidth guarantees to all clients while the CCSP provides better latency guarantee for high priority tasks. 

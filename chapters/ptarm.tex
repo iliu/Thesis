@@ -1,11 +1,11 @@
-The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on the ARM instruction set architecture\todo{Citation}. 
+The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on the ARM instruction set architecture~\cite{armrefman}. 
 In this chapter we describe in detail the implementation of the timing-predictable ARM processor and the timing analysis on the architecture.
 We show that with the architectural design principles of PRET, the PTARM architecture is easy analyzable with repeatable timing.
   
 The architecture of PTARM follows the design principles discussed in chapter~\ref{chapter:pret}.
 This includes a thread-interleaved pipeline and an exposed memory hierarchy with scratchpads and a timing predictable DRAM controller.
 The ARM ISA was chosen not only due to its popularity in the embedded community, but also because it is a \emph{Reduced Instruction Set Computer} (RISC), which contains simpler instructions that allow more precise timing analysis. 
-\emph{Complex Instruction Set Computers} (CSIC), such as Intel's x86\todo{citation} ISA, adds complexity to the instructions, hardware, and timing analysis.
+\emph{Complex Instruction Set Computers} (CSIC), such as Intel's x86 ISA, adds complexity to the instructions, hardware, and timing analysis.
 RISC architectures typically feature a large uniform register file, use a load/store architecture, and use fixed-length instructions.
 In addition, the ARM ISA contains several unique features. 
 Here we list of a few.  
@@ -16,7 +16,7 @@ Second, ARM's load/store instructions contain auto-increment capabilities that c
 This is done when load/store instructions use the pre or post-index addressing mode.   
 This is useful to compact code that operate on data structures such as arrays or stacks. 
 In addition, almost all of the ARM instructions are conditionally executed.
-The conditional execution improves architecture throughput with potential added benefits of code compaction\todo{Citation}.     
+The conditional execution improves architecture throughput with potential added benefits of code compaction~\cite{cheung_code_compact_pred03}.     
 
 ARM programmer's model specifies 16 general purpose registers (R0 to R15), with register 15 being the program counter (PC). 
 Writing to R15 triggers a branch to the written value, and reading from R15 reads the current PC plus 8.
@@ -26,7 +26,6 @@ In addition to the predictable architecture, PTARM extends the ARM ISA with timi
 We describe the implementation of these timing instructions in detail in section~\ref{sec:timing_inst_implementation} below.    
 
 \section{Thread-Interleaved Pipeline}
-\todo{discuss the term thread cycle.}
 PTARM implements a thread-interleaved pipeline for the ARM instruction set.
 Curretly, PTARM targets Xilinx Virtex-5 Family FPGAs, thus several design decisions were made to optimize PTARM for that FPGA family.
 PTARM implements a 32 bit datapath five stage thread-interleaved pipeline.
@@ -50,7 +49,7 @@ Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pip
 Some multiplexers within the pipeline have been omitted for a clearer view of the hardware components that make up the pipeline.
 There contains four copies of the Program Counter(PC), Thread States, and Register File.
 The register file has 3 read ports and 1 write port.
-Most of the pipeline design follow the five stage pipeline described in Hennessy and Patterson\todo{citation}, with the five stages in the pipeline being \emph{Fetch}, \emph{Decode}, \emph{Execute}, \emph{Memory}, and \emph{Writeback}.
+Most of the pipeline design follow the five stage pipeline described in Hennessey and Patterson~\cite{Hennessey2007CompArch}, with the five stages in the pipeline being \emph{Fetch}, \emph{Decode}, \emph{Execute}, \emph{Memory}, and \emph{Writeback}.
 We briefly describe the functionality of each stage, and leave more details to section~\ref{sec:ptarm_instructions}, where the instruction implementations are presented.
 
 The \emph{fetch stage} of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction memory. 
@@ -74,7 +73,7 @@ Thus, they can directly be passed into the register file before decoding.
 However, in the ARM instruction set, certain instructions encode the register read address at different bit locations of the instruction.
 For example, data-processing register shift instructions and store instructions reads a third operand from the register that are at encoded at different bit locations.
 Thus, a small register address decoding logic is inserted for a quick decoding of the register addresses from the instruction bits.
-\todo{Check if the register can be read from two different stages, thus removing the need for a register decoder logic. If rm and rn always remain the same, then we can read rs (rd for store) a stage later. }
+%TODO: Check if the register can be read from two different stages, thus removing the need for a register decoder logic. If rm and rn always remain the same, then we can read rs (rd for store) a stage later. 
 
 The \emph{PC Adder} is the logic block that increments the PC. 
 Single threaded pipelines need to increment the PC immediately in the fetch stage to prepare for instruction fetch the next processor cycle.  
@@ -249,8 +248,8 @@ I/O devices snoop the address bus to determine whether the pipeline is communica
 The I/O bus is shared by all threads in the thread-interleaved pipeline, thus, in addition to address and data, a thread ID is also sent out for potential thread-aware I/O devices. 
 In section~\ref{sec:ptarm_vhdl_soft_core} below we describe the several I/O components that are connected to our PTARM core.
 Currently all I/O devices interface with the processor through single cycle memory mapped I/O control registers to prevent bus contention between threads.
-In order to ensure predictable access times to all I/O devices, a timing predictable bus architecture must be implemented.   
-Several timing predictable bus architectures~\todo{cite} have been proposed and can be interfaced with PTARM. 
+In order to ensure predictable access times to all I/O devices, a timing predictable bus architecture must be used~\cite{Wilhelm_future_arch_09}.   
+%Several timing predictable bus architectures~\todo{cite} have been proposed and can be interfaced with PTARM. 
 A predictable thread-aware I/O controller is also needed to ensure data from the I/O devices are read by the correct thread, and contention is properly managed.
 These issues present future research opportunities -- to interface a timing predictable architecture with various I/O devices while maintaining its timing predictability.  
 
@@ -266,13 +265,11 @@ The timer expired exception entry is added with our timing extensions to the ISA
 \begin{smalltabular}{ | l | l | p{6cm} | }
   \hline                        
   Address & Exception Type &  Description \\ \hline
-  0x0 & Reset & \\ \hline 
-  0x4 & Undefined instructions &  \\ \hline 
-  0x8 & Software Interrupt (SWI) & \\ \hline
-  0xC & Prefetch Abort & \\ \hline
-  0x10 & Data Abort & \\ \hline
-  0x18 & Interrupt (IRQ) & \\ \hline
-  0x1C & Timer Expired & \\ \hline
+  0x0 & Reset & Occurs when the processor resets\\ \hline 
+  0x4 & Undefined instructions & Occurs when an undefined instruction is decoded \\ \hline 
+  0x8 & Software Interrupt (SWI) & Occurs when a SWI instruction is decoded\\ \hline
+  0x18 & Interrupt (IRQ) & Occurs on external interrupts\\ \hline
+  0x1C & Timer Expired & Occurs when a thread's exception timer expires \\ \hline
 \end{smalltabular}}
 \vspace{1mm}
 \caption{Exception vector table in PTARM}
@@ -356,7 +353,7 @@ Both can be shifted to form the final operand that is fed into the ALU.
 Figure~\ref{fig:data_processing_pipeline_implementation} explains how data-processing instructions are executed through the pipeline.
 
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/data_processing_pipeline_implementation}
   \end{center}
@@ -389,7 +386,7 @@ Thus, the condition code flags determine if a conditional branch is taken or not
 Figure~\ref{fig:branch_pipeline_implementation} shows how branch instructions are executed our the thread-interleaved pipeline.
 
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/branch_pipeline_implementation}
   \end{center}
@@ -469,7 +466,7 @@ The base address is sequentially incremented or decremented by 4 bytes and used 
 Figure~\ref{fig:ldstrm_pipeline_implementation} shows how the load/store multiple instruction executes in the pipeline. 
 
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/ldstrm_pipeline_implementation}
   \end{center}
@@ -507,7 +504,7 @@ Thus, we introduce a forwarding path that forwards the PC straight from the writ
 Figure~\ref{fig:ld_to_pc_pipeline_implementation} shows how this is implemented in our pipeline.   
 
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/ld_to_pc_pipeline_implementation}
   \end{center}
@@ -599,7 +596,7 @@ The \gettime\ instruction is used to obtain the current clock value.
 The timestamp obtained from \gettime\ represents the \emph{time of execution} of this instruction.
 The execution of \gettime\ is straightforward and shown in figure~\ref{fig:get_time_pipeline_implementation}. 
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/get_time_pipeline_implementation}
   \end{center}
@@ -620,7 +617,7 @@ As described in section~\ref{sec:programming_models}, the \emph{delay\_until} in
 This could be useful for synchronization between tasks or communicating with external devices.
 Figure~\ref{fig:delay_until_pipeline_implementation} shows the execution of the \emph{delay\_until} instruction in the PTARM pipeline.       
 \begin{figure}[h]
-  \vspace{-15pt}
+  
   \begin{center}
     \includegraphics[scale=.54]{figs/delay_until_pipeline_implementation}
   \end{center}
@@ -711,8 +708,8 @@ Currently all read and write operations to the UART is done through blocking pro
 The UART runs at a baud rate of 115200 and can send and receive bytes.
 
 The DVI controller is used to control the DVI input port on the FPGA, so a monitor can be connected.
-\todo{look at documentation of the DVI controller, what mode we're using it.}
-We demo a DVI controller application similar to the one presented in~\cite{ip2006processor}, where a vga controller is managed purely in software through the deadline instructions presented in the paper.
+%\todo{look at documentation of the DVI controller, what mode we're using it.}
+We implemented a DVI controller application similar to the one presented in~\cite{ip2006processor}, where a vga controller is managed purely in software through the deadline instructions presented in the paper.
 Here, we use the timing constructs presented in section~\ref{sec:programming_models} to control the sending out of vertical and horizontal sync signals in software.
 As one hardware thread manages the sync signals, other hardware threads in our core can be used to calculate and draw to the screen buffer.  
 Because hardware threads are temporally isolated, the timing of hardware sync signals are not affected by the operations on other hardware threads.  

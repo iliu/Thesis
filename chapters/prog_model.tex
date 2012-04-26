@@ -10,7 +10,7 @@ This makes the reasoning of temporal behaviors of programs even more difficult.
 In the previous sections, we presented a predictable computer architecture that implements timing predictable behaviors for conventional instructions in the ISA. 
 In this section, we will present our initial efforts to extend the ISA with timing properties.  
 Our vision is to bring temporal meaning to the semantics of ISA which allows us to reason about timing of programs independent of the platform.
-This allows higher-level models with temporal semantics, such as models expressed using e.g. MathWorks Simulink\textsuperscript{\textregistered} or Giotto\todo{citation}, to be more easily synthesized into lower-level implementations, such as C code, without deeply coupling the design to a particular hardware platform. 
+This allows higher-level models with temporal semantics, such as models expressed using e.g. MathWorks Simulink\textsuperscript{\textregistered} or Giotto~\cite{henzinger_giotto}, to be more easily synthesized into lower-level implementations, such as C code, without deeply coupling the design to a particular hardware platform. 
 
 A naive way to the extend the ISA with timing properties would be to associate with each instruction a constant execution time. 
 This \emph{constant time} ISA provides a clear timing definition to all programs written with it.
@@ -63,9 +63,8 @@ This can occur during system initialization, where the global time is obtained a
 This initial global time can be appended to the current platform time to obtain the current global time. 
 For systems designed run longer than 584 years each reset, the overflow of the 65th bit must be managed in software to ensure a consistent view of time.
 
-Table~\ref{table:timing_instructions} shows the timing instructions and a brief description of their functionality.   
 
-\begin{table}
+\begin{table}[h]
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | l | p{10cm} | }
   \hline                        
@@ -76,9 +75,6 @@ Table~\ref{table:timing_instructions} shows the timing instructions and a brief 
   \textbf{\textit{delay\_until}} &
 \delayuntil\ is used to delay the execution of the program until a certain timestamp.   
  \\ \hline
-   \textbf{\textit{delay\_and\_set}} &
-\delayandset\ delays the execution of the program until a certain timestamp, but also updates the timestamp with a specified offset. It is meant for programs with tighter timing constraints. 
- \\ \hline 
    \textbf{\textit{exception\_on\_expired}} & 
 \exceptiononexpire\ is used to register timestamps that trigger timing exceptions when the platform time exceeds the registered timestamp.  
 \\ \hline
@@ -90,7 +86,8 @@ Table~\ref{table:timing_instructions} shows the timing instructions and a brief 
 \label{table:timing_instructions}
 \end{table}
 
-Our current implementation extends the ARM~\todo{cite} instruction set, so here we will present our timing instruction extensions in the context of the ARM ISA.
+Table~\ref{table:timing_instructions} shows the timing instructions and a brief description of their functionality.   
+Our current implementation extends the ARM~\cite{armrefman} instruction set, so here we will present our timing instruction extensions in the context of the ARM ISA.
 However, the concepts and extensions could easily be applied to other ISAs. 
 The ARM ISA sets aside an instruction encoding space to allow additions to the architecture with co-processor extensions. 
 Our timing instructions are currently implemented using the co-processor instruction encoding, which also enables us to use conventional ARM cross-compilers to compile programs and test our architecture.     
@@ -150,19 +147,19 @@ Instead, \delayuntil\ can be used to synchronize programs with external sources.
 For example, the VGA controller presented in~\cite{ip2006processor} is implemented with the same mechanics to send the horizontal and vertical sync signals to the monitor from software.
 In chapter~\ref{chapter:app} we will also show applications that use this mechanism to synchronize the communication of hardware threads, and remove the execution time variance exhibited by software control paths.  
     
-\subsubsection{Delay\_and\_Set}
-The \delayandset\ instruction is an extension of the \delayuntil\ instruction with the additional ability to update the deadline timestamp with an offset. 
-This instruction has similar behavior to the \emph{deadline instruction} introduced in~\cite{ip2006processor}.
-Just as \delayuntil, \delayandset\ takes in an input timestamp and delays program execution until platform time exceeds the input timestamp. 
-However, \delayandset\ takes in an additional register, storing a 32 bit nanosecond value, used to update the input timestamp.
-Based on instruction flags, \delayandset\ can add the offset value to the current timestamp, or the current platform time after it has exceeded the timestamp value. 
-This has subtle impact on jitter and loop timing, which we will further explore in section~\ref{sec:timing_instruction_usage_notes}.  
-
-\Delayandset\ is used when the timing constraints for control loops are tight, because it can delay the program and set the next timestamp in one instruction. 
-This is also reflected in the instruction, as only a 32 bit nanosecond offset can be added to the current timestamp for the new timestamp, instead of the full 64 bit range. 
-32 bits of nanoseconds can represent around 4 seconds of time, if the desired execution time is any larger than 4 seconds, then the timestamp should be updated with standard arithmetic instructions, instead of \delayandset.
-We use this instruction in the engine modeling application we present in section~\ref{sec:1dCFD} to synchronize threads and communication. 
-The control loops have a timing requirement of 5.33 $\mu S$, and within each loop iteration we use several \delayandset\ instructions that split the loop iteration into different execution stages. 
+% \subsubsection{Delay\_and\_Set}
+% The \delayandset\ instruction is an extension of the \delayuntil\ instruction with the additional ability to update the deadline timestamp with an offset. 
+% This instruction has similar behavior to the \emph{deadline instruction} introduced in~\cite{ip2006processor}.
+% Just as \delayuntil, \delayandset\ takes in an input timestamp and delays program execution until platform time exceeds the input timestamp. 
+% However, \delayandset\ takes in an additional register, storing a 32 bit nanosecond value, used to update the input timestamp.
+% Based on instruction flags, \delayandset\ can add the offset value to the current timestamp, or the current platform time after it has exceeded the timestamp value. 
+% This has subtle impact on jitter and loop timing, which we will further explore in section~\ref{sec:timing_instruction_usage_notes}.  
+% 
+% \Delayandset\ is used when the timing constraints for control loops are tight, because it can delay the program and set the next timestamp in one instruction. 
+% This is also reflected in the instruction, as only a 32 bit nanosecond offset can be added to the current timestamp for the new timestamp, instead of the full 64 bit range. 
+% 32 bits of nanoseconds can represent around 4 seconds of time, if the desired execution time is any larger than 4 seconds, then the timestamp should be updated with standard arithmetic instructions, instead of \delayandset.
+% We use this instruction in the engine modeling application we present in section~\ref{sec:1dCFD} to synchronize threads and communication. 
+% The control loops have a timing requirement of 5.33 $\mu S$, and within each loop iteration we use several \delayandset\ instructions that split the loop iteration into different execution stages. 
 
 \subsubsection{Exception\_on\_Expire and Deactivate\_Exception}
 \label{sec:exception_in_expire_definition}

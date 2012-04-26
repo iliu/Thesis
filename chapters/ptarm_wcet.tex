@@ -356,7 +356,7 @@ By doing so, the first loop iteration will observe the same loop period as all s
 
 \subsection{Exceptions}
 \label{sec:exception_timing_example}
-\todo{change this example to interrupt a memory access to DRAM, to demo what's discussed in the exception section?}
+%\todo{change this example to interrupt a memory access to DRAM, to demo what's discussed in the exception section?}
 In section~\ref{subsec:exception_handling_in_ptarm} we described how exceptions are thrown in PTARM.
 When an exception is triggered in one hardware thread, none of the other hardware threads are affected, as the pipeline is not flushed.
 For the thread on which the exception occurred, only one thread cycle is lost, and the control flow jumps to the correct exception handler depending on the exception vector table.    
@@ -414,7 +414,7 @@ _timer_handler_loc: .word  0x00000000;
 \end{lstlisting}
 
 The execution trace of this example is shown in table~\ref{table:exception-expire-timing}.
-\begin{table}[h]
+\begin{table}
 \begin{center}
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | c | c | l | l r | }

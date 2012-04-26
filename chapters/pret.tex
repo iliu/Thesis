@@ -3,7 +3,7 @@ Specifically, we discuss the implementation of a predictable pipeline and memory
 It is important to understand why and how current architectures fall short of timing predictability and repeatability.
 Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and trade-offs when designing architectures for predictable and repeatable timing.
 
-\section{Pipelines \todo{change time to cycles in figures and text}}
+\section{Pipelines}
 The introduction of pipelining vastly improved the performance of processors.
 Pipelining increases the number of instructions that can be processed at one time by splitting up instruction execution into multiple steps.
 It allows for faster clock speeds, and improves instruction throughput compared to single cycle architectures.
@@ -42,7 +42,7 @@ Figure~\ref{fig:data_depend_execution_non_interleaved} shows two ways data hazar
 \end{figure}
 
 In the figure, time progresses horizontally towards the right.
-Each time step, or column, represents a processor cycle.
+Each column represents a processor cycle.
 Each row represents an instruction that is fetched and executed within the pipeline.
 Each block represents the instruction entering the different stages of the pipeline -- fetch (F), decode (D), execute (E), memory (M) and writeback (W).   
 We assume a classic five stage RISC pipeline.
@@ -98,7 +98,7 @@ Branches are the most common cause of control-flow hazards (or control hazards) 
 Conditional branches further complicates matters, as whether or not the branch is taken depends on an additional condition that could also be unknown when the conditional branch is in execution. 
 The code segment in figure~\ref{fig:sample_gcd_code} implements the \emph{Greatest Common Divisor} (GCD) algorithm using the conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than) in the ARM ISA.  
 Conditional branch instructions in ARM branch based on conditional bits that are stored in a processor state register.
-Those conditional bits can be set based on the results of standard arithmetic instructions \todo{cite arm manual}.
+Those conditional bits can be set based on the results of standard arithmetic instructions~\cite{armrefman}.
 The \emph{cmp} instruction is one such instruction that subtracts two registers and sets the conditional bits according to the results.
 The GCD implementation shown in the code uses this mechanism to determine whether to continue or end the algorithm.
 Figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of the conditional branches from our example, and demonstrates two commonly used techniques to handling control hazards in pipelines. 
@@ -131,7 +131,7 @@ Thus, branch delay slots are less effective for deeper pipelines because more de
 Instead of stalling, \emph{branch predictors} are commonly employed to predict the branch condition and target address so the pipeline can speculatively continue execution. 
 Branch predictors internally maintain some form of state machine that is used to determine the prediction of each branch.  
 The internal state is updated after each branch according to the results of the branch. 
-Different prediction schemes have been proposed, and some can even accurately predict branches up to 93.5\%\todo{citation}.  
+Different prediction schemes have been proposed, and some can even accurately predict branches up to 98.1\%~\cite{Mcfarling_Branch_predict}.  
 If the branch prediction is correct, no penalty is incurred for the branch because the correct instructions were speculatively executed.  
 %With branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively.
 However, when the prediction is incorrect (often referred as a \emph{branch midpredict}), the speculatively executed instructions are flushed, and the correct instructions are re-fetched into the pipeline for execution.
@@ -156,8 +156,9 @@ Program path analysis can attempt to analyze the actual outcome of branches stat
 The predictions made from the branch predictor depend on the internal state stored in the hardware unit.
 This internal state, updated by each branch instruction, must be explicitly modeled in order to estimate the prediction. 
 If the predictor state is unknown, the miss penalty must conservatively be accounted for.
-There has been work on explicitly modeling branch predictors for execution time analysis\todo{citation}, but the results are \todo{the results of branch predictor modeling for execution time analysis}.
-To make matters worse, the speculative execution on the predicted program paths lead to further complications that need to be accounted for.
+There has been work on explicitly modeling branch predictors for execution time analysis~\cite{Mitra_branch_wcet_2002}, but the results only take into account the stalls from the branch penalty. 
+Caches and other processor states are assumed to be perfect. 
+In reality, the speculative execution on the predicted program paths lead to further complications that need to be accounted for.
 Other internal states exist in the architecture that could be affected by speculatively executing instructions.
 For example, if caches were used, their internal state could be updated during speculative execution of a mispredicted path.
 As architectures grow in complexity, the combined modeling of all hardware states in the architecture often lead to an infeasible explosion in state space for the analysis.    
@@ -224,7 +225,7 @@ Some policies trigger context switches on dynamic events, such as a cache miss o
 \emph{Fine-grain} policies switch context much more frequently -- some as frequent as every processor cycle.
 The \emph{execution width} of the pipeline is to the number of instructions fetched each cycle.  
 Multithreaded architectures with wider pipeline widths can fetch all instructions a single thread, or mix instructions from different threads.
-The Sumultanous Multithreaded (SMT) architecture~\todo{cite} is an example where instructions are fetched from different threads each cycle.
+The Sumultanous Multithreaded (SMT) architecture~\cite{Tullsen1995SMT} is an example where instructions are fetched from different threads each cycle.
 
 Multithreaded architectures present several challenges for static execution time analysis.
 As figure~\ref{fig:multi-thread pipeline simplified} illustrated, threads share the hardware components within the pipeline.
@@ -237,7 +238,7 @@ The compounding effect of these can create an overwhelming combination of possib
 
 Nonetheless, we contend that thread-level parallelism (TLP) \emph{can} be exploited to handle pipeline hazards predictably. 
 Even the most sophisticated architectures that fully exploit instruction-level parallelism (ILP) cannot guarantee enough parallelism in a single instruction stream to remove all stalls caused by pipeline hazards. 
-This is known as the \emph{ILP Wall}~\todo{cite}. 
+This is known as the \emph{ILP Wall}~\cite{Wall:1991:LIP:106975.106991}. 
 Conventional multithreaded architectures use coarse-grain thread scheduling policies to dynamically exploit TLP when there is not enough ILP to be exploited.    
 However, the compounding effects of the combined architectural features lead to unpredictable architectural timing behaviors.
 Instead, a \emph{thread-interleaved pipeline} fully exploits TLP with a fine-grained thread scheduling policy.
@@ -248,7 +249,7 @@ with deterministic execution time behaviors.
 \label{section:pret_thread_pipeline}
 Thread-interleaved pipelines use a fine-grain thread scheduling policy; every cycle a different hardware thread is fetched for execution.
 A round robin scheduling policy is often employed to reduce the context switch overhead every cycle.     
-The thread-interleaved pipeline is known for implementing the peripheral processors of the Cray Multi-Threaded Architecture (MTA) multiprocessors~\todo{cite}.
+The thread-interleaved pipeline is known for implementing the peripheral processors of the Cray Multi-Threaded Architecture (MTA) multiprocessors~\cite{CDC6600}.
 Each the ``peripheral processor'' is implemented as a hardware thread.     
 Interacting with input/output peripherals often lead to idle processor cycles that waits for the peripherals' responses.
 By interleaving several threads, thread-level parallelism is fully exploited, and the idle cycles can be used for simultaneous interaction with multiple input/output devices.       
@@ -264,9 +265,9 @@ Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example executio
 
 The same code segments from figure~\ref{fig:sample_gcd_code} and figure~\ref{fig:sample_data_dependent_code} are used in this example. 
 Threads 0, 2 and 4 execute GCD (figure~\ref{fig:sample_gcd_code}) and threads 1 and 3 execute the data dependent code segment (figure~\ref{fig:sample_data_dependent_code}).
-The thick arrows on the left show the initial execution progresses of each thread at time 0.
-We observe from the figure that each time step, an instruction from a different hardware thread is fetched in round robin order.
-By time step 4, each pipeline stage is occupied by a different hardware thread.
+The thick arrows on the left show the initial execution progresses of each thread at cycle 0.
+We observe from the figure that each cycle, an instruction from a different hardware thread is fetched in round robin order.
+By cycle 4, each pipeline stage is occupied by a different hardware thread.
 The fine-grained thread interleaving and round robin scheduling combine to form this important property for thread-interleaved pipelines, which provides the basis for a timing predictable pipeline design.
 
 The interleaving of threads by itself does not guarantee timing predictability for the pipeline.  
@@ -282,21 +283,21 @@ This establishes a time-predictable thread-interleaved pipeline.
 By interleaving enough threads, control hazards can be completely removed in thread-interleaved pipelines.
 This can be observed from the execution sequence shown in figure~\ref{fig:execution_thread_interleaved_pipeline}.
 
-At time 2, a \emph{blt} instruction from thread 2 is fetched into the pipeline.
+At cycle 2, a \emph{blt} instruction from thread 2 is fetched into the pipeline.
 In a single-threaded pipeline, a stall or branch prediction would be required before the next instruction fetch.
-However, as the figure illustrates, the next instruction fetched (\emph{ldr}) at time 3 belongs to a different thread.
+However, as the figure illustrates, the next instruction fetched (\emph{ldr}) at cycle 3 belongs to a different thread.
 There is no control hazard in this case, because the \emph{ldr} instruction does not rely on the branch results of the \emph{blt} instruction.  
 Thus, no stall or branch prediction is needed to fetch this instruction.
-In fact, the branch result from \emph{blt} is not needed until time 7, when thread 2 is fetched again.
+In fact, the branch result from \emph{blt} is not needed until cycle 7, when thread 2 is fetched again.
 By this point, the branch has already been resolved, so no control hazard is caused from the \emph{blt} instruction.
 The next fetched instruction from thread 2 is \emph{always} from the correct program path.
 In this way, the control hazards from branches are eliminated.  
   
 The interleaving of threads also eliminate control hazards in the presence of exceptions.
-If the pipeline detects an exception for the \emph{blt} instruction in its writeback stage (time 6), the control flow for thread 2 will be changed to handle the exception.  
-Because no other instruction in the pipeline belongs to thread 2 at time 6, no instruction needs to be flushed.  
+If the pipeline detects an exception for the \emph{blt} instruction in its writeback stage (cycle 6), the control flow for thread 2 will be changed to handle the exception.  
+Because no other instruction in the pipeline belongs to thread 2 at cycle 6, no instruction needs to be flushed.  
 This reveals an important property our timing predictable pipeline, that \emph{no instruction is speculatively executed}.
-The next instruction fetch from thread 2 does not occur until time 7.
+The next instruction fetch from thread 2 does not occur until cycle 7.
 At that point, any control flow change, including one caused by an exception, is already known.
 Therefore, the correct program path is always executed.
 
@@ -306,7 +307,7 @@ Intuitively, this is because at any point in time, each stage of the pipeline wi
 Thus, no explicit dependency will exist between instructions in the pipeline. 
 Lee and Messerschmitt~\cite{lee1987pip} further showed that it is possible to use one less thread than the number of pipeline stages for certain implementations. 
 From here on, when we refer to the thread-interleaved pipeline, we assume enough threads to remove \emph{explicit} dependencies between instructions in the pipeline.
-
+	
 Because control hazards are eliminated, branch predictors are not needed in our pipeline design. 
 Removing the branch predictor contributes to the temporal isolation of threads, as the shared internal state of the branch predictor can create \emph{implicit} dependencies between threads.  
 
@@ -394,7 +395,7 @@ By reserving privatized time slots for threads, the hardware unit will appear to
 Thus, structural hazards can occur even when the hardware unit is not being used.
 Although a TDMA schedule increases the average latency to access the hardware unit, the worst-case access latency is similar that of a conventional first-come-first-serve (FCFS) queuing based access schedule with a queue size of one.
 In both cases, the worst-case access latency is needs to account for the accesses of all threads.      
-However, by using a TDMA schedule to predictably handle the structural hazards, the temporal isolation of threads enable a much tighter and simpler WCET analysis~\todo{cite}.
+However, by using a TDMA schedule to predictably handle the structural hazards, the temporal isolation of threads enable a much tighter and simpler WCET analysis~\cite{Lv:2010:CAI:1935940.1936246}.
 %http://user.it.uu.se/~yi/pdf-files/RTSS10_65.pdf
 
 % However, because the TDMA access schedule is static, and access time is decoupled from other threads, there is potential to obtain tighter timing analysis for accesses by inferring access slot hits and misses for future accesses. 
@@ -413,13 +414,13 @@ A cache maintains internal state that determines if a memory access goes to the 
 There is typically an enormous latency difference between the two different accesses.
 When the cache is shared between threads, the different interleaving of threads can affect the execution time of all threads. 
 It is even possible to degrade the performance of the system if threads continuously evict cache lines from each other. 
-This phenomenon is known as \emph{cache thrashing}~\todo{cite}.
-Partitioned caches~\todo{cite} in this case can be used to enforce separate internal states, so each thread updates only its own internal state.  
+This phenomenon is known as \emph{cache thrashing}.
+Partitioned caches~\cite{cachepartition} in this case can be used to enforce separate internal states, so each thread updates only its own internal state.  
 Our time-predictable thread-interleaved pipeline employs scratchpads instead of caches.
 We discuss this in the context of a timing predictable memory hierarchy in section~\ref{section:memory_system}.   
 
 As a side note, the sharing of internal hardware states between threads also increases security risks in multithreaded architectures. 
-Side-channel attacks on encryption algorithms\todo{cite} exploit the shared hardware states to disrupt and probe the execution time of threads running the encryption algorithm.
+Side-channel attacks on encryption algorithms~\cite{Kelsey98sidechannel} exploit the shared hardware states to disrupt and probe the execution time of threads running the encryption algorithm.
 The timing information can be used to crack the encryption key.
 We show in section~\ref{sec:app_side_channel_attack} how our predictable thread-interleaved pipeline prevents timing side-channel attacks for encryption algorithms.   
 
