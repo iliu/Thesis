@@ -331,20 +331,30 @@ However, in a TDMA scheme, each threads wait time to access the shared resource 
 Because of that, it is possible obtain a tighter worst case execution time analysis per thread.
 For a TDMA scheme, the worst case access time occurs when an access just missed its time slot and must wait a full cycle before accessing the hardware unit.
 For a conventional queuing scheme where each requester can only have one outstanding request, the worst case happens when every other requester has a request in queue, and the first request is just beginning to be serviced.   
-At first, the worst case execution time of a TDMA access may seem similar to the basic queuing scheme.
-
+At first, it may seem that the worst case execution time of a TDMA scheme may seem similar to the basic queuing scheme.
+For timing analysis at an unknown state of the program, no assumption can be made on the TDMA schedule, thus the worst case time must be used for conservative estimations. 
+However, because the TDMA access schedule is static, and access time is decoupled from other threads, there is potential to obtain tighter timing analysis for accesses by inferring access slot hits and misses for future accesses. 
+For example, based upon the execution time offsets of a sequence of accesses to the shared resource, we may be able to conclude that at least one access will hit its TDMA access slot and get access right away.
+We can also possibly derive more accurate wait times for the accesses that do not hit its access slots based upon the elapsed time between accesses.
+An in depth study of WCET analysis of TDMA access schedules is beyond the scope of the thesis.
+But these are possibilities now because there is no timing interference between the threads. 
+A queue based mechanism would not be able to achieve better execution time analysis without taking into account the execution context of all other threads in the pipeline.
 
 %Discuss that statically in software we can introduce different mechanims to disrupt timing
-It is important to understand that it is not the thread scheduling that is non-predictable, but how thread switches are triggered.    
-It is still possible for a predictable architecture to support the scheduling of hardware threads, but it must be done statically in software, instead of dynamically in hardware. 
-If the hardware can provide a means of explicitly setting thread schedules in software, then it is possible to make the thread schedules transparent to any timing analysis.	 
-The software still needs to be carefully constructed, since it is still possible for the software to switch hardware thread schedules dynamically, complicating the timing analysis. 
-One could envision a program that contains different program states, each state executing a different number of threads. 
-As long as the state transitions are statically analyzable, the timing analysis complexity is not increased.  
+It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful. 
+But only by achieving predictability in the hardware architecture can we begin to reason about more dynamic behavior in software.
+For example, we discussed that dynamically scheduling threads in hardware causes timing interference. 
+However, it is not the switching of threads that is unpredictable, but how the thread switching is triggered that makes it predictable.   
+For example, the Giotto\todo{cite} programming model specifies a periodic software execution model that can contain multiple program states. 
+If such a programming model was implemented on a thread-interleaved pipeline, different program states might map different tasks to threads or have different number of threads executing within the pipeline.
+But by explicitly controller the thread switches in software, the execution time variances introduced is transparent at the software level, allowing potential for timing analysis.
 
 %FIXME: Show a simple timing analysis of thread-interleaved pipelines and how easy it is, compare it to a timing analysis of single threads?
-%FIXME: Talk about the trade-offs of threaded interleaved pipelines to summarize 
-In summary, blah blah blah\ldots
+%TODO: Talk about the trade-offs of threaded interleaved pipelines to summarize 
+In this section we introduced a predictable thread-interleaved pipeline design that provides temporal isolation for all threads in the architecture.
+The thread-interleaved pipeline favors throughput over single thread latency, as multiple threads are executed on the pipeline in a round robin fashion.  
+We will present in detail our implementation of this thread-interleaved pipeline in chapter~\ref{chapter:ptarm}, and show how the design decisions discussed in this chapter are applied.
+
 \section{Memory System}
 \label{section:memory_system}
 \input{chapters/mem_sys}
