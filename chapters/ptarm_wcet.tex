@@ -120,6 +120,7 @@ Because current platform time is less than input timestamp, \delayuntil\ will de
 At that point, \delayuntil\ will complete its execution, and the next instruction will execute at $n+240$.
 This jitter results from the minimum observable time interval of $40 ns$ for each thread, causing \delayuntil\ to have an observable jitter of up to $40 ns$. 
 \subsection{Timed Loop revisited}
+\label{sec:timed_loop_revisited}
 We give a concrete example of analysis of timing instructions on PTARM by deriving the \emph{offset} from the self compensating timed loop shown in section~\ref{sec:timed_loops}.
 This timed loop detects whether the previous loop iteration missed its deadline. 
 If it did, then the current iteration will execute a shorter version of the task in attempt to make up for the lost time, as shown in figure~\ref{fig:self_compensating_loop_timing}.  

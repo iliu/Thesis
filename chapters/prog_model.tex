@@ -122,8 +122,8 @@ Listing~\ref{lst:delay-until-sample} shows an example of how \delayuntil\ and \g
 The assembly code is written using the ARM instruction set.
 The timing instructions are implemented as co-processor 13 instructions, so all timing instructions are in the format \textbf{\textit{cdp, p13, $<$opcode$>$ rd, rn, rm, 0}}.
 \Gettime\ has an opcode of 8, and \delayuntil\ has an opcode of 4.
-\vspace{-5mm}
-\begin{lstlisting}[label=lst:delay-until-sample,caption=Sample assembly code of delay\_until ]
+
+\begin{lstlisting}[float=h, label=lst:delay-until-sample,caption=Sample assembly code of delay\_until ]
 cdp p13, 8, c2, c0, c0, 0  ; {c2,c3} = platform time (get_time)
 adds r3, r3, #400          ; c3 += 400 (save carry)
 adc r2, r2, #0             ; c2 = c2 + <previous carry> 
@@ -132,10 +132,6 @@ add r5, r6, r6             ; code block to execution
 
 cdp p13, 4, c2, c2, c3, 0  ; delay_until 
 b end
-
-@ delay_until takes in a timestamp derived from get_time
-@ it stalls until time passes the timestamp in c2, c3
-@ the rd (c2) is ignored in this instruction
 \end{lstlisting}
 
 In the code sample, lines 1 through 3 setup the timestamp that is passed into \delayuntil. 
@@ -179,8 +175,8 @@ When platform time exceeds the timeout value, the timer expired exception is thr
 The \deactivateexception\ instruction takes no input, and is simply used to deactivate the timeout value in hardware before an exception is thrown.
 When \deactivateexception\ is decoded, any timeout value that is currently registered by \exceptiononexpire\ is deactivated, and no timer expired exception will be thrown. 
 Listing~\ref{lst:exception-sample} shows the sample assembly code of using \exceptiononexpire\ with \deactivateexception.  
-\vspace{-4mm}
-\begin{lstlisting}[label=lst:exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
+
+\begin{lstlisting}[float=h, label=lst:exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
   cdp p13, 8, c2, c0, c1, 0  ; get_time
   adds c3, c3, #400
   adc c2, c2, #0
@@ -192,7 +188,6 @@ Listing~\ref{lst:exception-sample} shows the sample assembly code of using \exce
   cdp p13, 5, c0, c0, c0, 0  ;deactivate_exception
   b end
 \end{lstlisting}
-\vspace{-2mm}
 
 In the code sample, line 1 to 3 is used to setup the timestamp that is passed into \exceptiononexpire.
 It uses \gettime\ and then adds an offset to the timestamp obtained. 
@@ -230,11 +225,11 @@ We will call this desired execution time the deadline of the task.
 Figure~\ref{fig:timing_behaviors} shows four possible timing behaviors that we can construct for this task using the assembly level instructions.  
 
 \begin{figure}
-  \vspace{-20pt}
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.7]{figs/timing_behaviors.pdf}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Different Desired Timing Behaviors}
   \label{fig:timing_behaviors}
 \end{figure}
@@ -252,7 +247,7 @@ Lines 7 to 10 is where the miss detection occurs.
 We simply use another \gettime\ instruction to obtain the current platform time and compare it with the deadline timestamp.
 The \emph{blmi} instruction is a \emph{branch with link} instruction that is conditionally executed only if the \emph{[N]egative} condition code is set.
 Thus, the branch to \emph{miss\_handler} is only executed if the deadline timestamp is less than the current platform time, which means the deadline was missed.
-\vspace{-5mm}
+
 \begin{lstlisting}[float=h, label=lst:timing_behavior_A,caption=Assembly code to implement scenario A]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
   adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
@@ -268,7 +263,6 @@ Thus, the branch to \emph{miss\_handler} is only executed if the deadline timest
      
   bl task2                   ; execute next task
 \end{lstlisting}
-\vspace{-2mm} 
 
 If the missed deadline is to be handled immediate, then we cannot check the deadline timestamp in software, but it must be checked in hardware.  
 The \exceptiononexpire\ and \deactivateexception\ instructions are then used to immediately execute the \emph{miss\_handler} when the timer expires.
@@ -302,7 +296,7 @@ Once the task finishes earlier, \deactivateexception\ is executed to deactivate 
 However, if we do not want the next task to start until after the specified deadline, then a \delayuntil\ can be used to ensure a minimum execution time for the task.
 This could be useful if the tasks are synchronized to an external source.   
 The sample code is shown in listing~\ref{lst:timing_behavior_D}, which is scenario D in figure~\ref{fig:timing_behaviors}.
-\vspace{-4mm}
+
 \begin{lstlisting}[float=h, label=lst:timing_behavior_D,caption=Assembly code to implement scenario D]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
   adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
@@ -316,7 +310,6 @@ The sample code is shown in listing~\ref{lst:timing_behavior_D}, which is scenar
      
   bl task2                   ; execute next task
 \end{lstlisting}
-\vspace{-2mm}
 
 The \delayuntil\ instruction is added after \deactivateexception, and whenever the execution time of the task is less than the specified deadline, it will delay the program until the deadline is reached, ensuring the next task will not execute early.
 The order of \delayuntil\ and \deactivateexception\ in this case is very important. 
@@ -362,7 +355,7 @@ Even though iteration 2 executes in less time, all future iterations are still s
 The timestamps are stored in general purpose registers and can be manipulated using data-processing instructions, so we can modify slightly the implementation of the timed loop to account for that missed deadline. 
 Listing~\ref{lst:timed_loop_same_dead} shows a different implementation of timed loops.
 In this implementation, we only call \gettime\ once outside of the loop, and within the loop the deadline timestamps are incremented directly by arithmetic operations, shown on lines 3 and 4.    
-\vspace{-4mm}
+
 \begin{lstlisting}[float=h, label=lst:timed_loop_same_dead,caption=Timed loops with get\_time outside of the loop ]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
 loop:
@@ -374,7 +367,6 @@ loop:
   cdp p13, 4, c2, c2, c3, 0  ; delay_until 
   b loop
 \end{lstlisting}
-\vspace{-2mm}
 
 Figure~\ref{fig:timed_loop_differences} scenario C shows the effects of this implementation. 
 Although iteration 1 misses its deadline, but the execution time of iteration 2 is short enough to ``make up'' the delayed time cause from the first iteration.
@@ -389,17 +381,6 @@ As shown in scenario E, our second iteration recovers the period on the 3rd iter
 Furthermore, we can construct a timed loop that self compensates whenever it detects that an iteration overran its deadline. 
 We do so by using the late miss detection mechanism shown previously in our timed loop to run a shorter version of the task whenever a previous deadline is missed.
 This is shown in listing~\ref{lst:timed_loop_compensate}. 
-In this sample code, we place the late miss detection in the beginning of each loop, and use it to detect if the current platform time is greater than the previously set deadline timestamp.
-On lines 4 and 5 we subtract an offset that is used to compensate for the execution time of the loop overhead and miss detection. 
-This is an important step that cannot be omitted.
-For each iteration, if the previous iteration meets its deadline, the \delayuntil\ instruction will delay program execution until the current platform time exceeds the specified deadline. 
-Thus, if the time it takes to execute the loop overhead and miss-detection is not accounted for, then we will always detect a missed deadline from the effects of \delayuntil.  
-The actual offset is implementation dependent, depending on how long each instruction takes to execute.
-We will show how this offset is calulcated in our implementation in section~\ref{subsec:precision_timing_inst_ptarm}.
-Once the overhead is accounted for, lines 7 and 8 check if the previous deadline was met, and lines 10 and 11 executes the short task if the deadline was missed, or executes the normal task else wise.
-In this case, we delay the deadline calculation for this iteration until right before the \delayuntil\ instruction, because the miss detection checks against the previous deadline timestamp.      
-The timing behavior that is created is shown in figure~\ref{fig:timed_loop_differences} scenario F. 
-\vspace{-4mm}
 \begin{lstlisting}[float=h, label=lst:timed_loop_compensate,caption=Timed loops with compensation ]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
 loop:
@@ -419,7 +400,19 @@ loop:
    
   b loop
 \end{lstlisting}
-\vspace{-2mm}
+
+In this sample code, we place the late miss detection in the beginning of each loop, and use it to detect if the current platform time is greater than the previously set deadline timestamp.
+On lines 4 and 5 we subtract an offset that is used to compensate for the execution time of the loop overhead and miss detection. 
+This is an important step that cannot be omitted.
+For each iteration, if the previous iteration meets its deadline, the \delayuntil\ instruction will delay program execution until the current platform time exceeds the specified deadline. 
+Thus, if the time it takes to execute the loop overhead and miss-detection is not accounted for, then we will always detect a missed deadline from the effects of \delayuntil.  
+The actual offset is implementation dependent, depending on how long each instruction takes to execute.
+We will show how this offset is calculated in our implementation in section~\ref{sec:timed_loop_revisited}.
+Once the overhead is accounted for, lines 7 and 8 check if the previous deadline was met, and lines 10 and 11 executes the short task if the deadline was missed, or executes the normal task else wise.
+In this case, we delay the deadline calculation for this iteration until right before the \delayuntil\ instruction, because the miss detection checks against the previous deadline timestamp.      
+The timing behavior that is created is shown in figure~\ref{fig:timed_loop_differences} scenario F. 
+
+
 
 Other combinations of timing instructions can further be explored.
 For example, the use of \exceptiononexpire\ and \deactivateexception\ to handle cases where loop iterations exceeds the period.
