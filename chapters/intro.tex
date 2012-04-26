@@ -26,7 +26,7 @@ The Instruction Set Architecture (ISA), meant to hide the hardware implementatio
 Widely adopted programming languages, meant to hide the details of the ISA from the program logic, do not express timing properties; timing is merely an accident of the implementation.
 Real-time operating systems (OS), meant to hide the details of the program from their concurrent orchestration, often use priorities to dictate the execution of tasks; the execution time of tasks can easily affect the scheduled outcome of execution.
 The lack of \emph{time} in the abstraction layers lead to the following consequences:
-\begin{list}{*}{}
+\begin{itemize}
 \item \emph{Unnecessary complexities in the interaction of concurrent components} --  
 This often is manifested when components share resources. 
 For example, software threads are the typical abstractions for concurrent software written in C or Java. 
@@ -43,7 +43,7 @@ For example, task scheduling and context switching cost may vary from the cache 
 This is often not factored into the analysis~\cite{thiele_et_al:DSP:2004:2}. 
 Furthermore, because the  large variation of execution time in modern complex processors, WCET analysis techniques often lead to overly conservative results for safety~\cite{Wilhelm2008survey}. 
 As the WCET is the underlying  assumption, and often the basis for priority of any scheduling scheme, the conservativeness is propagated throughout the system.
-\end{list}
+\end{itemize}
 %explain composability
 
 As a result, when the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers, and understand thoroughly the complex underlying details and its affect on execution time. 
@@ -59,7 +59,7 @@ For avionics manufactures, this means stockpiling the same hardware for the life
 \subsection{Timing Predictable Systems}
 Thiele et al.~\cite{thiele_et_al:DSP:2004:2}, Henzinger~\cite{Henzinger2008} and Lee~\cite{LeeOnTime2005} have all identified the importance and difficulties of designing \emph{timing-predictable systems}.
 Timing-predictable systems should exhibit the following property: \textit{a small change in the input must not result in a large change in the output}~\cite{Henzinger2008}.
-However, current abstracts disrupts this property at almost all levels. 
+If the definition of \emph{output} includes the timing behavior exhibited by the system, then current abstracts disrupts this property at almost all levels. 
 
 A change is needed to efficiently and safely design next generation systems, especially if they effect the well being of our lives.
 In particular, how software and hardware deal with the notion of \textit{time} needs to be more carefully understood and designed.
@@ -110,123 +110,77 @@ Time bounds from the analysis are broken even when the underlying processor is u
 Thus, the redefinition of abstraction layers must also include temporal semantics at different layers in order to reason about timing properties at higher levels.  
 
 \subsection{Contributions}
-Specifically in this thesis, we focus on the ISA abstraction, and its effects on microarchitecture design. 
+The contribution of this work is to propel design of cyber-physical systems from the lower levels of abstractions. 
+Specifically in this thesis, we focus on the ISA abstraction layer, and its effects on microarchitecture design. 
 The ISA defines the contract between software instructions and hardware implementations.
-Any correct implementation of an ISA will yield a consistent view of the program state (eg. registers, memory etc) for a given program developed with that ISA.     
+Any correct implementation of an ISA will yield a consistent view of the processor state (eg. the contents registers or memory) for a given program developed with that ISA.     
+However, modern ISAs do not specify timing properties of the instructions as part of the contract, and the benchmarks typically used to evaluate architectures compare them by the measured average performance.   
+Thus, architecture designs have largely introduced techniques that improve average performance at the expense of execution time variability, leading to imprecise WCET bounds that limit the timing predictability and timing composability of CPS.
+The key challenges we contribute to are two fold.
 
+First, we address the difficulty of predicting execution time and integrating multiple programs on modern computer architectures by proposing a new design paradigm for computer architectures.
+Instead of performance, PREcision Timed (PRET) machines~\cite{edwards2007case} are designed with \textit{timing-predictability} as the main metric for success.   
+We believe that as systems are becoming increasingly large and complex, increasing the speed of the underlying architecture through complexity will only do more harm than benefit.  
+If we roll back computer architecture for 20 years, processors were all perfectly predictable.
+But the performance in terms of speed is undesirable and limiting, and we would be throwing away years of quality and technology enabling research. 
+Thus, we do not intend to reinvent computing advancements, but instead evaluate them through the lenses of predictability and composability.
+In doing so, we gain a thorough understanding of the trade-offs between architectural performance gain and predictability, and show an architecture that is timing-predictable with reasonable performance.      
 
-% consequences results from ISA without abstraction
-% architecture designs roam free
-% as a result WCET is needed for higher level to know execution time
-% WCET extrememely hard 
-% this results in difficulty of dealing with concurrency and predict execution time
+Second, we address the lack of temporal semantics in the ISA by exploring instruction extensions that introduce timing semantics and control into programs.
+Introducing temporal semantics into any abstraction layer is a non-trivial task. 
+Specifically for the ISA, over constraining the timing definitions of instructions could easily thwart architecture innovation opportunities.
+Instead we explore instruction extensions that aim to give temporal meaning to the \emph{program}, not the individual instructions. 
+These instruction extensions allow programmers to describe the passage of time within programs, and any architecture implementation of the extended ISA must abide to those descriptions. 
+In doing so, we give temporal meaning to programs without limiting the innovation of architecture designs.
 
-% Lee proposed PRET
-% we contribute in dealing with both issues
+We contend that these two contributions must go hand in hand. 
+Our ISA extensions provide the ability to give temporal meaning to programs, but do not enforce a predictable execution of its instructions.
+Thus, without a predictable architecture, programs can still exhibit unpredictable execution time variances.    
+On the other hand, a predictable architecture by itself does not bring temporal meaning to the programs, it merely executes them predictably.
+As a result, time is still a side effect of the underlying implementation.
+With both the ISA extensions and the predictable architecture, we equip platforms with the ability to handle physical processes and provide 
+a solid foundation to propel the design of CPS at higher levels of abstractions.       
+ 
+% \begin{itemize}
+% \item \emph{Low jitter} -- Small variance in execution time for a given code block, enabling a tight WCET bound.
+% \item \emph{Continuous}~\cite{Henzinger2008} -- small changes in the input result in small changes in the output.
+% \item Precise timing control, which is the ability to control temporal
+%   properties in the architecture.
+% \item Reasonable performance, or else someone could use a processor
+%   from 20 years ago to achieve some of the effects above.
+% \item Repeatable performance, mainly that the same execution yields
+%   the same output. Including execution time. (\textcolor{red}{This
+%     needs careful defining... what counts as input and what counts as
+%     output?})
+% \item Composability - The ability to compose two tasks without
+%   interference. This is an extremely important property to preserve
+%   because when we design systems, we want to design larger systems
+%   from smaller components. We want to test those smaller systems
+%   separately, then compose them and still have those tested properties
+%   hold true. 
+% \end{itemize}
+% Through this, enable evaluation on the effects and implications on the composition, communication and synchronization of software components or tasks on a predictable architecture.
 
-However, all of these programming models rely on the underlying assumption of a WCET bound of the basic code block. 
-In reality, the determining of WCET bounds is a challenging research
-topic just by itself, as a tremendous amount of research effort is
-being put to it\cite{Wilhelm2008survey}. The goal of the WCET analysis
-is to obtain a \textit{safe} and \textit{precise} estimation on the
-execution time of a program. \textit{Safe} in the perspective that the
-execution time will never exceed the estimated time. \textit{Precise}
-in the perspective that the estimated time is as close to the absolute
-worst case execution time as possible. Several factors make a safe and
-precise WCET analysis difficult. One cause is software analysis. In
-general, there is no way of determining if a program terminates, thus
-there is no way of bounding the execution time. Real time systems
-often use a more restricted form of programming to aid in
-analysis. The main cause however stems from the underlying
-architectures. Reinhold et al.~\cite{Heckmann2003processor} quoted:
-\begin{quote} \textit{ ``The architecture of tools for the
-    determination of worst case execution times (WCETs) as well as the
-    precision of the results of WCET analyses strongly depend on the
-    architecture of the employed processor.''}
-\end {quote} Because modern processors often exhibit features that
-improve average case performance at the expense of worst case
-performance, there is a large variation in the execution time of the
-processor. The control of these features are completely implemented in
-hardware and not exposed to the programmer, leaving WCET tool
-providers the challenge of decrypting the state of the processor. 
-
-As much work is focused on the software analysis techniques for WCET,
-this research contributes mainly to the computer architecture level of
-the abstraction layers. Systems are becoming increasingly large and
-complex, increasing the speed through complexity of the underlying
-architecture will only do more harm than
-benefit. 
-\bigskip 
-
-Lee et al.\cite{Edwards2007PRETcase} proposed a new design paradigm
-for architectures. Instead of performance,
-\textit{timing-predictability and repeatability} is the main metric
-for success. We use the definition from Thiele et
-al.\cite{thiele_et_al:DSP:2004:2} for predictability:
-\begin{quote}
-  \textit{Predictability}: The timing predictability of a system is
-  related to the differences between best case and lower bound on the
-  one hand and upper bound and worst case on the other. The former we
-  call best case predictability, the latter worst case
-  predictability. 
-\end{quote} and we define \textit{repeatability} as follows:
-\begin{quote}
-  \textit{Repeatability}: Every correct execution of the same sequence
-  will lead to the same state given the same inputs. Any complete
-  definition of ``inputs'' must include the timing of interrupts and
-  the time at which sensor values are polled. Any complete definition
-  of ``outputs'' must also include the timing at which actuations in the
-  physical environment are asserted\cite{Edwards_adisruptive}
-  \textcolor{red}{(Repeatability needs a more clear definition)}.
-\end{quote} If we roll back computer architecture for 20 years,
-processors were all perfectly predictable and repeatable, but the
-performance in terms of speed is undesirable and limiting, and we
-would be throwing away years of quality and technology enabling
-research. We do not intend to reinvent computing advancements,
-but instead evaluate them through the lenses of predictability and
-repeatability.
-
-The premise of the project is to gain a thorough understanding of the
-trade-offs between architectural performance gain and
-predictability. In doing so, propose an architecture that exhibits the
-following properties:
-\begin{itemize}
-\item Small variance in execution time for a given task (low jitter),
-  which will also enable a tighter WCET bound.
-\item Continuous, using the definition from~\cite{Henzinger2008}, in
-  which small changes in the input result in small changes in the
-  output.
-\item Precise timing control, which is the ability to control temporal
-  properties in the architecture.
-\item Reasonable performance, or else someone could use a processor
-  from 20 years ago to achieve some of the effects above.
-\item Repeatable performance, mainly that the same execution yields
-  the same output. Including execution time. (\textcolor{red}{This
-    needs careful defining... what counts as input and what counts as
-    output?})
-\item Composability - The ability to compose two tasks without
-  interference. This is an extremely important property to preserve
-  because when we design systems, we want to design larger systems
-  from smaller components. We want to test those smaller systems
-  separately, then compose them and still have those tested properties
-  hold true. 
-\end{itemize}
-Through this, enable evaluation on the effects and implications on the
-composition, communication and synchronization of software components
-or tasks on a predictable architecture.
-
-
-The contribution of this work is to propel design of cyber physical systems with stringent timing requirements. 
-The key challenges we contribute to are the difficulties in designing time predictable systems, and the difficulty of integration when designing complex large scale systems.
-ISA extensions are proposed to allow temporal specifications at the instruction level. 
-A timing predictable computer architecture is provided to allow for simple timing analysis at the architecture level. 
-The architecture also provides interference free execution of multiple contexts with low context switch overhead, to allow for simple and efficient integration of multiple independent tasks.
-
-
+% 
+% We use the definition from Thiele et al.\cite{thiele_et_al:DSP:2004:2} for predictability:
+% \begin{quote}
+%   \textit{Predictability}: The timing predictability of a system is
+%   related to the differences between best case and lower bound on the
+%   one hand and upper bound and worst case on the other. The former we
+%   call best case predictability, the latter worst case
+%   predictability. 
+% \end{quote} and we define \textit{repeatability} as follows:
+% \begin{quote}
+%   \textit{Repeatability}: Every correct execution of the same sequence
+%   will lead to the same state given the same inputs. Any complete
+%   definition of ``inputs'' must include the timing of interrupts and
+%   the time at which sensor values are polled. Any complete definition
+%   of ``outputs'' must also include the timing at which actuations in the
+%   physical environment are asserted\cite{Edwards_adisruptive}
+%   \textcolor{red}{(Repeatability needs a more clear definition)}.
+% \end{quote} 
 
 \section{Background}
-
-
 A conventional microprocessor executes a sequence of instructions from
 an instruction set. Each instruction in the instruction set changes
 the state of the processor in a well-defined way.
@@ -395,6 +349,33 @@ result in temporal interference.
 
 \subsection{Predictability}
 \label{bookmark:timing_anomalies}
+
+
+However, all of these programming models rely on the underlying assumption of a WCET bound of the basic code block. 
+In reality, the determining of WCET bounds is a challenging research topic just by itself, as a tremendous amount of research effort is being put to it\cite{Wilhelm2008survey}. 
+The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} estimation on the execution time of a program. 
+\textit{Safe} in the perspective that the execution time will never exceed the estimated time. 
+\textit{Precise} in the perspective that the estimated time is as close to the absolute worst case execution time as possible. 
+Several factors make a safe and precise WCET analysis difficult. 
+One cause is software analysis. 
+In general, there is no way of determining if a program terminates, thus there is no way of bounding the execution time. 
+Real time systems often use a more restricted form of programming to aid in analysis. 
+The main cause however stems from the underlying architectures. 
+Reinhold et al.~\cite{Heckmann2003processor} quoted:
+\begin{quote} \textit{ ``The architecture of tools for the
+    determination of worst case execution times (WCETs) as well as the
+    precision of the results of WCET analyses strongly depend on the
+    architecture of the employed processor.''}
+\end {quote} 
+Because modern processors often exhibit features that improve average case performance at the expense of worst case performance, there is a large variation in the execution time of the
+processor. 
+The control of these features are completely implemented in hardware and not exposed to the programmer, leaving WCET tool providers the challenge of decrypting the state of the processor. 
+
+As much work is focused on the software analysis techniques for WCET, this research contributes mainly to the computer architecture level of the abstraction layers. 
+
+
+
+
 %predictability -   
   % C code example
   % modern architecture improvements
@@ -403,8 +384,7 @@ result in temporal interference.
 bounding the WCET of programs.
   % WCET is important and good, but architecture designs make this extremely difficult
 
-
-
+\section{Precision Timed Machines}
 
 
 \section{notes}
