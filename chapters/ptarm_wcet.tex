@@ -153,6 +153,7 @@ loop:
 \end{lstlisting}
 
 \subsubsection{Obtaining the offset}
+\todo{state that we assume instruciton is compiled to instruction scratchpad}
 Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
 During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
 Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
@@ -374,64 +375,73 @@ If the handler returns, lines 8 to 10 re-enable interrupts, and line 11 returns 
 .text
 .global _tmr_exp_setup;
 _tmr_exp_setup:
-    push  {r0, lr}
-    ldr   r0, _timer_handler_loc 
-    mov   lr, pc
-    mov   pc, r0
-    mrs   r0, cpsr
-    bic   r0, r0, #0x80
-    msr   cpsr, r0
-    pop   {r0, pc}
+    push  {r0, lr}                 ; push registers to stack
+    ldr   r0, _timer_handler_loc   ; load address of timer expired exception handler
+    mov   lr, pc                   ; get return address after calling handler    
+    mov   pc, r0                   ; jump to exception handler
+    
+    mrs   r0, cpsr                 ; get CPSR 
+    bic   r0, r0, #0x80            ; enable interrupts
+    msr   cpsr, r0                 ; write to CPSR
+    pop   {r0, pc}                 ; pop stack and return from exception
 
 _timer_handler_loc: .word  0x00000000;
 \end{lstlisting}
 
 The execution trace of this example is shown in table~\ref{table:exception-expire-timing}.
-Because execution jumps back and forth between the main code, the \timerexpired\ setup code, and the \delayhandler, so we show the address of the instructions to help follow which code segment is being executed.   
-
 \begin{table}[h]
 \begin{center}
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | c | c | l | l r | }
   \hline                        
-  Time & TC & address & Inst & Comment\\ \hline
-  t ns & n & 0x40000000 & \textit{mov r3, \#0x98} & get the timer handler address \\  
-  t+40 ns & n+1 & 0x40000004 & \textit{add r4, pc, \#32} & get delay\_handler address \\
-  t+80 ns & n+2 & 0x40000008 & \textit{str r4, [r3]} & register delay\_handler as timer expire handler\\
-  t+120 ns & n+3 & 0x40000014 & \textit{cdp p13, 8, c2, c0, c0, 0} & get\_time instruction (timestamp: t+120) \\
+  Time & TC & Address & Inst & Comment\\ \hline
+  t ns & n & 0x40000000 & \textit{mov r3, \#0x98} & gets the \timerhandlerloc \\  
+  t+40 ns & n+1 & 0x40000004 & \textit{add r4, pc, \#32} & get \delayhandler address \\
+  t+80 ns & n+2 & 0x40000008 & \textit{str r4, [r3]} & register \delayhandler as timer expire handler\\
+  t+120 ns & n+3 & 0x40000014 & \textit{cdp p13, 8, c2, c0, c0, 0} & get\_time (timestamp: t+120) \\
   t+200 ns & n+5 & 0x400000C & \textit{adds r3, \#240} & timestamp += 240 \\
   t+240 ns & n+6 & 0x40000010 & \textit{adc r2, \#0} & timestamp: t+360 \\
   t+280 ns & n+7 & 0x40000018 & \textit{cdp p13, 2, c2, c2, c3, 0} & exception\_on\_expire, input timestamp: t+360 \\
   t+320 ns & n+8 & 0x4000001C & \textit{add r5, r6, r6} & code block\\
   t+360 ns & n+9 & 0x40000020 & **throw exception** & timer expired, hardware exception thrown\\  
   t+400 ns & n+10 & 0x1C & \textit{b \_tmr\_exp\_setup } & branch to setup code \\  
-  t+440 ns & n+11 & 0x78 & \textit{push \{r0, lr\}} & store registers on stack\\
-  t+480 ns & n+12 & & & \\
-  t+520 ns & n+13 & 0x7C & \textit{ldr   r0, \_timer\_handler\_loc} & load the address of timer handler \\
-  t+560 ns & n+14 & 0x80 & \textit{mov   lr, pc} & store return address after timer handler \\
-  t+600 ns & n+15 & 0x84 & \textit{mov   pc, r0} & jump to registered handler (delay\_handler) \\
-  t+640 ns & n+16 & 0x4000002C & \textit{mov   pc, lr} & delay\_handler code, jump back to setup code\\  
-  t+680 ns & n+17 & 0x88 & \textit{mrs   r0, cpsr} & load the CPSR\\
-  t+720 ns & n+18 & 0x8C & \textit{bic   r0, r0, \#0x80} &  enable interrupts\\
-  t+760 ns & n+19 & 0x90 & \textit{msr   cpsr, r0} &  store the CPSR\\
-  t+800 ns & n+20 & 0x94 & \textit{pop   \{r0, pc\}} & return from interrupt\\
-  t+840 ns & n+21 & & & \\    
-  t+880 ns & n+22 & 0x40000020 & \textit{add r7, r5, r6} & code block\\
-  t+920 ns & n+23 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & deactivate\_exception (doesn nothing) \\
-  t+960 ns & n+24 & 0x40000028 & \textit{b end} & instruction after return from delay\_handler\\
+  t+440 ns & n+11 & 0x78 & \textit{push \{r0, lr\}} & push registers to stack\\
+  t+560 ns & n+14 & 0x7C & \textit{ldr   r0, \_timer\_handler\_loc} & load address of timer expired handler \\
+  t+600 ns & n+15 & 0x80 & \textit{mov   lr, pc} & store return address after timer handler \\
+  t+640 ns & n+16 & 0x84 & \textit{mov   pc, r0} & jump to handler (\delayhandler) \\
+  t+680 ns & n+17 & 0x4000002C & \textit{mov   pc, lr} & \delayhandler\ code, return\\  
+  t+720 ns & n+18 & 0x88 & \textit{mrs   r0, cpsr} & get CPSR\\
+  t+760 ns & n+19 & 0x8C & \textit{bic   r0, r0, \#0x80} &  enable interrupts\\
+  t+800 ns & n+20 & 0x90 & \textit{msr   cpsr, r0} &  write to CPSR\\
+  t+840 ns & n+21 & 0x94 & \textit{pop   \{r0, pc\}} & pop stack and return from exception\\
+  t+960 ns & n+24 & 0x40000020 & \textit{add r7, r5, r6} & re-execute instruction \\
+  t+1000 ns & n+25 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & \deactivateexception\ (does nothing) \\
+  t+1040 ns & n+26 & 0x40000028 & \textit{b end\_program} & jump to end of program \\
   \hline 
 \end{smalltabular}}
 \end{center}
 \caption{Exception\_on\_expire sample code timing details}
 \label{table:exception-expire-timing}
 \end{table}
+Because execution jumps back and forth between the main code, the \timerexpired\ setup code, and the \delayhandler, so we show the address of the instructions to help follow which code segment is being executed.
+The user code is compiled to start at 0x40000000, which is the instruction scratchpad space for hardware thread 0, which we assume this code is running on.
+As described in section~\ref{sec:ptarm_memory}, the exception vector table and \timerexpired\ setup code are all compiled to the memory space of the boot ROM.
+The \emph{str} instruction is storing to the \timerhandlerloc, which also resides in the boot ROM, so executes in one thread cycle.  
+The deadline timestamp is set so the timer expired exception is thrown during the execution of the code block, which occurs at time $t+360$.
+Although the address of execution at that time is 0x400000020, the instruction at that address does not complete, because the \timerexpired\ exception is thrown in that thread cycle.
+That address is saved to the \emph{link register} (R14) in hardware when the exception is thrown.
+The very next thread cycle, the exception vector entry for the \timerexpired\ entry (at address 0x1C) is executed. 
+The entry forces a branch to the \timerexpired\ setup code, which executes to call the \delayhandler, the registered the exception handler.       
+The \emph{push} and \emph{pop} instructions are load/store multiple instructions that load to the stack, which is located on the data scratchpad. 
+These instructions update the base register, and are operating on 2 registers each, so they both take 3 thread cycles to execute.
+In section~\ref{subsec:exception_handling_in_ptarm} we discussed the potential execution variability for memory operations if the instruction interrupted by the exception is a long latency memory operation to the DRAM. 
+In order to maintain a deterministic execution time for all memory operations, the compiler ensures that the first four thread cycles (the DRAM access latency) after an exception is thrown does not access the DRAM. 
+The exposed memory hierarchy with scratchpads allows us to statically compile the exception setup code and data stack, both accessed right after an exception is thrown, onto the scratchpad. 
+This ensures that the DRAM is not accessed during the first four thread cycles after the exception is thrown.
 
-
-
-
-
-
-
-
+The timing analysis of exceptions thus is straightforward in the PTARM architecture.
+No flushing of the pipeline occurs, no other hardware threads are affected, and the hardware exception mechanism only has a one thread cycle hardware overhead.
+Due to deterministic instruction execution time and exposed memory hierarchy, the \emph{response time} of hardware exceptions, which is the time elapsed between when the exception is thrown and when the user registered exception handler is executes, is deterministic and can be statically obtained. 
+For the \timerexpired\ exception in PTARM, the response time is 8 thread cycles ($320ns$), which is reflected in table~\ref{table:exception-expire-timing}.
 
 
