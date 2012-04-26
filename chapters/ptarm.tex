@@ -55,6 +55,7 @@ We briefly describe the functionality of each stage, and leave more details to s
 
 The \emph{fetch stage} of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction memory. 
 A simple 2 bit ($log(n)$) up-counter is used to keep track of which thread current to fetch.
+This reduces the time and space overhead of context switching close to zero. 
 The PC forward path is used when an instruction loads to R15, which causes a branch to the value loaded from main memory.  
 We will discuss the need for the forwarding path below when the \emph{memory stage} is described.
 The \emph{timer} implements the \emph{platform clock} used by the timing instructions.
