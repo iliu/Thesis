@@ -80,11 +80,11 @@ However, if component properties may be destroyed during integration, then the c
 \textit{Timing composability} refers to the ability to integrate components while preserving their temporal properties.
 
 To preserve component properties during integration, modern designs often use a \textit{federated architecture}.
-A Federated Architecture develops functions and features on physically separate platforms which are later integrated through an interconnect or system bus. 
+A federated architecture develops functions and features on physically separate platforms which are later integrated through an interconnect or system bus. 
 As these features are only loosely coupled through an interconnect, interference is limited, allowing the preservation of certain properties independently verified. 
 However, as each platform is feature specific, they are often idle during run time.
 In order to reduce resource consumption, there is a shift towards \textit{integrated architectures}~\cite{Obermaisser2009FedtoIMA,AvionicsWatkins2007IMA}, where multiple functions are integrated on a single, shared platform.
-Several challenges exists during this shift, but among them, it is crucial to guarantee that the timing properties are preserved during system integration.
+Several challenges exists to make the shift, but among them, it is crucial to guarantee that the timing properties are preserved during system integration.
 Only then, can designs continue to stay modular. 
 Modern abstractions result in unnecessary complexity in the interaction of concurrent components, which leads to unpredictable interference between components. 
 This hinders the ability to compose functions together on a shared resource while maintaining timing properties. 
@@ -173,7 +173,6 @@ a solid foundation to propel the design of CPS at higher levels of abstractions.
 
 Programs manifest varying execution times.
 This is illustrated in figure~\ref{fig:program_execution_times}, which shows the distribution of execution times exhibited by an arbitrary program on an arbitrary processor.
-
 \begin{figure}[h]
   \begin{center}
     \includegraphics{figs/program_executiontimes.pdf}
@@ -182,7 +181,6 @@ This is illustrated in figure~\ref{fig:program_execution_times}, which shows the
   \caption{Program Execution Times~\cite{wilhelm-survey-paper}}
   \label{fig:program_execution_times}
 \end{figure}
-
 It highlights several key issues that are important to understanding program execution time.
 First, the \emph{observable execution times} may not observe all \emph{possible execution times}.
 This is important because far too often we rely on testing and end-to-end measurement to determine the WCET.
@@ -264,27 +262,33 @@ These features are controlled and manage completely in hardware, not explicitly 
 As a result, decrypting the state of the processor to obtain reasonable execution time estimates is often extremely difficult, if not impossible, on modern architectures.   
 
 \section{Precision Timed Machines}
-In this thesis we introduce the design and implementation of PREcision Timed (PRET) machines~\cite{edwards2007case}. 
+% As Wilhelm et al. \cite{Wilhelm_future_arch_09} quoted:
+% \begin{quote} \textit{
+%   ``The applicability of the AUTOSAR idea depends on availability of
+%   architectures on which software composition does not lead to
+%   unpredictable timing behavior.''
+% }
+% \end{quote}
+In this thesis we present the design and implementation of a PREcision Timed (PRET) machine~\cite{edwards2007case} -- the PREcision Timed ARM (PTARM).
+PTARM employs a thread-interleaved pipeline and memory controller designed for predictable and composable execution, and implements an extended ARM~\cite{armrefman} ISA to demonstrate the ISA extensions with temporal semantics.
+We show that an architecture designed for timing predictability and composability does not need to sacrifice performance, and provides a robust, non brittle foundation for future cyber physical systems.       
+ 
+In the remaining chapters we first discuss the design decisions of the hardware and ISA extensions in chapter~\ref{chapter:pret}, then show the details and architecture of PTARM in chapter~\ref{chapter:ptarm}.
+In chapter~\ref{chapter:app} we present two applications implemented with the PRET machine to demonstrate its applicability.
+Finally, in chapter~\ref{chapter:related} we discuss the related research work, and conclude in chapter~\ref{chapter:summary}.
 
-places timing predictability and composability as its first class citizen.   
+% The remaining chapters are organized as follows. 
+% Chapter~\ref{chapter:pret} explains the architecture of PRET including the \thdint pipeline and memory hierarchy, Chapter~\ref{chapter:ptarm}, Chapter~\ref{chapter:app}, Chapter~\ref{chapter:related}, Chapter~\ref{chapter:summary}.
 
-We aim to present architectures
+%We aim to present architectures
 %proposed a paradigm shift in the design of computer architectures, focusing on timing predictability instead of average-case performance.
 %provide better wcet
 %use thread-interleaved pipline and dram controller
 %ISA extensions
 %needed for autosar etc
 
-With designs being pushed to higher and higher levels of abstraction, we need lower levels to provide robust, non brittle fundamentals in which we can reason about timing guarantees.
 
 
-As Wilhelm et al. \cite{Wilhelm_future_arch_09} quoted:
-\begin{quote} \textit{
-  ``The applicability of the AUTOSAR idea depends on availability of
-  architectures on which software composition does not lead to
-  unpredictable timing behavior.''
-}
-\end{quote}
 
 % \begin{itemize}
 % \item \emph{Low jitter} -- Small variance in execution time for a given code block, enabling a tight WCET bound.
@@ -306,7 +310,5 @@ As Wilhelm et al. \cite{Wilhelm_future_arch_09} quoted:
 % \end{itemize}
 % Through this, enable evaluation on the effects and implications on the composition, communication and synchronization of software components or tasks on a predictable architecture.
 
-The remaining chapters are organized as follows. 
-Chapter~\ref{chapter:pret} explains the architecture of PRET including the \thdint pipeline and memory hierarchy, Chapter~\ref{chapter:ptarm}, Chapter~\ref{chapter:app}, Chapter~\ref{chapter:related}, Chapter~\ref{chapter:summary}.
 
 
