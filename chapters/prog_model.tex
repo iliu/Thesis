@@ -113,6 +113,7 @@ The \delayuntil\ instruction takes as input a timestamp, usually derived from th
 Listing~\ref{lst:delay-until-sample} shows an example of how \delayuntil\ and \gettime\ are used together to control a minimum execution time a code block.
 The assembly code is written using the ARM instruction set.
 The timing instructions are implemented as co-processor 13 instructions, so all timing instructions are in the format \textbf{\textit{cdp, p13, $<$opcode$>$ rd, rn, rm, 0}}.
+\Gettime\ has an opcode of 8, and \delayuntil\ has an opcode of 4.
 
 \begin{lstlisting}[label=lst:delay-until-sample,caption=Sample assembly code of delay\_until ]
 cdp p13, 8, c2, c0, c0, 0  ; {c2,c3} = platform time (get_time)
@@ -178,7 +179,7 @@ Listing~\ref{lst:exception-sample} shows the sample assembly code of using \exce
   add r5, r6, r6             ; code block that is executed
   add r7, r5, r6
   
-  cdp p13, 5, c8, c2, c3, 0  ;deactivate_exception
+  cdp p13, 5, c0, c0, c0, 0  ;deactivate_exception
   b end
 \end{lstlisting}
 
@@ -195,7 +196,7 @@ Multiple timeout slots can be implemented and checked in hardware at the cost of
 
 \bigskip
 
-Similar to \delayandset\ and \delayuntil, the \exceptiononexpire\ and \deactivateexception\ merely create a mechanism to specify desired timing constraints. 
+Similar to \delayandset\ and \delayuntil, \exceptiononexpire\ and \deactivateexception\ merely create a mechanism to specify desired timing constraints. 
 None of the timing instructions enforce execution time behavior, they merely provide a method for users to monitor, detect, and interact with the timing variability in software.     
 This is in line with our original goal, to introduce timing semantics to the ISA without over-constraining the temporal properties of the ISA.
 These instructions do not limit the improvement of performance in the architecture for other instructions, as long as the timing properties of the timing instructions are faithfully implemented.  
@@ -203,17 +204,19 @@ With the introduction of these timing instructions, programmers can reason and c
 At the same time, these instructions by themselves do not provide guarantees on the execution time of programs.
 An underlying architecture must still provide predictable execution times in order to for static analysis to guarantee a worst-case execution time.     
 
-\subsection{Sample use cases}
+\subsection{Example Usage}
 \label{sec:timing_instruction_usage_notes}
 In this section we show different use cases for the timing instructions introduced.  
 We demonstrate different timing behaviors that can be built with the timing instructions to show how the assembly level instructions can be used by higher level languages to synthesize different timing behaviors.
 
-\subsubsection{Controlling Different Timing Behaviors}
-First we will show various methods of constructing different timing behaviors from a code block.
-The code block could be task, a function, or any piece of code that could exhibit timing variability.    
+\subsubsection{Constructing Different Timing Behaviors}
+First we show various methods of constructing different timing behaviors from a code block.
+The code block can be a task, a function, or any piece of code that might exhibit timing variability.
+Here we simply refer to this code block as a task.    
 We assume there is a desired execution time for this code block. 
-The desired execution time could be from a specification of the application, or synthesized timing requirement from a higher level model.
-This desired execution time   
+The desired execution time could be from a specification of the application, or a synthesized timing requirement from a higher level model.
+We will call this desired execution time the deadline of the task.
+Figure~\ref{fig:timing_behaviors} shows four possible timing behaviors that we can construct for this task using the assembly level instructions.  
 
 \begin{figure}
   \vspace{-20pt}
@@ -225,8 +228,88 @@ This desired execution time
   \label{fig:timing_behaviors}
 \end{figure}
 
-\subsubsection{Timed Loops}
+If the actual execution time of the task is longer than the specified deadline, the deadline is missed. 
+Two possible timing behaviors can be used to handle this situation, which we show in scenario A and B in figure~\ref{fig:timing_behaviors}. 
+Scenario A is used if the execution of task needs to completed. 
+It could be that the task modifies external I/O states which cannot afford to be left in an unknown state.
+In this case, the task is first completed, then a miss handler is executed, and then the next task continues execution.
+This is also known as a \emph{late miss detection}.  
+Listing~\ref{lst:timing_behavior_A} shows how this is implemented using our timing instructions.
+Lines 1 to 3 of the listing is used to setup the deadline timestamp, which is stored in r2 and r3.  
+Line 5 branches to the task and returns when the task completes.
+Lines 7 to 10 is where the miss detection occurs. 
+We simply use another \gettime\ instruction to obtain the current platform time and compare it with the deadline timestamp. 
+The branch to \emph{miss\_handler} is executed if the deadline timestamp is less than the current platform time, which means the deadline was missed.
+\begin{lstlisting}[float=h, label=lst:timing_behavior_A,caption=Assembly code to implement scenario A]
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; lines 2 and 3 calculate the deadline timestamp
+   
+  bl task                    ; execute Task
+  
+  cdp p13, 8, c4, c0, c0, 0  ; get_time, current timestamp stored in [c4, c5]
+  subs r3, r3, r5            ; lines 8 and 9 check for deadline miss
+  sbc  r2, r2, r4            ; 
+  blmi miss_handler          ; branch to miss_handler if negative 
+                             ; condition code is set
+     
+  bl task2                   ; execute next task
+\end{lstlisting} 
 
+If the missed deadline is to be handled immediate, then we cannot check the deadline timestamp in software, but it must be checked in hardware.  
+The \exceptiononexpire\ and \deactivateexception\ instructions are then used to immediately execute the \emph{miss\_handler} when the timer expires.
+This is shown as scenario B in figure~\ref{fig:timing_behaviors}.
+Listing~\ref{lst:timing_behavior_BC} shows the usage of \exceptiononexpire\ and \deactivateexception\ to achieve this timing behavior.
+The code is similar the one showed in listing~\ref{lst:exception-sample} for the example usage of \exceptiononexpire\ and \deactivateexception.
+In this case, if the \deactivateexception\ is not executed before platform time exceeds the deadline timestamp, then the deadline is missed and the timer expired exception is thrown in hardware.
+In the listing we assume that \emph{miss\_handler} has been registered as the exception handler, and will be executed when the timer expired exception is thrown.
+The \emph{miss\_handler} can directly abort the finishing of task 1 and directly start task 2, or it could return to the program point where the exception was thrown and continue execution after the \emph{miss\_handler}. 
+This is application dependent, and both can be supported in software.   
+\begin{lstlisting}[float=h, label=lst:timing_behavior_BC,caption=Assembly code to implement scenario B and C]
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; lines 2 and 3 calculate the deadline timestamp
+  cdp p13, 2, c2, c2, c3, 0  ; exception_on_expire, register [c2, c3]
+   
+  bl task                    ; execute Task
+  
+  cdp p13, 5, c0, c0, c0, 0  ; deactivate_exception
+     
+  bl task2                   ; execute next task
+\end{lstlisting}  
+
+When the execution time of the task does not exceed the specified deadline, two different behaviors can also be implemented.
+The first is shown in scenario C of figure~\ref{fig:timing_behaviors}, where the next task immediately begins to execute.
+In this scenario, we merely want to ensure that the task does not exceed the deadline. 
+The code shown in the previous listing~\ref{lst:timing_behavior_BC} exhibits this behavior. 
+Once the task finishes earlier, \deactivateexception\ is executed to deactivate the exception, and the next task is immediately executed.
+
+However, if we do not want the next task to start until after the specified deadline, then a \delayuntil\ can be used to ensure a minimum execution time for the task.
+This could be useful if the tasks are synchronized to an external source.   
+The sample code is shown in listing~\ref{lst:timing_behavior_D}, which is scenario D in figure~\ref{fig:timing_behaviors}.
+\begin{lstlisting}[float=h, label=lst:timing_behavior_D,caption=Assembly code to implement scenario D]
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; lines 2 and 3 calculate the deadline timestamp
+  cdp p13, 2, c2, c2, c3, 0  ; exception_on_expire, register [c2, c3]
+   
+  bl task                    ; execute Task
+  
+  cdp p13, 5, c0, c0, c0, 0  ; deactivate_exception
+  cdp p13, 4, c2, c2, c3, 0  ; delay_until 
+     
+  bl task2                   ; execute next task
+\end{lstlisting}
+
+The \delayuntil\ instruction is added after \deactivateexception, and whenever the execution time of the task is less than the specified deadline, it will delay the program until the deadline is reached, ensuring the next task will not execute early.
+The order of \delayuntil\ and \deactivateexception\ in this case is very important. 
+If the order were the other way around, then \delayuntil\ would first delay the program until after the specified deadline. 
+Because \deactivateexception\ has not executed yet, the timer expired exception would always be thrown, even if the task did not miss the deadline.
+Thus, \deactivateexception\ must be before \delayuntil.
+\Delayuntil\ can also be used in scenario A to achieve the same effect for late miss-detections. 
+In that situation, simply insert a \delayuntil\ in line 12 of listing~\ref{lst:timing_behavior_A} and use the first deadline timestamp as its input.    
+ 
+\subsubsection{Timed Loops}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -236,20 +319,38 @@ This desired execution time
   \caption{Timing diagram of different timed loops}
   \label{fig:timed_loop_differences}
 \end{figure}
+By using timing instructions within loops, we can construct timed loops for programs that exhibit periodic timing behaviors.
+Listing~\ref{lst:timed_loop_new_dead} shows sample code that uses \gettime\ and \delayuntil\ to construct a timed loop.
+\begin{lstlisting}[float=h, label=lst:timed_loop_new_dead,caption=Assembly code that implements timed loops with new timestamps ]
+loop:
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; lines 2 and 3 calculate the deadline timestamp
+   
+  bl task                    ; execute Task
+  
+  cdp p13, 4, c2, c2, c3, 0  ; delay_until 
+  b loop
+\end{lstlisting}
+
+The period of each loop iteration is specified by the calculations of line 2 and 3 in listing~\ref{lst:timed_loop_new_dead}, with the small additional time to execute the \gettime\ and \delayuntil\ instruction. 
+Ideally, the execution time of the task never exceeds the period of the loop, and the timing behavior looks like the one shown in scenario A in figure~\ref{fig:timed_loop_differences}. 
+
+\begin{lstlisting}[float=h, label=lst:timed_loop_same_dead,caption=Assembly code that implements timed loops with the same timestamp ]
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
+loop:
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; lines 2 and 3 calculate the deadline timestamp
+   
+  bl task                    ; execute Task
+  
+  cdp p13, 4, c2, c2, c3, 0  ; delay_until 
+  b loop
+\end{lstlisting}
+
 
 
 \subsubsection{Synchronization with external clocks}
-
-
-\begin{itemize}
-  \item periodic loops v1 - exact loop iterations
-  \item periodic loops v2 - no jitter
-  \item late detect deadlines and branch
-  \item maximum execution time - fall through
-  \item maximum execution time - delay
-  \item Synchronization with external clocks
-\end{itemize}
-
 
 
 % \subsection{Four Desirable Capabilities of an ISA}
