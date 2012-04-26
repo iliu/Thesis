@@ -246,21 +246,42 @@ Intuitively this is because we want to check whether the previous \delayuntil\ e
 \begin{figure}[h]
   \vspace{-3mm}
   \begin{center}
-    \includegraphics[scale=.7]{figs/setup_loop_timing}
+    \includegraphics[scale=.9]{figs/setup_loop_timing}
   \end{center}
   \vspace{-10mm}
   \caption{Jitter caused by initial timed loop setup}
   \label{fig:setup_look_timing}
 \end{figure}
 
-In our code, the loop setup
-When the first loop iteration executes, the \currentt\ will first be checked against the \deadlinet\ that was setup before the loop began execution.
-The compensation for the loop offset in this case also helped compensate for the initial loop setup time.
-Without it, the \currentt\ would be greater than \deadlinet\ from the execution time of the setup \gettime instruction, and cause a false missed deadline detection.
-Because it takes 2 thread cycles ($80ns$) to execute \gettime, the value the \textbf{offset} at a minimum must be 2 thread cycles so the first iteration will not falsely detect a missed deadline.  
-As execution continues, the first iteration executes the normal task, and the \delayuntil\ is executed before the first deadline of $t+4000ns$.
+The \emph{offset} previously derived is an overhead that is executed in every iteration of the loop.
+In our code, the overhead only included the execution time of the \delayuntil\ and a branch, as we always unconditionally branch to the beginning of the loop. 
+However, if the overhead was larger, for example, in a conditional loop structure, then it could introduce jitter for the first iteration. 
+An example is shown in figure~\ref{fig:setup_look_timing}, where we used an overhead of 200ns, instead of 80ns.
+We assume that the setup code remains the same with only one \gettime, and the \emph{offset} is adjusted to 200ns for the miss detection.
+We also assume that the loop periond remains the same, 4000ns, and all loop iterations meet the loop period timing requirements. 
+In this example, we see that the first iteration executes for 120ns longer than subsequent iterations.
+The jitter for the first iteration is introduced by the execution time difference between the \emph{offset} and the setup code.  
+Between the \delayuntil\ instructions, exactly 4000 ns elapses, because 4000 ns is added to the \deadlinet\ each loop iteration.   
+The execution of the overhead is included within the 4000 ns, except for the first iteration. 
+Instead, between the initial \deadlinet\ and the first \delayuntil, the only overhead that is observed is the execution of a \gettime\ instruction, which is 80 ns. 
+Thus, the first iteration of the loop executes for an addition 120ns, which is the difference between the \emph{offset} and the execution time of the loop setup code.
+This effect was not observed by the previous example because the \emph{offset} and the loop setup both took 80 ns.
+As a result, for the previous example, each loop iteration takes exactly 4000 ns if all loop deadlines were met.   
 
+\begin{figure}[h]
+  \vspace{-3mm}
+  \begin{center}
+    \includegraphics[scale=.9]{figs/setup_loop_timing_adj}
+  \end{center}
+  \vspace{-10mm}
+  \caption{Adjusted timed loop setup}
+  \label{fig:setup_look_timing_adj}
+\end{figure}  
+  
+This first iteration jitter can be accounted for in the loop setup code by adjusting the initial \deadlinet. 
 
+ 
+%calculate the overhead of timing instructions for the timed loop vs the loop overhead itself
 
 
 \subsection{Exceptions}
