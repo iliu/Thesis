@@ -617,7 +617,6 @@ As described in section~\ref{sec:programming_models}, the \emph{delay\_until} in
 This could be useful for synchronization between tasks or communicating with external devices.
 Figure~\ref{fig:delay_until_pipeline_implementation} shows the execution of the \emph{delay\_until} instruction in the PTARM pipeline.       
 \begin{figure}[h]
-  
   \begin{center}
     \includegraphics[scale=.54]{figs/delay_until_pipeline_implementation}
   \end{center}
@@ -726,12 +725,47 @@ The simulator is meant for architectural exploration, and provides better debugg
 The C++ simulator models the pipeline and memory hierarchy, including the predictable DRAM controller.  
 
 The simulator provides a framework that allows us to do more architectural exploration and observe the behavior.
-For example, the DMA units for each thread mentioned in section~\ref{sec:ptarm_dram_integration} that 
-provide threads with the ability to transfer contents from the DRAM to the scratchpads in the background is currently only implemented on the simulator. 
+For example, the DMA units for each thread mentioned in section~\ref{sec:ptarm_dram_integration} that provide threads with the ability to transfer contents from the DRAM to the scratchpads in the background is currently only implemented on the simulator. 
 The simulator allows us to quickly test out different software behaviors and verify our assumptions. 
-The simulator and corresponding documentation can be downloaded from http://chess.eecs.berkeley.edu/pret. 
 
-\todo{present benchmark numbers on the simulator and compare to others}
+
+% 
+% \begin{figure}
+% \noindent\makebox[\textwidth]{
+% \begin{minipage}[b]{0.5\linewidth}
+% \centering
+% \includegraphics[scale=.29]{data/wcet_throughput.pdf}
+% \caption{Malardalen benchmarks throughput}
+% \label{fig:wcet_throughput}
+% \end{minipage}
+% \hspace{0.5cm}
+% \begin{minipage}[b]{0.5\linewidth}
+% \centering
+%   \includegraphics[scale=.29]{data/wcet_latency.pdf}
+%   \caption{Malardalen benchmarks latency}
+%   \label{fig:wcet_latency}
+% \end{minipage}
+% }
+% \end{figure}
+
+\begin{figure}[h]
+  \begin{center}
+  \includegraphics[scale=.55]{data/wcet_throughput.pdf}
+  \end{center}
+  \caption{Malardalen benchmarks throughput}
+  \label{fig:wcet_throughput}
+\end{figure}
+
+
+\begin{figure}[h]
+  \begin{center}
+  \includegraphics[scale=.55]{data/wcet_latency.pdf}
+  \end{center}
+  \caption{Malardalen benchmarks latency}
+  \label{fig:wcet_latency}
+\end{figure}
+
+The simulator and corresponding documentation can be downloaded from http://chess.eecs.berkeley.edu/pret. 
 
 \section{Timing Analysis}
 \label{sec:wcet}

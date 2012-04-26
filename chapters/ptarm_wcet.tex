@@ -161,8 +161,8 @@ loop:
   subs r5, r5, #80           ; compensate for loop overhead and delay_until 
   sbc  r4, r4, #0            ; 
 
-  subs r3, r3, r5            ; Check if previous iteration deadline is missed
-  sbc  r2, r2, r4            ; 
+  subs r5, r3, r5            ; Check if previous iteration deadline is missed
+  sbc  r4, r2, r4            ; 
 
   blmi task_short            ; execute shorter task if previous deadline mess 
   blpl task_normal           ; or else execute normal task 
@@ -194,8 +194,8 @@ Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of thes
   t+80 ns & n+2 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+80) \\
   t+160 ns & n+4 &  \textit{subs r5, r5, \#80} & (current -= 80)\\
   t+200 ns & n+5 &  \textit{sbc  r2, r2, r4} & (current: t)\\  
-  t+240 ns & n+6 &  \textit{subs r3, r3, r5} & compare deadline (t) and current (t) \\
-  t+280 ns & n+7 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  t+240 ns & n+6 &  \textit{subs r5, r3, r5} & compare deadline (t) and current (t) \\
+  t+280 ns & n+7 &  \textit{sbc  r4, r2, r4} & result is 0, clear cc[``n''] \\
   t+320 ns & n+8 &  \textit{blmi task\_short} & nop since cc[``n''] == 0\\
   t+360 ns & n+9 &   \textit{blpl task\_normal} & branch since cc[``n"] == 0\\  
     - ns & - &  \ldots & executing task\_normal \\  
@@ -208,8 +208,8 @@ Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of thes
   t+4080 ns & n+102 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+4080)\\
   t+4160 ns & n+104 &  \textit{subs r5, r5, \#80} & (current -= 80)\\
   t+4200 ns & n+105 &  \textit{sbc  r2, r2, r4} & (current: t+4000)\\  
-  t+4240 ns & n+106 &  \textit{subs r3, r3, r5} & compare deadline (t+4000) and current (t+4000)\\
-  t+4280 ns & n+107 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  t+4240 ns & n+106 &  \textit{subs r5, r3, r5} & compare deadline (t+4000) and current (t+4000)\\
+  t+4280 ns & n+107 &  \textit{sbc  r4, r2, r4} & result is 0, clear cc[``n''] \\
   t+4320 ns & n+108 &  \textit{blmi task\_short} & nop since cc[``n''] == 0\\
   t+4360 ns & n+109 &   \textit{blpl task\_normal} & branch since cc[``n"] == 0\\  
   - ns & - &  \ldots & code for task\_normal \\  
@@ -221,8 +221,8 @@ Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of thes
   t+8120 ns & n+203 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+8120)\\
   t+8200 ns & n+205 &  \textit{subs r3, r3, r5} & (current -= 80)\\
   t+8240 ns & n+206 &  \textit{sbc  r2, r2, r4} & (current: t+8040) \\
-  t+8280 ns & n+207 &  \textit{subs r3, r3, r5} & compare deadline (t+8000) and current (t+8040)\\
-  t+8320 ns & n+208 &  \textit{sbc  r2, r2, r4} & result is -40, set cc[``n''] \\
+  t+8280 ns & n+207 &  \textit{subs r5, r3, r5} & compare deadline (t+8000) and current (t+8040)\\
+  t+8320 ns & n+208 &  \textit{sbc  r4, r2, r4} & result is -40, set cc[``n''] \\
   t+8360 ns & n+209 &  \textit{blmi task\_short} & branch since cc[``n"] == 1 \\
   - ns & - &  \ldots & code for task\_short \\  
   t+10280 ns & n+257 &   \textit{blpl task\_normal} & nop since cc[``n''] == 1\\    
@@ -235,8 +235,8 @@ Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of thes
   t+12080 ns & n+302 &  \textit{cdp p13, 8, c4, c0, c0, 0 } & get\_time, (current: t+12080)\\
   t+12160 ns & n+304 &  \textit{subs r3, r3, r5} & (current -= 80)\\
   t+12200 ns & n+305 &  \textit{sbc  r2, r2, r4} & (current: t+12000) \\
-  t+12240 ns & n+306 &  \textit{subs r3, r3, r5} & compare deadline (t+12000) and current (t+12000)\\
-  t+12280 ns & n+307 &  \textit{sbc  r2, r2, r4} & result is 0, clear cc[``n''] \\
+  t+12240 ns & n+306 &  \textit{subs r5, r3, r5} & compare deadline (t+12000) and current (t+12000)\\
+  t+12280 ns & n+307 &  \textit{sbc  r4, r2, r4} & result is 0, clear cc[``n''] \\
   \hline 
 \end{smalltabular}}
 \end{center}
@@ -315,8 +315,8 @@ loop:
   subs r5, r5, #200          ; compensate for loop overhead and delay_until 
   sbc  r4, r4, #0            ; 
 
-  subs r3, r3, r5            ; Check if previous iteration deadline is missed
-  sbc  r2, r2, r4            ; 
+  subs r4, r3, r5            ; Check if previous iteration deadline is missed
+  sbc  r5, r2, r4            ; 
 
   blmi task_short            ; execute shorter task if previous deadline mess 
   blpl task_normal           ; or else execute normal task 

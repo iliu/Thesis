@@ -385,8 +385,8 @@ loop:
   subs r5, r5, #<offset>     ; <offset> is implementation dependent and used to 
   sbc  r4, r4, #0            ; account for loop overhead and miss detection
 
-  subs r3, r3, r5            ; Check if previous iteration deadline is missed
-  sbc  r2, r2, r4            ; 
+  subs r5, r3, r5            ; Check if previous iteration deadline is missed
+  sbc  r4, r2, r4            ; 
 
   blmi task_short            ; execute shorter task if previous deadline mess 
   blpl task_normal           ; or else execute normal task 
@@ -406,10 +406,9 @@ Thus, if the time it takes to execute the loop overhead and miss-detection is no
 The actual offset is implementation dependent, depending on how long each instruction takes to execute.
 We will show how this offset is calculated in our implementation in section~\ref{sec:timed_loop_revisited}.
 Once the overhead is accounted for, lines 7 and 8 check if the previous deadline was met, and lines 10 and 11 executes the short task if the deadline was missed, or executes the normal task else wise.
-In this case, we delay the deadline calculation for this iteration until right before the \delayuntil\ instruction, because the miss detection checks against the previous deadline timestamp.      
+We assume that both tasks saves the processor condition codes in the preamble of the task, and restores it in the postamble. 
+In this code, we delay the deadline calculation for this iteration until right before the \delayuntil\ instruction, because the miss detection checks against the previous deadline timestamp.      
 The timing behavior that is created is shown in figure~\ref{fig:timed_loop_differences} scenario F. 
-
-
 
 Other combinations of timing instructions can further be explored.
 For example, the use of \exceptiononexpire\ and \deactivateexception\ to handle cases where loop iterations exceeds the period.
