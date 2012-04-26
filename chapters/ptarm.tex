@@ -1,5 +1,5 @@
-The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on an ARM ISA architecture\todo{Citation}. 
-In this chapter we will describe in detail the implementation details of the timing-predictable ARM processor and discuss the worst-case execution time analysis of code running on it.
+The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on an ARM instruction set architecture\todo{Citation}. 
+In this chapter we will describe in detail the implementation of the timing-predictable ARM processor and discuss the worst-case execution time analysis of code running on it.
 We show that with the architectural design principles of PRET, the PTARM architecture is easy analyzable with repeatable timing.
   
 The architecture of PTARM closely follows the principles discussed in chapter~\ref{chapter:pret}.
@@ -595,75 +595,7 @@ The software overhead involves managing a list of deadlines and ensuring that th
 It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
 However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
-\section{Timing Analysis on PTARM}
-\label{sec:wcet}
-
-\begin{table}
-\noindent\makebox[\textwidth]{%
-\begin{smalltabular}{ | p{4cm} | c || p{9cm} | }
-  \hline                        
-  \textbf{Instruction Type} & \textbf{Thread Cycles} & \textbf{Notes}    \\ \hline
-  Data Processing  & 1 & \multirow{2}{9cm}{ ${\ast}$: an additional cycle is added if pre or post-index offset is used in the address mode.}  \\ \cline{1-2} 
-  Branch  & 1 &  \\ \cline{1-2}
-  Load/Store (SPM)  & 1$^{\ast}$ &  \multirow{4}{9cm}{ ${\phi}$: the dram latency is 3 or 4 thread cycles depending on the alignment of the pipeline and the dram controller backend, as described in section~\ref{sec:ptarm_dram_integration}. For conservative estimates, 4 thread cycles is used. } \\ \cline{1-2} 
-  Load/Store (BootROM)  & 1$^{\ast}$ & \\ \cline{1-2}  
-  Load/Store (DRAM) & 4$^{\phi \dagger \ast}$ & \\ \cline{1-2}
-  Load/Store Multiple & $N_{reg} \times L_{mem}$ $^{\Delta \ast}$ &  \\  \cline{1-2}
-  Software Interrupt (SWI) & 1 & \multirow{4}{9cm}{ ${\dagger}$: a single store buffer is implemented, as described in section~\ref{sec:ptarm_dram_store_buffer}, so non-consecutive stores take only 1 thread cycle, while consecutive stores require the full dram latency of 3 or 4.}\\    \cline{1-2}
-  Move immediate to status register & 1 & \\    \cline{1-2}
-  get\_time  & 2 &  \\ \cline{1-2}
-  delay\_until  & 1 $^{\sigma}$ & \multirow{3}{9cm}{ ${\Delta}$: $N_{reg}$ is number of registers specified in the instruction. $L_{mem}$ is the latency of the memory region operated on.} \\    \cline{1-2}
-  delay\_and\_set  & 2 $^{\sigma}$ &   \\   \cline{1-2}
-  branch\_expired & 1 &  \\    \cline{1-2}
-  deactive\_exception & 1 &  \multirow{2}{9cm}{${\sigma}$: denotes the minimum execution time. Actual execution time depends on the system clock and the specified deadline.} \\ \cline{1-2}
-  \multicolumn{2}{|c|}{} & \\ \hline
-\end{smalltabular}}
-\caption{Timing properties of PTARM instructions}
-\label{table:ptarm_instruction_timing}
-\end{table}
-%mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
-%but do a brief summary on how it's done, cite wilhelm's group's research summary
-Worst-case execution time (WCET) is a combined analysis of the control paths that the software might exhibit, and the time it takes to execute those paths on the underlying architecture. 
-A plethora of research has been done on the software analysis of control paths. 
-Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
-However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
-Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
-Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing a more precise WCET as software analysis progresses. 
-In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
-Table~\ref{table:ptarm_instruction_timing} shows the amount of \emph{thread cycles} each instruction takes. 
-
-Timing analysis is done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.  
-We use \emph{thread cycles} to represent the execution time on each thread.  
-The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
-Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
-The execution frequency of each thread ($F_{thread}$) is therefore $F_{thread} = F_{processor}/N$. 
-We use the term \emph{thread cycle} to denote each time the thread is fetched into the pipeline, which is the thread's perceived notion of cycles.
-Each \emph{thread cycle} is $1/F_{thread}$ long. 
-For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
-
-The implementation of instructions described in section~\ref{sec:ptarm_instructions} explain the latencies for each instruction.
-For memory instructions, our exposed memory hierarchy allows for simpler timing analysis, because the memory address determines the access latency.
-The address mode of memory instructions and register list of load/store multiple instructions can all be determined statically from the instruction encoding, so no dynamic behavior is introduced.
-%give more specific examples of exception timing analysis
-%give example timing analysis??  
-
-\begin{comment}
-Data-processing and branch instructions are straight forward and take only one thread cycle to complete. 
-Load and store instruction execution times depend on the memory access region and the addressing mode.
-The scratchpads and boot ROM have single cycle access latency, while the worst-case DRAM access latency is 4 thread cycles.
-\todo{Talk about store instructions.}
-Load/store multiple instruction execution time depend on the number of registers specified in the instruction, and the memory region it is accessing.
-If these instruction use the pre or post-index offset in their addressing mode, an additional cycle is required to update the base register.
-\end{comment}  
- 
-\subsection{Precision of timing instructions}
-\label{subsec:precision_timing_inst_ptarm}
-
-When using the timing instructions to 
-%discuss the granularity that each thread can obtain with the deadline instructions
-%mention that there is no way we can get absolute timing to the finest precision, everything implementation descretizes time 
-
-\section{Builds}
+\section{Realizations}
 \subsection{PTARM VHDL Soft Core}
 \label{sec:ptarm_vhdl_soft_core}
 \begin{wrapfigure}{r}{0.5\textwidth}
@@ -715,3 +647,6 @@ The simulator and corresponding documentation can be downloaded from http://ches
 
 \todo{present benchmark numbers on the simulator and compare to others}
 
+\section{Timing Analysis on PTARM}
+\label{sec:wcet}
+\input{chapters/ptarm_wcet}

@@ -1,0 +1,186 @@
+\label{subsec:precision_timing_inst_ptarm}
+
+\begin{table}
+\noindent\makebox[\textwidth]{%
+\begin{smalltabular}{ | p{4cm} | c || p{9cm} | }
+  \hline                        
+  \textbf{Instruction Type} & \textbf{Thread Cycles} & \textbf{Notes}    \\ \hline
+  Data Processing  & 1 & \multirow{2}{9cm}{ ${\ast}$: an additional cycle is added if pre or post-index offset is used in the address mode.}  \\ \cline{1-2} 
+  Branch  & 1 &  \\ \cline{1-2}
+  Load/Store (SPM)  & 1$^{\ast}$ &  \multirow{4}{9cm}{ ${\phi}$: the dram latency is 3 or 4 thread cycles depending on the alignment of the pipeline and the dram controller backend, as described in section~\ref{sec:ptarm_dram_integration}. For conservative estimates, 4 thread cycles is used. } \\ \cline{1-2} 
+  Load/Store (BootROM)  & 1$^{\ast}$ & \\ \cline{1-2}  
+  Load/Store (DRAM) & 4$^{\phi \dagger \ast}$ & \\ \cline{1-2}
+  Load/Store Multiple & $N_{reg} \times L_{mem}$ $^{\Delta \ast}$ &  \\  \cline{1-2}
+  Software Interrupt (SWI) & 1 & \multirow{4}{9cm}{ ${\dagger}$: a single store buffer is implemented, as described in section~\ref{sec:ptarm_dram_store_buffer}, so non-consecutive stores take only 1 thread cycle, while consecutive stores require the full dram latency of 3 or 4.}\\    \cline{1-2}
+  get\_time  & 2 &  \\ \cline{1-2}
+  delay\_until  & 1 $^{\sigma}$ & \\    \cline{1-2}
+  delay\_and\_set  & 2 $^{\sigma}$ &    \\   \cline{1-2}
+  branch\_expired & 1 &  \multirow{2}{9cm}{ ${\Delta}$: $N_{reg}$ is number of registers specified in the instruction. $L_{mem}$ is the latency of the memory region operated on.} \\  \cline{1-2}
+  deactive\_exception & 1 &  \\ \cline{1-2}
+  \multicolumn{2}{|c|}{} &   \multirow{2}{9cm}{${\sigma}$: denotes the minimum execution time. Actual execution time depends on the system clock and the specified deadline.} \\ \cline{1-2}
+  \multicolumn{2}{|c|}{} &\\ \hline
+\end{smalltabular}}
+\caption{Timing properties of PTARM instructions}
+\label{table:ptarm_instruction_timing}
+\end{table}
+%mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
+%but do a brief summary on how it's done, cite wilhelm's group's research summary
+Worst-case execution time (WCET) analysis is a combined analysis of the control paths that the software might exhibit, and the time it takes to execute those paths on the underlying architecture. 
+A plethora of research has been done on the software analysis of control paths. 
+Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
+However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
+Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
+Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing a more precise WCET as software analysis progresses. 
+In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
+Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each instruction takes in terms of \emph{thread cycles}. 
+
+A \emph{Thread cycle} is the units used to represent execution time on each thread.  
+Timing analysis can be done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.
+The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
+Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
+\emph{Thread cycle} denotes each time the thread is fetched into the pipeline, which is the thread's perceived notion of cycles.
+The execution frequency of each thread ($F_{thread}$) is $F_{thread} = F_{processor}/N$, so each \emph{thread cycle} is $1/F_{thread}$ long. 
+For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
+
+%MEMORY INSTRUCTIONS
+The implementation of instructions described in section~\ref{sec:ptarm_instructions} explain the latencies for each instruction.
+For memory instructions, our exposed memory hierarchy allows for simpler timing analysis, because the memory address determines the access latency.
+The address mode of memory instructions and register list of load/store multiple instructions can all be determined statically from the instruction encoding, so no dynamic behavior is introduced.
+
+%TIMING INSTRUCTIONS
+When using the timing instructions,  
+%discuss the granularity that each thread can obtain with the deadline instructions
+%mention that there is no way we can get absolute timing to the finest precision, everything implementation descretizes time 
+
+\subsection{Timed Loop example revisited}
+\begin{lstlisting}[float=h, label=lst:timed_loop_compensate,caption=Timed loops with compensation ]
+  cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
+loop:
+  cdp p13, 8, c4, c0, c0, 0  ; get_time, current timestamp stored in [c4, c5]
+  subs r5, r5, #<offset>     ; <offset> is implementation dependent and used to 
+  sbc  r4, r4, #0            ; account for loop overhead and miss detection
+
+  subs r3, r3, r5            ; Check if previous iteration deadline is missed
+  sbc  r2, r2, r4            ; 
+
+  blmi task_short            ; execute shorter task if previous deadline mess 
+  blpl task_normal           ; or else execute normal task 
+  
+  adds r3, r3, #0xDEAD       ; assuming the deadline is #0xDEAD
+  adc r2, r2, #0             ; calculate the deadline timestamp for this iter.
+  cdp p13, 4, c2, c2, c3, 0  ; delay_until
+   
+  b loop
+\end{lstlisting}
+
+
+\subsection{Exceptions}
+The exception\_on\_expire instruction is used to handle missed deadlines immediately by triggering a hardware exception. 
+Once the deadline is setup using this instruction, the PTARM hardware will throw a hardware exception immediately when the timer value passes the deadline.
+The PTARM architecture provides one slot for each thread to register a deadline that is checked in hardware.
+Each processor cycle the timer checks against these registered deadlines in hardware, and throws a hardware exception for the corresponding thread when the timer exceeds the deadline value. 
+The deactivate\_exception is used to un-register the deadline value before the deadline is reached. 
+This way no exception will be thrown.
+
+When a hardware exception is thrown, the architecture modifies the program counter (PC) according to an exception vector table, and stores the current PC to the link register. 
+The current processor state register (CPSR) is saved, and normal interrupts are disabled. 
+In the case of a missed deadline, since it is a custom exception, we added an entry to the exception vector table to point to a custom timer expire exception handler code. 
+The entry added changes the PC to the address 0x0000001c, which contains an instruction that branches to our setup code for the timer expire handler. 
+The setup code is short, and mainly is used to jump to a user specified timer expire handler code.
+As shown in listing~\ref{timer-expire-handler}, we reserve one word (\textit{\_timer\_handler\_loc}) for the user to write the address of a timer expire handler function. 
+Assuming that the user already has written an address to \textit{\_timer\_handler\_loc}, then our setup code loads that address into the PC, and executes the user specified function. 
+When the function returns to this setup code, we re-enable interrupts, and returns to the location when the exception occurred.
+It is important to know the location of \textit{\_timer\_handler\_loc} because the user must write the address of their timer handler to that location.
+Our compiled C run time code puts the \textit{\_timer\_handler\_loc} at address 0x00000098.
+If the C run time code is recompiled, then each program must update where the timer handler address is written to to the new address of \textit{\_timer\_handler\_loc}.
+Listing~\ref{exception-sample} shows an example usage of exception\_on\_expire and deactivate\_exception.    
+\begin{lstlisting}[label=timer-expire-handler,caption=The custom timer expire setup code]
+.text
+.global _tmr_exp_setup;
+_tmr_exp_setup:
+    push  {r0, lr}
+    ldr   r0, _timer_handler_loc 
+    mov   lr, pc
+    mov   pc, r0
+    mrs   r0, cpsr
+    bic   r0, r0, #0x80
+    msr   cpsr, r0
+    pop   {r0, pc}
+
+_timer_handler_loc: .word  0x00000000;
+\end{lstlisting}
+
+\begin{lstlisting}[label=exception-sample,caption=Sample assembly code of exception\_on\_expire and deactivate\_exception ]
+  mov r3, #0x98
+  add r4, pc, #32            ;r4 = addr of delay_handler
+  str r4, [r3]               ;register delay_handler
+  mov r0, #80
+  mov r1, #0
+  cdp p13, 8, c2, c0, c1, 0  ;set_time
+  cdp p13, 2, c2, c2, c3, 0  ;exception_on_expire
+  add r5, r6, r6
+  add r7, r5, r6
+  cdp p13, 5, c8, c2, c3, 0  ;deactivate_exception
+  b end
+delay_handler:
+  mov pc, lr
+\end{lstlisting}
+
+The first three instructions in the sample code registers ``delay\_handler'' to be the timer expire handler.
+The code for delay\_handler currently does not do anything, and simply returns to its caller, we use it for illustrative purposes. 
+We use set\_time to obtain the desired deadline, which is stored in r2 and r3.
+We then use those to register an exception to trigger when the PTARM timer reaches that time. 
+The deactivate\_exception instruction doesn't take in any operands, but simply disarms the timer from throwing a hardware exception. 
+In the sample code above, we purposely set the deadline so a timer expire exception will always occur. 
+Table~\ref{exception-expire-timing} shows the timing details and instruction execution sequence of the above code.
+
+\begin{table}
+\begin{center}
+\noindent\makebox[\textwidth]{%
+\begin{tabular}{ | c | c | l | l r | }
+  \hline                        
+  Time & TC & address & Inst & Comment\\ \hline
+  0 ns & 0 & 0x40000000 & \textit{mov r3, \#0x98} & get the timer handler address \\  
+  40 ns & 1 & 0x40000004 & \textit{add r4, pc, \#32} & get delay\_handler address \\
+  80 ns & 2 & 0x40000008 & \textit{str r4, [r3]} & register delay\_handler as timer expire handler\\
+  120 ns & 3 & 0x400000C & \textit{mov r0, \#80} & setup offset low 32 bits \\
+  160 ns & 4 & 0x40000010 & \textit{mov r1, \#0} & setup offset high 32 bits \\
+  200 ns & 5 & 0x40000014 & \textit{cdp p13, 8, c2, c0, c1, 0} & set\_time instruction (deadline 360) \\
+  240 ns & 6 & & & \\
+  280 ns & 7 & 0x40000018 & \textit{cdp p13, 2, c2, c2, c3, 0} & exception\_on\_expire instruction (deadline 360) \\
+  320 ns & 8 & 0x4000001C & \textit{add r5, r6, r6} & code block\\
+  360 ns & 9 & 0x40000020 & **throw exception** & timer expired, hardware exception thrown\\  
+  400 ns & 10 & 0x1C & \textit{b \_tmr\_exp\_setup } & branch to setup code \\  
+  440 ns & 11 & 0x78 & \textit{push \{r0, lr\}} & store registers on stack\\
+  480 ns & 12 & & & \\
+  520 ns & 13 & 0x7C & \textit{ldr   r0, \_timer\_handler\_loc} & load the address of timer handler \\
+  560 ns & 14 & 0x80 & \textit{mov   lr, pc} & store return address after timer handler \\
+  600 ns & 15 & 0x84 & \textit{mov   pc, r0} & jump to registered handler (delay\_handler) \\
+  640 ns & 16 & 0x4000002C & \textit{mov   pc, lr} & delay\_handler code, jump back to setup code\\  
+  680 ns & 17 & 0x88 & \textit{mrs   r0, cpsr} & load the CPSR\\
+  720 ns & 18 & 0x8C & \textit{bic   r0, r0, \#0x80} &  enable interrupts\\
+  760 ns & 19 & 0x90 & \textit{msr   cpsr, r0} &  store the CPSR\\
+  800 ns & 20 & 0x94 & \textit{pop   \{r0, pc\}} & return from interrupt\\
+  840 ns & 21 & & & \\    
+  880 ns & 22 & 0x40000020 & \textit{add r7, r5, r6} & code block\\
+  920 ns & 23 & 0x40000024 & \textit{cdp p13, 3, c2, c0, c1, 0} & deactivate\_exception (doesn nothing) \\
+  960 ns & 24 & 0x40000028 & \textit{b end} & instruction after return from delay\_handler\\
+  \hline 
+\end{tabular}}
+\end{center}
+\caption{Exception\_on\_expire sample code timing details}
+\label{exception-expire-timing}
+\end{table}
+
+Both exception\_on\_expire and deactivate\_exception take only 1 cycle to complete.
+The execution sequence shown in table~\ref{exception-expire-timing} jumps back and forth between the main code, timer expired setup code, and the actual delay\_handler. 
+In the case that the deadline was set to be longer, the deactivate\_exception instruction would have been executed before the timer expired, and a hardware exception would not have been thrown.
+
+
+
+
+
+
+
+
+
