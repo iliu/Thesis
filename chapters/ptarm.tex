@@ -155,6 +155,7 @@ More space could be allocated to hardware threads running more memory intensive 
 Both the boot ROM and scratchpads are synthesized to dual-ported block RAMs on the FPGA, and provide deterministic single cycle access latencies.
 
 \subsection{DRAM}
+\label{sec:ptarm_dram_integration}
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace{-20pt}
   \begin{center}
@@ -200,16 +201,16 @@ Thus, while a DMA transfer is initiated, the thread gives up access to the DRAM 
 During this time, the thread can continue to execute and access the scratchpad regions that is not being serviced by the DMA request. 
 This is possible because scratchpads are dual-ported, allowing a DMA unit to access the scratchpads simultaneously as its corresponding hardware thread.
 If at any point the thread tries to access the DRAM, it will be blocked until the DMA transfer completes.
-Similarly, accesses to the region of the scratchpad which are being transferred from or to will stall the hardware thread\footnote{This does not affect the execution of any of the other hardware threads.}.
-Since DMA units are not pipelined, there are no ``alignment losses'', so the DMA units can fully utilize the bandwidth provided by the backend.
-The DMA latencies are also derived in ~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}, and can be predictably be determined by the transfer size. 
-Similarly, we skip the first refresh during a DMA transfer and schedule an additional one at the end of the transfer.
-This pushes back the refresh of a particular row by at most $60 \cdot 13$ cycles.
-%Alternatively, this can be seen as shifting all refreshes, during the DMA transfer, back by $63$ slots or to the end of the transfer.
+Similarly, accesses to the region of the scratchpad being serviced by the DMA will also stall the hardware thread\footnote{This does not affect the execution of any of the other hardware threads.}.
+%Since DMA units are not pipelined, there are no ``alignment losses'', so 
+The DMA units can fully utilize the bandwidth provided by the backend because there are no alignment losses like the pipeline. 
+When refreshes conflict with a DMA transfer, we push back the first refresh and schedule one at the end of the DMA transfer. 
+This can be seen as shifting all refreshes, during the DMA transfer, back by $63$ slots or to the end of the transfer.
 More sophisticated schemes would be possible, however, we believe their benefit would be slim.
-With this refresh scheme, refreshes do not affect the latencies of load/store instructions, and the refreshes scheduled within DMA transfers are predictable so the latency effects of the refresh can be easily analyzed.  
+With this scheme, refreshes scheduled within DMA transfers are predictable so the latency effects of the refresh can be easily analyzed, which we derive in~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.
 
 \paragraph{Store Buffer}
+\label{sec:ptarm_dram_store_buffer}
 Stores are fundamentally different from loads in that a hardware thread does not have to wait until the store has been performed in memory.
 By adding a single-place store buffer to the frontend, we can usually hide the store latency from the pipeline.
 Using the store buffer, stores which are not preceded by other stores can be performed in a single thread cycle.
@@ -218,9 +219,18 @@ Other stores may take two thread cycles to execute.
 A bigger store buffer would be able to hide latencies of successive stores at the expense of increased complexity in timing analysis.
 
 \subsection{Memory Mapped I/O}
-Currently PTARM implements a separate I/O bus for communicating with I/O.
-The bus is currently shared between all threads.
-%Also talk about I/O bus connections and the protocol to determine if data is ready
+Currently PTARM implements a primitive I/O bus for communicating with external inputs and outputs.
+Access to the bus also occurs in the memory stage of the pipeline, by loading and storing to or from memory mapped I/O regions.
+I/O devices snoop the address bus to determine whether the pipeline is communicating with the device or not.
+The I/O bus is shared by all threads in the thread-interleaved pipeline, thus, in addition to address and data, a thread ID is also sent out. 
+The I/O devices connected can choose to utilize the thread ID or not, depending on the functionality of the device. 
+In section~\ref{sec:ptarm_vhdl_soft_core} below we will describe the I/O components that we have connected to our PTARM core.
+Currently all I/O devices interface with the processor through memory mapped I/O registers that are read and written to in a single cycle, so no bus contention arises in our primitive bus implementation.
+
+In order to ensure predictable access times to all I/O devices, a predictable bus architecture must be implemented.   
+Several timing predictable bus architectures~\todo{cite} have been proposed, which can be used for this purpose. 
+A predictable thread-aware I/O controller is also needed to ensure data from the I/O devices are read by the correct thread, and contention is properly managed.  
+This is a future research challenge of PRET -- to predictably interface with various I/O devices.    
 
 \section{Exception Handling}
 \label{subsec:exception_handling_in_ptarm}
@@ -585,26 +595,77 @@ The software overhead involves managing a list of deadlines and ensuring that th
 It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
 However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
-\section{Timing Analysis of PTARM}
+\section{Timing Analysis on PTARM}
 \label{sec:wcet}
 
+\begin{table}
+\noindent\makebox[\textwidth]{%
+\begin{smalltabular}{ | p{4cm} | c || p{9cm} | }
+  \hline                        
+  \textbf{Instruction Type} & \textbf{Thread Cycles} & \textbf{Notes}    \\ \hline
+  Data Processing  & 1 & \multirow{2}{9cm}{ ${\ast}$: an additional cycle is added if pre or post-index offset is used in the address mode.}  \\ \cline{1-2} 
+  Branch  & 1 &  \\ \cline{1-2}
+  Load/Store (SPM)  & 1$^{\ast}$ &  \multirow{4}{9cm}{ ${\phi}$: the dram latency is 3 or 4 thread cycles depending on the alignment of the pipeline and the dram controller backend, as described in section~\ref{sec:ptarm_dram_integration}. For conservative estimates, 4 thread cycles is used. } \\ \cline{1-2} 
+  Load/Store (BootROM)  & 1$^{\ast}$ & \\ \cline{1-2}  
+  Load/Store (DRAM) & 4$^{\phi \dagger \ast}$ & \\ \cline{1-2}
+  Load/Store Multiple & $N_{reg} \times L_{mem}$ $^{\Delta \ast}$ &  \\  \cline{1-2}
+  Software Interrupt (SWI) & 1 & \multirow{4}{9cm}{ ${\dagger}$: a single store buffer is implemented, as described in section~\ref{sec:ptarm_dram_store_buffer}, so non-consecutive stores take only 1 thread cycle, while consecutive stores require the full dram latency of 3 or 4.}\\    \cline{1-2}
+  Move immediate to status register & 1 & \\    \cline{1-2}
+  get\_time  & 2 &  \\ \cline{1-2}
+  delay\_until  & 1 $^{\sigma}$ & \multirow{3}{9cm}{ ${\Delta}$: $N_{reg}$ is number of registers specified in the instruction. $L_{mem}$ is the latency of the memory region operated on.} \\    \cline{1-2}
+  delay\_and\_set  & 2 $^{\sigma}$ &   \\   \cline{1-2}
+  branch\_expired & 1 &  \\    \cline{1-2}
+  deactive\_exception & 1 &  \multirow{2}{9cm}{${\sigma}$: denotes the minimum execution time. Actual execution time depends on the system clock and the specified deadline.} \\ \cline{1-2}
+  \multicolumn{2}{|c|}{} & \\ \hline
+\end{smalltabular}}
+\caption{Timing properties of PTARM instructions}
+\label{table:ptarm_instruction_timing}
+\end{table}
 %mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
 %but do a brief summary on how it's done, cite wilhelm's group's research summary
+Worst-case execution time (WCET) is a combined analysis of the control paths that the software might exhibit, and the time it takes to execute those paths on the underlying architecture. 
+A plethora of research has been done on the software analysis of control paths. 
+Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
+However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
+Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
+Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing a more precise WCET as software analysis progresses. 
+In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
+Table~\ref{table:ptarm_instruction_timing} shows the amount of \emph{thread cycles} each instruction takes. 
 
-%give a table of instruction execution
+Timing analysis is done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.  
+We use \emph{thread cycles} to represent the execution time on each thread.  
+The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
+Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
+The execution frequency of each thread ($F_{thread}$) is therefore $F_{thread} = F_{processor}/N$. 
+We use the term \emph{thread cycle} to denote each time the thread is fetched into the pipeline, which is the thread's perceived notion of cycles.
+Each \emph{thread cycle} is $1/F_{thread}$ long. 
+For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
 
+The implementation of instructions described in section~\ref{sec:ptarm_instructions} explain the latencies for each instruction.
+For memory instructions, our exposed memory hierarchy allows for simpler timing analysis, because the memory address determines the access latency.
+The address mode of memory instructions and register list of load/store multiple instructions can all be determined statically from the instruction encoding, so no dynamic behavior is introduced.
 %give more specific examples of exception timing analysis
+%give example timing analysis??  
 
-%give example timiong analysis  
+\begin{comment}
+Data-processing and branch instructions are straight forward and take only one thread cycle to complete. 
+Load and store instruction execution times depend on the memory access region and the addressing mode.
+The scratchpads and boot ROM have single cycle access latency, while the worst-case DRAM access latency is 4 thread cycles.
+\todo{Talk about store instructions.}
+Load/store multiple instruction execution time depend on the number of registers specified in the instruction, and the memory region it is accessing.
+If these instruction use the pre or post-index offset in their addressing mode, an additional cycle is required to update the base register.
+\end{comment}  
  
 \subsection{Precision of timing instructions}
 \label{subsec:precision_timing_inst_ptarm}
 
+When using the timing instructions to 
 %discuss the granularity that each thread can obtain with the deadline instructions
 %mention that there is no way we can get absolute timing to the finest precision, everything implementation descretizes time 
 
-\section{PTARM VHDL Soft Core}
-
+\section{Builds}
+\subsection{PTARM VHDL Soft Core}
+\label{sec:ptarm_vhdl_soft_core}
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace{-20pt}
   \begin{center}
@@ -615,19 +676,29 @@ However, this comes at the cost of additional hardware complexity in the timer, 
   \label{fig:ptarm_vhdl_high_level}
   \vspace{-10pt}
 \end{wrapfigure}   
+The PTARM soft core is written in VHDL according to the described architecture.
+It includes the pipeline, scratchpad memories, predictable memory controller and connects to several I/O devices on the FPGA.
+Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the PTARM soft core.
 
-Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.
+The I/O devices PTARM connects to include the UART, DVI controller and the DDRII DRAM on the FPGA.
+PTARM communicates to the UART through the UART gateway, which queues read and write requests from the core and relays it to the UART.
+The default buffer size on the UART gateway is one.
+The status of the UART gateway can be polled from status registers mapped to memory I/O locations.
+Currently all read and write requests to the UART is done through blocking procedures.
+We poll the status 
+ 
+The soft core build of PTARM does not yet include the DMA units for each thread.
+Thus, to transfer content from the DRAM to the scratchpads, one must do it in the software manually. 
 
-Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the Softcore.
+We synthesized the core on a Virtex-5 lx110t FPGA to obtain the maximum clock frequency and resource usage. 
+\todo{show area and clock speed on FPGA}  
+We clocked PTARM at $100MHz$ and the memory con
+
  
 Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller
 
-\section{PTARM Simulator}
+\subsection{PTARM Simulator}
 \label{sec:ptarm_sim}
 
-%Talk about the exploration of DMA memory, and different memory access latencies
-
 Talk about experimentation with DMA and memory hierarchy
-
-
-
+%Talk about the exploration of DMA memory, and different memory access latencies
