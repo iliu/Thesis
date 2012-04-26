@@ -1,10 +1,4 @@
 In this chapter we present the PREcision Timed (PRET) Machine. 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam eu est neque. Suspendisse mollis gravida mi in blandit. Vivamus porta libero at massa sagittis pellentesque. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nibh magna, facilisis ac dapibus vitae, tincidunt nec magna. Morbi ac neque in est porta placerat. Duis viverra blandit ante, ut scelerisque arcu sodales vel. Aenean sapien erat, tincidunt malesuada accumsan a, eleifend feugiat leo. Maecenas auctor nulla non purus fringilla nec hendrerit massa facilisis. Donec vel diam nibh. Maecenas sed massa non mauris faucibus condimentum et et metus. Fusce placerat, dolor et adipiscing suscipit, orci lectus fringilla mauris, a tincidunt dolor mauris id ligula. Vestibulum luctus, dolor in bibendum accumsan, leo turpis suscipit enim, et hendrerit odio metus eget dolor. Morbi in lectus massa.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam eu est neque. Suspendisse mollis gravida mi in blandit. Vivamus porta libero at massa sagittis pellentesque. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nibh magna, facilisis ac dapibus vitae, tincidunt nec magna. Morbi ac neque in est porta placerat. Duis viverra blandit ante, ut scelerisque arcu sodales vel. Aenean sapien erat, tincidunt malesuada accumsan a, eleifend feugiat leo. Maecenas auctor nulla non purus fringilla nec hendrerit massa facilisis. Donec vel diam nibh. Maecenas sed massa non mauris faucibus condimentum et et metus. Fusce placerat, dolor et adipiscing suscipit, orci lectus fringilla mauris, a tincidunt dolor mauris id ligula. Vestibulum luctus, dolor in bibendum accumsan, leo turpis suscipit enim, et hendrerit odio metus eget dolor. Morbi in lectus massa.
-
-%Talk about how this allows us to maintain non-interference, and that it allows separate timing analysis
-%The thread interleaving pipeline design allows for predictable timing analysis for all threads within the pipeline. 
 It is important to understand why and how current architectures fall short of timing predictability and repeatability.
 Thus, before we preset the PRET architecture, we briefly discuss common architectural designs and their effects on execution time, and point out some key issues and trade-offs when designing architectures for predictable and repeatable timing.
 The introduction of pipelining vastly improved architecture average-case performance.
@@ -121,14 +115,14 @@ The bottom of figure~\ref{fig:data_depend_execution_non_interleaved} shows the e
 \label{fig:data_depend_execution_non_interleaved}
 \end{figure}
 No pipeline bubbles are needed for the first \emph{sub} instruction and \emph{ld} instruction, as the results they depend on can be computed in one cycle by the ALU, and forwarded through the forwarding paths.
-\todo{Needs some reworking here}
+%FIXME: Talk about how forwarding is predictable, compare it to branch predictors 
 Notice that although there is dynamic execution in the pipeline forwarding circuitry, it is actually possible to statically predict the execution time accurately.
 The logic in the pipeline controller that enables and selects the correct forwarding bits only needs to check a small set of previous instructions to detect data-dependencies. 
 Thus, static execution time analysis can detect forwarding by simply checking a short window of previous instructions to account for stalls accordingly. \todo{find papers to back this up}
 The internal state of the branch predictor on the other hand is dependent on branch histories which may have happened arbitrarily long ago in the execution sequence,
 \todo{more complicated ways of handling data hazards include out-of-order execution\ldots} 
 
-\todo{Talk about caches here}
+%FIXME: Talk about caches
 We assume the \emph{ld} instruction accesses results in a cache miss, requiring access to main memory. 
 Stalls are still inserted for the the second \emph{sub} instruction, as it is waiting upon the results of a memory operation. 
 The memory access latency in the figure is arbitrarily chosen to be 5 cycles so the figure is not too long and instructions after the \emph{ld} instruction can be shown.  
@@ -227,7 +221,7 @@ This gives thread-interleaved pipelines the advantage of a simpler pipeline desi
 Thread-interleaved pipelines can be clocked at higher speeds since each pipeline stage contains significantly less logic needed to handle hazards.
 The registers and processor states use much more compact memory cells compared to the logic and muxes used to select and handle hazards, so the size footprint of thread-interleaved pipelines are also typically smaller.
 
-For memory operations that have longer latencies, thread-interleaved pipelines hides the latency with its execution of other threads. 
+For operations that have long latencies, such as memory operations or floating point operations, thread-interleaved pipelines hides the latency with its execution of other threads. 
 Thread 3 in figure~\ref{fig:execution_thread_interleaved_pipeline} shows the execution of a \emph{ld} instruction that takes the same 5 cycles as shown in figure~\ref{fig:data_depend_execution_non_interleaved}.
 We again assume that this \emph{ld} instruction accesses data from the main memory. 
 While the \emph{ld} instruction is waiting for memory access to complete, the thread-interleaved pipeline executes instructions from other threads.
@@ -236,31 +230,55 @@ As memory completes its execution during the execution of instructions from othe
 It is possible to directly write the results back into the register file when the memory operation completes.
 This would however require non-trivial hardware additions to support and manage multiple write-back paths in the pipeline so contention can be avoided with the existing executing threads.
 Thus, in our design we simply replay the instruction for write-backs to simplify design and piggy back on the existing write-back datapath.
+We showed a memory access instruction in our example, but the same reasoning is applied to floating point instructions or any long latency instruction.  
+Conventional thread-interleaved pipelines typically mark threads inactive when they are waiting for long latency operations.
+Inactive threads are not fetched and executed in the pipeline, since they cannot make progress even if they are scheduled. 
+This allows the processor to maximize throughput by allowing other threads to utilize the idle processor cycles.   
+However, doing so has non-trivial effects on thread-interleaved pipelines. 
 
-In the real world, main memory of systems are typically made of DRAMs, which have access latencies that range from 10 to 100 cycles; one round of the round robin thread schedule would be insufficient time to hide the memory latency access.
-%Talk about why we can't ``unschedule'' a thread
-Often times multithreaded architectures mark these threads inactive and the thread is not rescheduled until the data is ready.
-This is done to maximize the throughput of the pipeline, since threads waiting for data from other hardware components cannot make any progress until the data is returned. 
-However, this leads to unpredictable timing behaviors in the threads.
-When threads are scheduled and unscheduled dynamically, the other threads in the pipeline would dynamically execute more or less frequently depending on which threads are active and inactive.
-This greatly complicates any timing analysis on the software running on each thread as the execution frequency of the threads would depend on the execution of other threads.
-Thus, our thread-interleaved pipeline does not mark threads inactive, but simply replays the instruction from the thread.
-The effects of latency hiding is still present, as other threads continue to progress while one thread is replaying its multi-cycle instruction.  
-
-
-In addition, the shared main memory is a structural hazard, a hazard that occurs when a hardware unit is needed by two or more instructions at the same time.
-While a thread is accessing main memory, other threads could just as well fetch a \emph{ld} or \emph{str} instruction, and cause contention to access main memory.
-%Talk about the need to pipeline functional units to avoid structural hazards
-Care must also be taken when adding datapaths that take multiple cycles, or else the interference introduced could easily disrupt the timing analysis of threads.
-If the added datapath isn't able to support pipelined or simultaneous operations, then it will introduce contention amongst the threads.
-As one thread executes a floating-point division instruction, any other thread that also executes a floating-point division must now wait until the first instruction finishes. 
-If other threads also executes the same instruction, then queuing mechanisms must be introduced, for threads that are contending for the floating-point divider. 
-This would greatly complicate the timing analysis, as the execution time of floating-point division instructions now depend on the execution context of other threads.
-Pipelining the floating-point divider would increase the throughput at the cost of area and latency. 
-However, by pipeling the floating-point divider unit, each thread that executes a floating-point division can now access it without contention. 
-The replay mechanism also hides the long latency of the instruction, and benefits from the improved latency. 
-Because there is no contention, the timing analysis of floating-point operations are now trivial and predictable. 
-
+First, if the number of ``active'' threads falls below the number of pipeline stages, then pipeline hazards are reintroduced; it is now possible for the pipeline to be executing two instructions from the same thread that depend on each other simultaneously. 
+This can be circumvented by inserting pipeline bubbles when there aren't enough active threads. 
+For example, as shown in figure~\ref{fig:three_thread_pipeline}, for our 5 stage thread-interleaved pipeline that has 5 threads, if two threads are waiting for main memory access and are marked inactive, then we insert 2 NOPs every round of the round-robin schedule to ensure that no two instructions from the same thread exists in the pipeline.
+Note that if the 5 stage thread-interleaved pipeline contained 7 threads, then even if 2 threads are waiting for memory, no NOP insertion would be needed since instructions in each pipeline stage in one cycle would still be from a different thread.   
+NOP insertions only need to occur when the number of active threads drops below the number of pipeline stages.   
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.6]{figs/three_thread_pipeline}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Execution of 5 threads thread-interleaved pipeline when 2 threads are inactive}
+  \label{fig:three_thread_pipeline}
+\end{figure}
+The more problematic issue with setting threads inactive whenever long latency operations occur is the effect on the execution frequencies of other threads in the pipeline.
+When threads are scheduled and unscheduled dynamically, the other threads in the pipeline would dynamically execute more or less frequently depending on how many threads are active.
+This complicates timing analysis since the thread frequency of one thread now depends on the program state of all other threads. 
+Any analysis needs to model and explore all possible combinations of program state of all threads, which is typically infeasible.
+The same difficulty is present for timing analysis on most coarse-grained multithreaded architecture.
+%FIXME: Explicitly mention the interference of thread timing
+It is important to understand that it is not the thread scheduling that is non-predictable, but how thread switches are triggered.    
+It is still possible for a predictable architecture to support the scheduling of hardware threads, but it must be done statically in software, instead of dynamically in hardware. 
+If the hardware can provide a means of explicitly setting thread schedules in software, then it is possible to make the thread schedules transparent to any timing analysis.	 
+The software still needs to be carefully constructed, since it is still possible for the software to switch hardware thread schedules dynamically, complicating the timing analysis. 
+One could envision a program that contains different program states, each state executing a different number of threads. 
+As long as the state transitions are statically analyzable, the timing analysis complexity is not increased. 
+Thus, our thread-interleaved pipeline does not mark threads inactive on long latency operations, but simply replays the instruction whenever the thread is fetched, until the long latency operation completes.
+Although this slightly reduces the utilization of the thread-interleaved pipeline, but threads are decoupled and timing analysis can be done individually for each thread without interference from other threads.
+At the same time, we still preserve some of the benefits of latency hiding, as other threads are still executing during the long latency operation.
+ 
+Thread-interleaved pipelines however still contain structural hazards, hazards that occur when hardware units are needed by two or more instructions at the same time.
+Although each pipeline stage is occupied by different hardware threads, two or more threads can simultaneously be issuing \emph{ld} instructions to the main memory.
+If the shared main memory can only handle one request at a time, then the second request must be queued waiting for the first requester to complete.
+This creates timing interference between the threads, because the memory access time of a memory request from a particular thread now depends on if the memory is currently being access by other threads, and how many threads are already queued up.
+We will discuss how our redesigned memory controller supports pipelining memory access in section~\ref{section:memory_system}, but the same hazard applies to any shared hardware unit such as floating point units etc.
+If the hardware unit can be pipelined and accept inputs every cycle, then no contention arises between the hardware threads, and no structural hazards occur.
+%FIXME: more explanation
+If pipelining cannot be achieved, then any timing analysis of that instruction must include a conservative estimation that accounts for thread access interference.
+A time division multiplex access (TDMA) schedule can be enforced to decouple the access time of threads to the shared hardware unit.
+%FIXME: Explain TDMA scheduling  
+  
+%FIXME: Show a simple timing analysis of thread-interleaved pipelines and how easy it is, compare it to a timing analysis of single threads?
+%FIXME: Talk about the trade-offs of threaded interleaved pipelines to summarize 
 In summary, blah blah blah\ldots
 \section{Memory System}
 \label{section:memory_system}
