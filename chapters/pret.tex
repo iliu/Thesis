@@ -201,7 +201,7 @@ This is not to be confused the common notion of ``threads'', which is assumed to
 
 \subsection{Thread-Interleaved Pipelines}
 \label{section:pret_thread_pipeline}
-\todo{Go through and make sure you don't say minimum threads as pipeline stages is a requirement, since later we have 4 threads in a give stage pipeine.}
+%\todo{Go through and make sure you don't say minimum threads as pipeline stages is a requirement, since later we have 4 threads in a give stage pipeine.}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -281,41 +281,74 @@ When threads are scheduled and unscheduled dynamically, the other threads in the
 This complicates timing analysis since the thread frequency of one thread now depends on the program state of all other threads. 
 In order for multithreaded architectures to achieve predictable performance, \emph{temporal isolation} must exist in the hardware between the threads.
 Temporal isolation is the isolation of timing behaviors of a thread from other thread contexts in the architecture.
-For example, if a multithreaded architecture shares a branch predictor amongst all threads, and the branch table entries can be overwritten by branches from other threads in the pipeline, then each thread's branches can cause a branch mispredict for any other thread. 
-Also as mentioned above, dynamically scheduling and unscheduling threads also breaks temporal isolation amongst threads.
 With temporal isolation, the timing analysis is greatly simplified, as software running on individual threads can be analyzed separately without worry about the effects of integration. 
 If temporal isolation is broken, any timing analysis needs to model and explore all possible combinations of program state of all threads, which is typically infeasible.
 The round-robin thread scheduling of thread-interleaved pipelines is a way of achieving temporal isolation for a multithreaded architecture.
 Unlike coarse-grain dynamically switched multithreaded architectures, thread-interleaved pipelines can maintain the same round-robin thread schedule despite the execution context of each thread within the pipeline. 
 This is a step towards achieving temporal isolation amongst the threads, as the execution frequency of threads does not change dynamically.  
+However, dynamically scheduling and unscheduling threads based upon long-latency operations breaks temporal isolation amongst threads.
 Thus, our thread-interleaved pipeline does not mark threads inactive on long latency operations, but simply replays the instruction whenever the thread is fetched.  
 Although this slightly reduces the utilization of the thread-interleaved pipeline, but threads are decoupled and timing analysis can be done individually for each thread without interference from other threads.
-At the same time, we still preserve some of the benefits of latency hiding, as other threads are still executing during the long latency operation.
+At the same time, we still preserve most of the benefits of latency hiding, as other threads are still executing during the long latency operation.
 
-Thread-interleaved pipelines however still contain structural hazards, hazards that occur when hardware units are needed by two or more instructions at the same time.
-Although each pipeline stage is occupied by different hardware threads, two or more threads can simultaneously be issuing \emph{ld} instructions to the main memory.
-If the shared main memory can only handle one request at a time, then the second request must be queued waiting for the first requester to complete.
-This creates timing interference between the threads, because the memory access time of a memory request from a particular thread now depends on if the memory is currently being access by other threads, and how many threads are already queued up.
-We will discuss how our redesigned memory controller supports pipelining memory access in section~\ref{section:memory_system}, but the same hazard applies to any shared hardware unit such as floating point units etc.
-If the hardware unit can be pipelined and accept inputs every cycle, then no contention arises between the hardware threads, and no structural hazards occur.
-%FIXME: more explanation
-If pipelining cannot be achieved, then any timing analysis of that instruction must include a conservative estimation that accounts for thread access interference.
-A time division multiplex access (TDMA) schedule can be enforced to decouple the access time of threads to the shared hardware unit.
-%FIXME: Explain TDMA scheduling  
-  
+%TODO: exception handling
+\todo{talk about xmos handling exceptions and our handling of exceptions here}
+
+Shared hardware units within multithreaded architectures could also easily break temporal isolation amongst the threads. 
+Two main issues arise when a hardware unit is shared between the threads. 
+The first issue arises when shared hardware units share the same state between all threads. 
+If the state of hardware unit is shared and can be modified by any thread, then it is nearly impossible to get a consistent view of the hardware state from a single thread during timing analysis.
+Shared branch predictors and caches are prime examples of how a shared hardware state can cause timing inference between threads.
+If a multithreaded architecture shares a branch predictor for all threads, then the branch table entries can be overwritten by branches from any thread.
+This means that each thread's branches can cause a branch mispredict for any other thread. 
+Caches are especially troublesome when shared between threads in a multithreaded architecture. 
+Not only does it make the execution time analysis substantially more difficult, it also decreases overall performance for each thread due to cache thrashing, an event where threads continuously evict each other threads cache lines in the cache\todo{citation}.
+To achieve temporal isolation between the threads, the hardware units in the architecture must not share state between the threads. 
+Each thread must have its own consistent view of the hardware unit states, without the interference from other threads.
+For example, each thread in our thread-interleaved pipeline contains its own private copy of the registers and thread states.    
+We already showed why thread-interleaved pipelines do not need branch predictors because they remove control-hazards, and we will discuss a timing predictable memory hierarchy that uses scratchpads instead of caches in section~\ref{section:memory_system}.
+The sharing of hardware state between threads also increases security risks in multithreaded architectures. 
+Side-channel attacks on encryption algorithms\todo{cite} take advantage of the shared hardware states to disrupt and probe the execution time of threads running the encryption algorithm to crack the encryption key.
+We will discuss this in detail in section~\ref{sec:app_side_channel_attack} and show how a predictable architecture can prevent timing side-channel attacks for encryption algorithms.   
+
+The second issue that arises is that shared hardware units create structural hazards -- hazards that occur when a hardware unit needs to be used by two or more instructions at the same time.
+Structural hazards typically occur in thread-interleaved pipelines when the shared units take longer than one cycle to access. 
+The ALU, for example, is shared between the threads.
+But because it takes only one cycle to access, there is no contention even when instructions continuously access the ALU in subsequent cycles.
+On the other hand, a floating point hardware unit typically takes several cycles to complete its computation.
+If two or more threads issue a floating point instruction in subsequent cycles, then contention arises, and the the second request must be queued up until the first request completes its floating point computation.   
+This creates timing interference between the threads, because the execution time of a floating point instruction from a particular thread now depends on if other threads are also issuing floating point instructions simultaneously. 
+If the hardware unit can be pipelined to accept inputs every processor cycle, then we can remove the the contention caused by the hardware unit, since accesses no longer need to be queued up.
+The shared memory system in a thread-interleaved pipeline also creates structural-hazards in the pipeline.
+In section~\ref{section:memory_system} we will discuss and present our memory hierarchy along with a redesigned DRAM memory controller that supports pipelined memory accesses.
+%The assumption here is still that we have a single issue pipeline architecture.   
+If pipelining cannot be achieved, then any timing analysis of that instruction must include a conservative estimation that accounts for thread access interference and contention management.
+Several trade-offs need to be considered when deciding how to manage the thread contention to the hardware unit.
+
+A time division multiplex access (TDMA) schedule to the hardware unit can be enforced to decouple the access time of threads remove timing interference.
+A TDMA access scheme certainly creates an non-substantial overhead compared to conventional queuing schemes, especially if access to the hardware unit is rare and sparse.
+However, in a TDMA scheme, each threads wait time to access the shared resource depends on the time offset in regards to the TDMA schedule, and is decoupled from the accesses of other threads.
+Because of that, it is possible obtain a tighter worst case execution time analysis per thread.
+For a TDMA scheme, the worst case access time occurs when an access just missed its time slot and must wait a full cycle before accessing the hardware unit.
+For a conventional queuing scheme where each requester can only have one outstanding request, the worst case happens when every other requester has a request in queue, and the first request is just beginning to be serviced.   
+At first, the worst case execution time of a TDMA access may seem similar to the basic queuing scheme.
+
+
+%Discuss that statically in software we can introduce different mechanims to disrupt timing
 It is important to understand that it is not the thread scheduling that is non-predictable, but how thread switches are triggered.    
 It is still possible for a predictable architecture to support the scheduling of hardware threads, but it must be done statically in software, instead of dynamically in hardware. 
 If the hardware can provide a means of explicitly setting thread schedules in software, then it is possible to make the thread schedules transparent to any timing analysis.	 
 The software still needs to be carefully constructed, since it is still possible for the software to switch hardware thread schedules dynamically, complicating the timing analysis. 
 One could envision a program that contains different program states, each state executing a different number of threads. 
-As long as the state transitions are statically analyzable, the timing analysis complexity is not increased. 
+As long as the state transitions are statically analyzable, the timing analysis complexity is not increased.  
 
 %FIXME: Show a simple timing analysis of thread-interleaved pipelines and how easy it is, compare it to a timing analysis of single threads?
 %FIXME: Talk about the trade-offs of threaded interleaved pipelines to summarize 
 In summary, blah blah blah\ldots
 \section{Memory System}
 \label{section:memory_system}
-\subsection{Scratchpad}
-\subsection{DRAM memory controller}
+\input{chapters/mem_sys}
 
-
+\section{Programming Models}
+\label{chapter:programming_models}
+\input{chapters/prog_model}
