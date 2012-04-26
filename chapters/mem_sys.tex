@@ -341,8 +341,8 @@ We can thus push back any of these refreshes individually by up to $0.1\textit{m
 So in our frontend, the memory request is serviced first (which takes 13 cycles), then the refresh is issued in the next access slot. 
 In section~\ref{sec:ptarm_memory} when we detail the interaction between our thread-interleaved pipeline and the memory controller, we will show that the synchronization of the thread-interleaved pipeline to our controller backend allow us to completely hide memory refreshes in some unusable access slots lost in the synchronization.
 Thus, providing predictable access latencies for all load/store instructions to the DRAM through our DRAM controller.
-\todo{discuss DMA?}
 
+%\todo{discuss DMA?}
 %We will also discuss interactions with DMA units    
 %For loads sent from the pipeline, the pushed back refreshes become invisible:
 %as the pipeline is waiting for the data to be returned and takes some time to reach the memory stage of the next instruction, it is not able to use successive access slots of the backend, and thus it is unable to observe the refresh at all.
