@@ -10,7 +10,8 @@ To bridge the latency gap between the pipeline and memory, smaller memories are 
 The smaller memories give faster access latencies at the cost of lower capacity, while larger memories make up for that with larger capacity but slower access latencies. 
 The goal is to speed up program performance by placing commonly accessed values closer to the pipeline, while less access values are placed farther away.
 
-\subsection{Caches vs Scratchpads}
+\subsection{Memory Hierarchy}
+\subsubsection{Caches}
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace{-20pt}
   \begin{center}
@@ -69,6 +70,7 @@ If one core writes to a memory location that is cached in its private cache, the
 Various methods such as bus snooping\todo{cite} or implementing a directory protocol\todo{cite} have been proposed to keep the data consistent in all caches. 
 However, doing this scalably and efficiently is still a hot topic of research today\todo{cite all work on cache coherency}.
 
+\subsubsection{Scratchpads}
 We cannot argue against the need for a memory hierarchy, as there is an undeniable gap between processor and DRAM latency.
 However, instead of abstracting away the memory hierarchy from the programmer, we propose to expose the memory layout to the software.  
 \emph{Scratchpads} were initially proposed for their power saving benefits over caches\todo{cite}.
@@ -81,6 +83,7 @@ Unlike caches that overlay address space with main memory, scratchpads occupy a 
 Furthermore, the memory access time of each memory request is only depend on the memory address it is accessing. 
 This drastically improves the predictability of memory access times, and reduces the variability of execution time introduced with caches.  
 By using scratchpads, we explicitly expose the memory hierarchy to software, giving the programmer full control over the management of memory contents within the memory hierarchy.
+\todo{show figure of memory hierarchy with scratchpads}
 
 Two allocation schemes are commonly employed to manage the contents of scratchpads in software.
 Static allocation schemes allocate data on the scratchpad during compile time, and the contents allocated on the scratchpad does not change throughout program execution. 
@@ -105,106 +108,92 @@ Scratchpads on the other hand exposes the memory hierarchy to the programmer, al
 Although the allocation of scratchpads could be challenging, but it also provides opportunity for high efficiency, as it can be tailored to specific applications.   
 
 \subsection{DRAM Memory Controller}
-Main memory requests that access the DRAM present a different challenge to obtaining predictable access times.
-In this section we will present a DRAM memory controller designed to achieve predictable memory accesses. 
-The contributions from this section is research done jointly with the several co-authors from~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
-We do not claim sole credit for this work, and it is included in this thesis for completeness purposes. 
+Because of its high capacity, DRAMs are often employed in modern embedded systems to cope with the increasing code and data sizes.  
+However, bank conflicts and refreshes within the DRAM can cause memory accesses to stall, further increasing the memory latency. 
+Modern memory controllers are designed to optimize average-case performance by queueing and reordering memory requests to improve throughput of memory requests. 
+This results in unpredictable and varying access times and increased worst-case access time for each memory request.
+In this section we will present a DRAM memory controller that privatizes DRAM banks with scheduled memory refreshes to provide improved worst-case latency and predictable access time.    
+The contributions from this section is research done jointly with several co-authors from Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
+We do not claim sole credit for this work, and the summary is included in this thesis only for completeness purposes. 
 We will first give some basic background on DRAM memories, then present the predictable DRAM controller designed.
 
 \subsubsection{DRAM Basics}
 
-We present the basics of DRAM, and the structure of modern DRAM modules.
-Inherent properties of DRAM and the structure of DRAM modules impose several timing constraints, which all memory controllers must obey.
-For more details on different DRAM standards, we refer the reader to Jacob et al.~\cite{JaNgWa07}.
-
-%\mysubsection{DRAM Basics}
- 
-\paragraph{Dynamic RAM Cell} A DRAM cell consists of a capacitor and a transistor as shown in \ref{fig:dram_basics}.
- The charge of the capacitor determines the value of the bit, and by triggering the transistor, one can access the capacitor.
-However, the capacitor leaks charge over time, and thus, it must be refreshed periodically.
-%This is why it is called \emph{dynamic} RAM.
-According to the JEDEC~\cite{jedec} capacitors must be refreshed every 64 ms or less.
-%DRAM cells are part of DRAM arrays as illustrated in \reffig{dram_basics}.
-%This is in contrast to SRAM, which requires six transistors to represent a single bit.
-
-
-% Upon an access, the capacitor loses its charge, 
-% , which loses it
-
-\paragraph{DRAM Array}
-A DRAM array contains a two-dimensional array structure of DRAM cells.
-Accesses to a DRAM array proceed in two phases: row accesses followed by one or more column accesses.
-A row access moves one of the rows of the DRAM array into the row buffer.
-As the capacitance of the capacitors in the DRAM cells is low compared with that of the wires connecting them to the row buffer,
-sense amplifiers are needed to read out their values.
-%However, for the sense amplifiers to operate correctly, they must be precharged close to the threshold voltage. 
-In order for the sense amplifiers to read out the value of a DRAM cell, the wires need to be precharged close to the voltage threshold between 0 and 1.
-Once a row is in the row buffer, columns can be read from and written to quickly.
-Columns are small sets of consecutive bits within a row.
-
-%\todo{typical sizes of array: number of rows, number of columns per row, number of bits per column}
-%\todo{row refresh requirements based on array structure and 64 ms for each cell!?}
-
-%\todo{precharge plus row access takes much longer than a column access. row locality for low average latency}
-%\todo{more on precharge? auto-precharge, etc.?}
-
-\paragraph{DRAM Devices}
-DRAM arrays form banks in a DRAM device.
-Figure~\ref{fig:dram_basics} illustrates a bank's structure, and the location of banks within DRAM devices.
-Modern DRAM devices have multiple banks, control logic, and I/O mechanisms to read from and write to the data bus as shown in the center of \ref{fig:dram_basics}.
-Different banks within a device can be accessed concurrently.
-This is known as bank-level parallelism.
-However, the data, command, and address busses are shared among all banks, as is the I/O gating, connecting the banks to the data bus.
-
-A DRAM device receives commands from its memory controller through the command and  address busses.
-The following table lists the four most important commands and their function:
-%\begin{table}
-%\caption{Overview of DDR2 Commands.}\label{tab:ddr2-commands}
-\begin{center}
-\begin{tabular}{p{13mm}p{6mm}p{5.5cm}}
-Command 				& Abbr. & Description\\\hline
-Precharge    			& PRE   & Stores back the contents of the row buffer into the DRAM array, and prepares the sense amplifiers for the next row access.\\
-Row\hspace{13mm} access & RAS	& Moves a row from the DRAM array through the sense amplifiers into the row buffer.\\
-Column access 			& CAS   & Overwrites a column in the row buffer or reads a column from the row buffer.\\
-Refresh					& REF	& Refreshes several\footnotemark rows of the DRAM array. This uses the internal refresh counter to determine which rows to refresh.\\
-\end{tabular}
-\end{center}
-%\end{table}
-\footnotetext{The number of rows depends on the capacity of the device.}
-
-To read from or write to the DRAM device, the controller needs to first precharge (PRE) the bank containing the data that is to be read.
-It can then perform a row access (RAS = row access strobe), followed by one or more column accesses (CAS = column access strobe).
-Column accesses can be both reads and writes.
-For higher throughput, column accesses are performed in bursts.
-The length of these bursts is usually configurable to four or eight words.
-In a x16-device, columns consist of 16 bits. 
-A burst of length four will thus result in a transfer of 64 bits.
-To decrease the latency between accesses to different rows, column accesses can be immediately followed by precharge operations, which is known as auto-precharge (aka closed-page policy).
-
-There are two ways of refreshing DRAM cells within the 64 ms timing constraint:
-%As mentioned earlier, DRAM cells need to be refreshed periodically every 64 ms.
-%There are two ways of performing refreshes:
-\begin{enumerate}
-  \item Issue a refresh command.
-    This  refreshes all banks of the device simultaneously. The DRAM device maintains a refresh counter to step through all of the rows. To refresh every row and thus every DRAM cell every 64 ms, the memory controller has to issue at least 8192 refresh commands in every interval of 64 ms. Earlier devices had exactly 8192 rows per bank. However, recent higher-density devices have up to 65536 rows per bank. As a consequence, for such devices, a refresh command will refresh several rows in each bank, increasing refresh latency considerably.
-  \item Manually refresh rows. The memory controller performs a row access on every row in every bank every 64 ms. This forces the memory controller to issue more commands, and it requires a refresh counter outside of the memory device.
-Each refresh takes less time because it only accesses one row, but refreshes have to be issued more frequently.
-\end{enumerate} 
-
-\begin{figure*}[ht]
+\begin{figure}
 \begin{center}
 \includegraphics[width=\textwidth]{figs/dram-overview.pdf}
 \vspace{-13mm}
 \caption{A dual-ranked dual in-line memory module.}\label{fig:dram_basics}
 \vspace{-6mm}
 \end{center}
-\end{figure*} 
+\end{figure} 
 
-\begin{table*}
-\caption{Overview of DDR2-400 timing parameters at the example of the Qimonda HYS64T64020EM-2.5-B2.}\label{table:ddr2-constraints}
+Figure~\ref{fig:dram_basics} shows the structure of a dual ranked in-line DDRII DRAM module.
+Starting from the left, a basic \textbf{\emph{DRAM cell}} consists of a capacitor and a transistor. 
+The capacitor charge determines the value of the bit, which can be accessed by triggering the transistor. 
+Because the capacitor leaks charge, it must be refreshed periodically, typically every 64 ms or less~\cite{jedec}.
+A \textbf{\emph{DRAM array}} is made of a two-dimensional array of DRAM cells.
+Each access is made to the DRAM array goes through two phases: a row access followed by one or more column accesses.   
+During the row access, one of the rows in the DRAM array is moved into the row buffer.
+To read the value in the row buffer, the capacitance of the DRAM cells is compared to the wires connecting them with the row buffer.
+The wires need to be precharged closed to the voltage threshold so the sense amplifiers can detect the bit value.
+Columns can be read and written to quickly after the row is in the row buffer. 
+The \textbf{\emph{DRAM device}} consists of banks formed of DRAM arrays. 
+Modern DRAM devices have multiple banks, control logic, and I/O mechanisms to read from and write to the data bus as shown in the center of \ref{fig:dram_basics}.
+Banks can be accessed concurrently, but the data, command and address busses are shared within the device, which is what the memory controller uses to send commands to the DRAM device. 
+The following table\footnotemark lists the four most important commands and their function:
+\footnotetext{This table is as shown in ~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}
+%\begin{table}
 \begin{center}
-\small
-\begin{tabular}{p{0.8cm}p{2.0cm}p{13.28cm}}
+\begin{smalltabular}{p{13mm}p{6mm}p{10cm}}
+Command 				& Abbr. & Description\\\hline
+Precharge    			& PRE   & Stores back the contents of the row buffer into the DRAM array, and prepares the sense amplifiers for the next row access.\\
+Row\hspace{13mm} access & RAS	& Moves a row from the DRAM array through the sense amplifiers into the row buffer.\\
+Column access 			& CAS   & Overwrites a column in the row buffer or reads a column from the row buffer.\\
+Refresh					& REF	& Refreshes several\footnotemark rows of the DRAM array. This uses the internal refresh counter to determine which rows to refresh.\\
+\end{smalltabular}
+%\caption{Overview of DDR2 Commands~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}
+\label{tab:ddr2-commands}
+\end{center}
+%\end{table}
+\footnotetext{The number of rows depends on the capacity of the device.}
+
+To perform reads or writes, the controller first sends the PRE command to precharge the bank containing the data. 
+Then, a RAS is issued to select the row, and one or more CAS commands can be used to access the columns within the row. 
+Accessing columns from the same row does not require additional PRE and RAS commands, thus higher throughput can be achieved by performing column accesses in burst lengths of four to eight words.  
+Column accesses can immediately be followed by a PRE command to decrease latency when accessing different rows. 
+This is known as auto-precharge (or closed-page policy).
+Refreshing of the cells can be done in two ways.
+First, by issuing a refresh command, which refreshes all banks of the device simultaneously. 
+The refresh latency depends on the capacity of the device, but the DRAM device manages a counter to step through all the rows.
+The rows on the device could also be manually refreshed by performing row accesses to them.
+Thus, the memory controller could performance row accesses on every row within the 64 ms refresh period.
+This requires the memory controller to keep track of the refresh status of the device and issue more refresh commands, but each refresh takes less time because it is only a row access. 
+\textbf{\emph{DRAM modules}} are made of several DRAM devices integrated together for higher bandwidth and capacity. 
+A high-level view of the dual-ranked dual in-line memory module (DIMM) is shown in the right side of \ref{fig:dram_basics}.
+The DIMM has eight DRAM devices that are organized in two ranks, which share the address, command and data bus. 
+The two ranks share the address, command inputs, and the 64-bit data bus.
+The chip is used to determine which ranks is addressed.
+All devices within a rank are accessed simultaneously when the rank is addressed, and the results are combined to form the request response.  
+% Due to the sharing of I/O mechanisms within a device, consecutive accesses to the same rank are more constrained than consecutive accesses to different ranks, which only share the command and address as well as the data bus.
+% We later exploit this subtle difference by restricting consecutive accesses to different ranks to achieve more predictable access latencies.  
+% We explain this in more detail in \ref{sec:pret_dram_controller}. 
+Our controller makes use of a feature from the DDR2 standard known as posted-CAS.  
+Unlike DDR or other previous versions of DRAMs, DDR2 can delay the execution of CAS commands (posted-CAS) for a user-defined latency, known as the additive latency ($AL$). 
+Posted-CAS can be used to resolve command bus contention by sending the posted-CAS earlier than the corresponding CAS needs to be executed.
+
+Table~\ref{table:ddr2-constraints} gives an overview of timing parameters for a DDR2-400 memory module.
+These timing constraints come from the internal structure of DRAM modules and DRAM cells.
+For example, $t_{RCD}, t_{RP}$, and $t_{RFC}$ are from the structure of DRAM banks that are accessed through sense amplifiers that need to be precharged.
+$t_{CL}, t_{WR}, t_{WTR}$, and $t_{WL}$ result from the structure of DRAM banks and DRAM devices.
+The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks which would result in too high a current draw.
+The memory controller must conform to these timing constraints when sending commands to the DDR2 module.  
+%The additive latency, $t_{AL}$, can be set by the user and determines how many cycles after a posted-CAS a CAS is executed.
+Here we only gave a quick overview of DRAMs, we refer more interested readers to Jacob et al.~\cite{JaNgWa07} for more details.
+
+\begin{table}
+\begin{center}
+\begin{smalltabular}{p{0.8cm}p{2.0cm}p{11cm}}
 Para-meter	& Value (in cycles at 200 MHz)	& Description \\\hline
 $t_{RCD}$			& 3						& Row-to-Column delay: time from row activation to first read or write to a column within that row.\\
 $t_{CL}$			& 3						& Column latency: time between a column access command and the start of data being returned.\\
@@ -221,152 +210,106 @@ $t_{RFC}$			& 21					& Refresh cycle time: time interval between a refresh comma
 %$t_{RTP}$			&   			& Minimum time between a precharge command on a bank and a successive activate command.\\
 $t_{FAW}$			& 10					& Four-bank activation window: interval in which maximally four banks may be activated.\\
 $t_{AL}$			& set by user			& Additive latency: determines how long posted column accesses are delayed.
-\end{tabular}
+\end{smalltabular}
 \vspace{-7.5mm}
 %\todo{group constraints by their origin: constraints due to DRAM array structure, constraints due to sharing within DRAM device, constraints due to sharing of bus among ranks}
 \end{center}
-\end{table*}
+\caption{\small{Overview of DDR2-400 timing parameters of the Qimonda HYS64T64020EM-2.5-B2.~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}}\label{table:ddr2-constraints}
+\end{table}
 
-\vspace{-2.5mm}
-\paragraph{DRAM Modules}
-To achieve greater capacity and bandwidth, several DRAM devices are integrated on a memory module.
-The right side of \ref{fig:dram_basics} depicts a high-level view of the dual-ranked dual in-line memory module (DIMM) that the PRET DRAM controller uses. 
-The DIMM has eight DRAM devices that are organized in two ranks of four x16 DRAM devices each.
-The two ranks share the address and command inputs, and the 64-bit data bus.
-The chip select input determines which of the two ranks is addressed.
-DRAM devices within a rank operate in lockstep:
-they receive the same address and command inputs, and read from or write to the data bus at the same time.
-
-Logically, the four x16 DRAM devices that comprise a rank can be viewed as one x64 DRAM device.
-This is how we view them for the remainder of this paper.
-%When accessing a particular bank $i$, we actually index $i$ in both the ranks. 
-When referring to a bank $i$ in one of the two ranks, we are referring to bank $i$ in each of the four x16 DRAM devices that comprise that rank.
-A burst of length four results in a transfer of $4 \cdot 16 \cdot 4 = 256$ bits $= 32$ bytes.
-
-Due to the sharing of I/O mechanisms within a device, consecutive accesses to the same rank are more constrained than consecutive accesses to different ranks, which only share the command and address as well as the data bus.
-We later exploit this subtle difference by restricting consecutive accesses to different ranks to achieve more predictable access latencies.  
-%\HP{So, what?  We should say here why this is an important observation, and how we exploit it}
-Our controller makes use of a feature from the DDR2 standard known as posted-CAS.  
-Unlike DDR or other previous versions of DRAMs, DDR2 can delay the execution of CAS commands (posted-CAS). 
-After receiving a posted-CAS,
-DDR2 waits for a user-defined latency, known as the additive latency $AL$, until sending the CAS to the column decoder.
-Posted-CAS can be used to resolve command bus contention by sending the posted-CAS earlier than the corresponding CAS needs to be executed.
-We explain this in more detail in \ref{sec:pret_dram_controller}. 
-% \myparagraph{Special Features of DDR2}
-% 
-% \begin{itemize}
-%   \item posted-CAS, additive latency (we choose 2) (DDR2)
-%   \item closed-page policy (old even before FPM, i.e. not new)
-% \end{itemize}
-
-\vspace{-0.5mm}
-\paragraph{DDR2 Timing Constraints}
-
-The internal structure of DRAM modules described above as well as properties of DRAM cells incur a number of timing constraints, which DRAM controllers have to obey.
-\ref{table:ddr2-constraints} gives an overview of timing parameters for a DDR2-400 memory module and brief explanations.
-These parameters constrain the placement of commands to be send to a DDR2 module.
-Some of the constraints ($t_{RCD}, t_{RP}, t_{RFC}$) are solely due to the structure of DRAM banks, which are accessed through sense amplifiers that have to be precharged.
-Others result from the structure of DRAM banks and DRAM devices: $t_{CL}, t_{WR}, t_{WTR}, t_{WL}$.
-The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks which would result in too high a current draw.
-The additive latency, $t_{AL}$, can be set by the user and determines how many cycles after a posted-CAS a CAS is executed.
-
-\subsubsection{Predictable DRAM Controller Backend}
+\subsubsection{Predictable DRAM Controller}
 \label{sec:pret_dram_controller}
+We will split the discussion of the predictable DRAM controller into its backend and frontend. 
+The backend translates memory requests into DRAM commands that are sent to the DRAM module.
+The frontend manages the interface to the pipeline along with the responsibility of scheduling the refreshes.
+Here we specifically refer to a DDR2 667MHz/PC2-5300 memory module operating at 200Mhz, which has a total size of 512MB over two ranks with four banks on each rank.
+While our discussion of the design of this DRAM controller is specific to our DDR2 memory module, the key design features are applicable to other modern memory modules.
 
-The backend views the memory device as four independent resources: each resource consisting of two banks within the same rank.
-By issuing commands to the independent resources in a periodic and pipelined fashion, we exploit bank parallelism and remove interference amongst the resources. 
-%With this partitioned view of the memory, the backend issues commands to the resources that are periodic and pipelined.
-%This partitioning  of the memory allows for periodic and pipelined access to the memory by controlling the access order of the resources.  
-This is unlike conventional DRAM controllers that view the entire memory device as one resource.  
-Other partitions of the eight banks would be possible, as long as all of the banks that are part of a resource belong to the same rank of the memory module, and each of the two ranks contains two resources.  
+\paragraph{Backend}
+Conventional DRAM memory controllers view the entire memory device as one resource, and any memory requests can access the whole DRAM device. 
+Subsequent memory accesses can target the same bank within the DRAM, which results in the need for memory requests to be queued and serviced sequentially, without exploiting bank parallelism.
+Our controller views the memory devices as independent resource partitioned by banks. 
+Specifically, we partition our memory module into four resources, each consisting of two banks within the same rank. 
+The banks within each partition can be arbitrarily chosen, but all banks within a resource must belong to the same rank, and each of the ranks must contain at least two resources.
+This is to avert access patterns that would incur high latency from the sharing of resources within banks and ranks.
+The partitioning of the memory device allows us to fully exploit bank parallelism by accessing the resources in a periodic and pipelined fashion.
+The periodic access scheme to the four resources interleaves each memory access between the ranks.
+Subsequent accesses to the same rank go to different resources grouped from banks.  
+Figure~\ref{fig:backend} shows an example of the following access requests from the frontend: read from resource 0 in rank 0, write to resource 1 in rank 1, and read from resource 2 in rank 0. 
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=1.0\linewidth]{figs/backend}
+\includegraphics[width=0.92\linewidth]{figs/backend}
 \end{center} 
-\caption{The periodic and pipelined access scheme employed by the backend. In the example, we perform a read from resource 0 (in rank 0), a write to resource 1 (in rank 1), and a read from resource 2 (in rank 0).}\label{fig:backend}
+\caption{\small{The periodic and pipelined access scheme employed by the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}}\label{fig:backend}
 \end{figure}
 
-\ref{fig:backend} shows an example of the following access requests from the frontend: read from resource 0 in rank 0, write to resource 1 in rank 1, and read from resource 2 in rank 0. 
-The controller periodically provides access to the four resources every 13 cycles. 
-%Notice that consecutive requests address different ranks. 
-%This is necessary \HP{Fill in why it's important to separate consecutive accesses to different ranks}
-In doing so, we exploit bank parallelism for high bandwidth, yet, we avert access patterns that otherwise incur high latency due to the sharing of resources within banks and ranks.
-
-%In \reffig{backend} we show a sequence of periodically scheduled and pipelined requests to the four resources  such that the accesses alternate between the two ranks of the memory module.
-
-The backend translates each access request into a row access command (RAS), a posted column access command (posted-CAS) or a NOP. 
-We refer to a triple of RAS, CAS and NOP as an access slot.
-In order to meet row to column latency shown in \ref{table:ddr2-constraints}, the RAS command and the first CAS command need to be 3 cycles apart.
-However, we can see from \ref{fig:backend} that if we waited for 3 cycles before issuing the CAS to access the first resource, it would conflict with the RAS command for accessing the second resource on the command bus.
-Instead, we set the additive latency $t_{AL}$ to 2.
-This way, the posted-CAS results in a CAS two cycles later within the DRAM chip.
-This is shown in \ref{fig:backend} as the posted-CAS appears within its rank 2 cycles after the CAS was issued on the command bus, preserving the pipelined access scheme.  
-
-%\reffig{backend} shows that If we instead waited for the row to column latency before issuing the CAS command, the command bus would      
-%\hpstar{To satisfy the row to column latency, we set the additive latency $t_{AL}$ to 2, so the posted CAS would cause a CAS to be sent out two cycles later.}{You want to first say what Table 1 shows, and where the row-to-column latency requirement come from (table 1). Also, point to the figure to show where you describe this in the figure.  }
-%\hpstar{If we instead waited for that cycle to issue the CAS command from the command bus, it would conflict with the RAS in the next access slot.}{Clarify: what cycle? Isn't the diagram already showing a CAS when there is a RAS?  So, you want to say that because they are on different ranks, there is no conflict}
-
-
-The row access command moves a row into the row buffer.
-The column access command can be either a read or a write, causing a burst transfer of $8 \cdot 4 = 32$ bytes, which will occupy the data bus for two cycles (as two transfers occur in every cycle).
+Each access request is translated into a RAS (Row Access), posted-CAS (Column Access) and NOP command, which we call an access slot. 
+The NOP command in the access slot is inserted between any two consecutive requests to avoid a collision on the data bus that occurs when a read request follows and a write request.
+This collision is cause by the one cycle offset between the read and write latencies. 
+The RAS command moves a row into the row buffer, and the CAS command accesses the columns within the row loaded into the row buffer. 
+CAS commands can be either reads or writes, causing a burst transfer of $8 \cdot 4 = 32$ bytes that occupies the data bus for two cycles (as two transfers occur in every cycle).
+We send a posted-CAS instead of a normal CAS in order to meet the row to column latency shown in \ref{table:ddr2-constraints}.
+This latency specifies that the RAS command and the first CAS command need to be 3 cycles apart.  
+However, figure~\ref{fig:backend} shows that manually issuing a CAS command to the first resource 3 cycles after its RAS command would cause a command bus conflict with the RAS command for the second resource.
+Thus, we instead set the additive latency $t_{AL}$ to 2 and use the posted-CAS that offsets the CAS command to conform to the row to column latency.
+This allows our memory controller to preserve our pipelined access scheme while meeting the latency requirements of the DRAM.   
 We use a closed-page policy (also known as auto-precharge policy), which causes the accessed row to be immediately precharged after performing the column access (CAS), preparing it for the next row access.
 If there are no requests for a resource, the backend does not send any commands to the memory module, as is the case for resource 3 in \ref{fig:backend}.
 
-%The main distinguishing feature of our backend is that it partitions the memory into four independent resources.
-%Each of the four resources consists of two banks within the same rank. 
-%Other partitions of the eight banks \todo{say which module we are dealing with} would be possible, as long as all of the banks that are part of a resource belong to the same rank of the memory module, and each of the two ranks contains two resources. 
-
-%\myparagraph{Periodic Pipelined Access Scheme}
-%
-
-\hpstar{There is a one cycle offset between the read and write latencies.}{Refer to the figure and show which one cycle this is?}
-Given that requests may alternate between reads and writes, the controller inserts a NOP between any two consecutive requests. 
-This avoids a collision on the data bus between reads and writes. 
-%As the requests may arbitrarily alternate between reads and writes, we have to insert a NOP between any two requests to avoid a collision of read and write data on the bus.
-By alternating between ranks, no two adjacent accesses go to the same rank.
-This satisfies the write-to-read timing constraint $t_{WTR}$ incurred by the sharing of I/O gating within ranks.
-%Accesses to the same bank happen at most every $4 \cdot 3 = 12$ cycles.%, so $t_{RC}$ is met.
-In addition, we satisfy the four-bank activation window constraint because within any window of size $t_{FAW}$ we activate at most four banks due to the periodic access scheme. 
-
-With the closed-page policy, in case of a write, we need 13 cycles to access the row, perform a burst access, and precharge the bank to prepare for the next row access.
-This is the reason for adding a NOP after four access slots: to increase the distance between two access slots belonging to the same resource from 12 to 13 cycles.
-%\ i.e., we satisfy $t_{RCD}$, the row cycle time, which is composed of the $t_{RCD}, t_{WL}, t_{WR},$ and $t_{RP}$ constraints induced by the sharing of the sense amplifiers within a DRAM bank and the sharing of I/O gating within DRAM devices.
+Our memory design conforms to all the timing constraints listed in table~\ref{table:ddr2-constraints}.
+The write-to-read timing constraint $t_{WTR}$, incurred by the sharing of I/O gating within ranks, is satisfied by alternating accesses between ranks. 
+The four-bank activation window constraint is satisfied because within any window of size $t_{FAW}$ we activate at most four banks within the periodic access scheme. 
+Write requests with the closed-page policy requires 13 cycles to access the row, perform a burst access, and precharge the bank to prepare for the next row access.
+However, our periodic access scheme has a period of 12 cycles, as each access slot is 3 cycles, and there are four resources accessed. 
+Thus, a NOP is inserted after the four access slots: to increase the distance between two access slots belonging to the same resource from 12 to 13 cycles.
+As a result, the controller periodically provides access to the four resources every 13 cycles.
 The backend does not issue any refresh commands to the memory module.
 Instead, it relies on the frontend to refresh the DRAM cells using regular row accesses.
-%Under certain circumstances, it is possible  to schedule commands earlier than when they are issued in the scheme described above.
-%\hpstar{This can improve average-case performance of the memory controller, but it does not reduce the worst-case, which we are designing for.}{Does it worsen the worst case? If it doesn't change it then why not try to improve the average-case?}
 
+% \paragraph{Longer Bursts for Improved Bandwidth}
+% Depending on the application, bandwidth might be more important than latency.
+% Bandwidth can be improved by increasing the burst length from 4 to 8.
+% Extending the proposed access scheme to a burst length of 8 is straightforward with the insertion of two additional NOP commands after each request to account for the extra two cycles of data being transfered on the data bus.  
+% In this case, the access slot latency for each request is increased from three to five to include the extra two NOP commands, and data will be transferred in four out of five cycles rather than in two out of three.
+% Then, of course, latency of transfers of size less than or equal to 32 bytes increases, but the latency of large transfers decreases and higher bandwidth is achieved. 
 
-\paragraph{Longer Bursts for Improved Bandwidth}
-Depending on the application, bandwidth might be more important than latency.
-Bandwidth can be improved by increasing the burst length from 4 to 8.
-Extending the proposed access scheme to a burst length of 8 is straightforward with the insertion of two additional NOP commands after each request to account for the extra two cycles of data being transfered on the data bus.  
-In this case, the access slot latency for each request is increased from three to five to include the extra two NOP commands, and data will be transferred in four out of five cycles rather than in two out of three.
-Then, of course, latency of transfers of size less than or equal to 32 bytes increases, but the latency of large transfers decreases and higher bandwidth is achieved. 
+\begin{wrapfigure}{r}{0.5\textwidth}
+\begin{center}
+\includegraphics[width=1.1\linewidth]{figs/dram-backend-implementation}
+\end{center}
+\mycaption{\small{Sketch of implementation of the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}}\label{fig:dram-backend-implementation}
+\end{wrapfigure}
 
-% \begin{itemize}
-%   \item Expose not one but several resources (banks)
-%   \item periodic interleaved access exploiting bank parallelism
-%   \item How to port the backend to other DRAM modules.
-%   \item Talk about how we can increase the burst length from current 4 to 8 to get better results
-% \end{itemize}
+A high level block view of our backend implementation is shown in figure~\ref{fig:dram-backend-implementation}.
+Each resource has a single request buffer and a respond buffer.
+These buffers are used to interface with the frontend.   
+A request is made of an access type (read or write), a logical address, the data to be written for write requests. 
+Requests are serviced at the granularity of bursts, i.e. 32 bytes in case of burst length 4 and 64 bytes in case of burst length 8.
+A modulo-13 counter is used to implement the 13 cycle periodic access scheme in our controller.   
+The ``resource'' and ``command" blocks are combinational circuits that are used to select the correct request buffer and generate the DRAM commands to be sent out. 
+The ``memory map" block is where logical addresses are mapped to physical addresses that determine the rank, bank, row and column to access.
+The data for read requests are latched into the response buffers to be read by the frontend.  
 
-
-\subsubsection{DRAM Controller Frontend}
+\paragraph{Frontend}
+The frontend of our memory controller integrates with various architectures and manages the refresh of the DRAM device.
+The privatization of DRAM banks    
 
 %For us, the main application of the backend is within the PTARM PRET architecture~\cite{Liu10}.
+
+
 In this section, we discuss our integration of the backend within the PTARM PRET architecture~\cite{Liu10}.
 We also  discuss how the PRET DRAM controller could be integrated into other predictable architectures, such as those proposed by the MERASA~\cite{Ungerer10}, PREDATOR~\cite{Wilhelm09}, JOP~\cite{Schoeberl2008265}, or CoMPSoC~\cite{Hansson09} projects, which require predictable and composable memory performance.
 
-\subsubsection{Integration with the PTARM Architecture}
+% \subsubsection{Integration with the PTARM Architecture}
+% 
+% PTARM~\cite{Liu10}, a PRET machine~\cite{Edwards:2007:pret}, is a thread-interleaved implementation of the ARM instruction set.
+% Thread-interleaved processors preserve the benefit of a multi-threaded architecture -- increased throughput, but use a predictable fine-grained thread-scheduling policy -- round robin.
+% If there is the same number of hardware threads as there are pipeline stages, at any point in time, each stage of the pipeline is occupied by a different hardware thread; there are no dependencies between pipeline stages, and the execution time of each hardware thread is independent of all others. PTARM has four pipeline stages and four hardware threads.
+% Each hardware thread has access to an instruction scratchpad and a data scratchpad. 
+% The scratchpads provide single-cycle access latencies to the threads.
+% The two scratchpads are shared among the four threads, allowing for shared memory communication among the threads.
 
-PTARM~\cite{Liu10}, a PRET machine~\cite{Edwards:2007:pret}, is a thread-interleaved implementation of the ARM instruction set.
-Thread-interleaved processors preserve the benefit of a multi-threaded architecture -- increased throughput, but use a predictable fine-grained thread-scheduling policy -- round robin.
-If there is the same number of hardware threads as there are pipeline stages, at any point in time, each stage of the pipeline is occupied by a different hardware thread; there are no dependencies between pipeline stages, and the execution time of each hardware thread is independent of all others. PTARM has four pipeline stages and four hardware threads.
-Each hardware thread has access to an instruction scratchpad and a data scratchpad. 
-The scratchpads provide single-cycle access latencies to the threads.
-The two scratchpads are shared among the four threads, allowing for shared memory communication among the threads.
 However, due to the thread-interleaving, only one thread can access the scratchpad at any time.
 Each hardware thread is also equipped with a direct memory access (DMA) unit, which can perform bulk transfers between the two scratchpads and the DRAM.
 Both scratchpads are dual-ported, allowing a DMA unit to access the scratchpads in the same cycles as its corresponding hardware thread.
@@ -392,7 +335,7 @@ The purpose of the frontend is to route requests to the right request buffer in 
 \begin{center}
 \includegraphics[width=0.7\linewidth]{figs/pret-integration}
 \end{center}
-\caption{Integration of PTARM core with DMA units, PRET memory controller and dual-ranked DIMM.}\label{fig:pretintegration} % \todo{modify to show four independent resources in backend}
+\caption{Integration of PTARM core with DMA units, PRET memory controller and dual-ranked DIMM~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}\label{fig:pretintegration} % \todo{modify to show four independent resources in backend}
 \end{figure}
 
 %\HP{What is this next paragraph trying to discuss?  I'd rework this paragraph to say that we present an example read access and discuss the interaction of the pipeline and the controller}

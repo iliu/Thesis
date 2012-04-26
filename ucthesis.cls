@@ -824,7 +824,7 @@ Dissertation Committee Chair
 \def\@pnumwidth{1.55em}
 \def\@tocrmarg {2.55em}
 \def\@dotsep{4.5}
-\setcounter{tocdepth}{2}
+\setcounter{tocdepth}{3}
 
 
 % TABLEOFCONTENTS
