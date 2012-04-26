@@ -1,5 +1,25 @@
 \label{subsec:precision_timing_inst_ptarm}
 
+%mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
+%but do a brief summary on how it's done, cite wilhelm's group's research summary
+Worst-case execution time (WCET) analysis is a combined analysis of the control paths that the software might exhibit, and the time it takes to execute those paths on the underlying architecture. 
+A plethora of research has been done on the software analysis of control paths. 
+Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
+However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
+Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
+Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing a more precise WCET as software analysis progresses. 
+In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
+Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each instruction takes in terms of \emph{thread cycles}. 
+
+A \emph{Thread cycle} is the unit used to represent execution time on each thread.  
+Timing analysis can be done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.
+The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
+Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
+One \emph{Thread cycle} represents each time the thread enters in the pipeline, which is the thread's perceived notion of cycles.
+The execution frequency of each thread ($F_{thread}$) is $F_{thread} = F_{processor}/N$, so each \emph{thread cycle} is $1/F_{thread}$ long. 
+For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
+The length of the \emph{thread cycle} will not change because of the predictable thread-switching policy, making it a reliable unit of measurement for execution time.   
+
 \begin{table}
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | p{4cm} | c || p{9cm} | }
@@ -14,45 +34,63 @@
   Software Interrupt (SWI) & 1 & \multirow{4}{9cm}{ ${\dagger}$: a single store buffer is implemented, as described in section~\ref{sec:ptarm_dram_store_buffer}, so non-consecutive stores take only 1 thread cycle, while consecutive stores require the full dram latency of 3 or 4.}\\    \cline{1-2}
   get\_time  & 2 &  \\ \cline{1-2}
   delay\_until  & 1 $^{\sigma}$ & \\    \cline{1-2}
-  delay\_and\_set  & 2 $^{\sigma}$ &    \\   \cline{1-2}
-  branch\_expired & 1 &  \multirow{2}{9cm}{ ${\Delta}$: $N_{reg}$ is number of registers specified in the instruction. $L_{mem}$ is the latency of the memory region operated on.} \\  \cline{1-2}
-  deactive\_exception & 1 &  \\ \cline{1-2}
+  exception\_on\_expire  & 1  &    \\   \cline{1-2}
+  deactivate\_exception & 1 &  \multirow{2}{9cm}{ ${\Delta}$: $N_{reg}$ is number of registers specified in the instruction. $L_{mem}$ is the latency of the memory region operated on.} \\  \cline{1-2}
+  \multicolumn{2}{|c|}{} &  \\ \cline{1-2}
   \multicolumn{2}{|c|}{} &   \multirow{2}{9cm}{${\sigma}$: denotes the minimum execution time. Actual execution time depends on the system clock and the specified deadline.} \\ \cline{1-2}
   \multicolumn{2}{|c|}{} &\\ \hline
 \end{smalltabular}}
 \caption{Timing properties of PTARM instructions}
 \label{table:ptarm_instruction_timing}
 \end{table}
-%mention that a full scaled worst case execution time analysis is beyond the scope of this thesis.
-%but do a brief summary on how it's done, cite wilhelm's group's research summary
-Worst-case execution time (WCET) analysis is a combined analysis of the control paths that the software might exhibit, and the time it takes to execute those paths on the underlying architecture. 
-A plethora of research has been done on the software analysis of control paths. 
-Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
-However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
-Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
-Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing a more precise WCET as software analysis progresses. 
-In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
-Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each instruction takes in terms of \emph{thread cycles}. 
 
-A \emph{Thread cycle} is the units used to represent execution time on each thread.  
-Timing analysis can be done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.
-The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
-Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
-\emph{Thread cycle} denotes each time the thread is fetched into the pipeline, which is the thread's perceived notion of cycles.
-The execution frequency of each thread ($F_{thread}$) is $F_{thread} = F_{processor}/N$, so each \emph{thread cycle} is $1/F_{thread}$ long. 
-For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
+\subsection{Memory instructions}
+Data-processing instructions typically have straightforward execution times on most architectures.
+In our case, branch instructions also have very a predictable and straightforward execution, as the branch penalty is completely hidden within the thread interleaving.
+The memory instructions in our architecture however can have several different latencies depending on addressing mode or region of access, as listed in table~\ref{table:ptarm_instruction_timing}.
+For memory instructions that use pre or post-indexed addressing mode to update the base register, an additional cycle latency is needed to write back to the base register, as described in the instruction implementation in section~\ref{sec:ptarm_instruction_ldstr}.
+But the addressing mode of load/store instructions can be determined statically, as it is part of the instruction encoding, so it does not affect the complexity or precision of execution time analysis. 
 
-%MEMORY INSTRUCTIONS
-The implementation of instructions described in section~\ref{sec:ptarm_instructions} explain the latencies for each instruction.
-For memory instructions, our exposed memory hierarchy allows for simpler timing analysis, because the memory address determines the access latency.
-The address mode of memory instructions and register list of load/store multiple instructions can all be determined statically from the instruction encoding, so no dynamic behavior is introduced.
+For load instructions, the exposed memory hierarchy allows us to clearly label and identify access latencies to different memory regions.
+In execution time analysis, value analysis attempts to determine what memory addresses are accessed.     
+In systems that use caches and hide the memory hierarchy, additional modeling of the cache state is still needed after the value analysis determines the potential memory addresses that are accessed.
+However, with an exposed memory hierarchy with scratchpads, the precision of execution time analysis depends only on the value analysis. 
+As soon as the memory address is determined, we can give a associate a precise memory access latency.
+The worst-case DRAM latency of 4 thread cycles is derived from~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
+This allows not only for a simpler timing analysis, but also a more accurate analysis.
 
-%TIMING INSTRUCTIONS
-When using the timing instructions,  
-%discuss the granularity that each thread can obtain with the deadline instructions
-%mention that there is no way we can get absolute timing to the finest precision, everything implementation descretizes time 
+For store instructions, the single store buffer as described in section~\ref{sec:ptarm_dram_store_buffer} can possibly hide the latency of store instructions if no other memory access instruction comes after it. 
+Otherwise the store instruction will take the full memory access latency, depending on the memory access region of the store.
+Timing analysis tools can mostly account for the store buffer by statically checking a few instructions ahead of the store instruction to see if there are memory accessing instructions.
+The window of instructions that need to be checked is very narrow, so it should not really complicate the analysis.
+If this is not possible, then conservatively, the full memory access latency should be used for each store, depending on the access region.
 
-\subsection{Timed Loop example revisited}
+The execution time of load/store multiple instructions depend on the number of registers operated on, and the memory region it accesses. 
+Because the register list is statically encoded in the instruction, the number of registers operated on can easily be statically determined.
+Store multiple instructions do not benefit from the store buffer, so all accesses take the full memory access latency.
+For each register that is operated on, the latency will depend on which memory region it accesses. 
+The total execution time of the instruction will be the sum of the latencies for all register operations. 
+If pre or post-indexed addressing mode is used, an extra cycle is added to update the base register, just as regular load/store instructions. 
+
+\subsection{Timing instructions}
+The execution time of most timing instructions can be statically determined. 
+Their effect on the execution time of the program though could dynamically change however, depending on the deadlines used and the current platform time.
+The \gettime\ instruction takes 2 thread cycles every execution, as it simply obtains the current platform time.
+Although \exceptiononexpire\ and \deactivateexception\ can affect the execution time of the program by triggering timer expired exceptions, the execution of the instructions themselves only take 1 thread cycle.
+The single thread cycle merely sets up or deactivates the correct hardware mechanisms for checking the timer expired exceptions.  
+The execution time of \delayuntil\ will depend on the current platform time and its input deadline timestamp.
+This by design the semantics of \delayuntil. 
+At a minimum, \delayuntil\ will still take one thread cycle to execute, even if the current platform time has passed the input timestamp.
+
+In order to reason about the timing effects of the timing instructions, we must understand the implementation effects on the precision of the timing instructions.
+It is impossible for any hardware implementation to provide absolute precision of time, as we are limited by the precision of the digital synchronous circuits that discretize the notion of time. 
+In our timing extensions, we allow the users to manipulate a 64 bit nanosecond representation of time in software. 
+However, because of the thread-interleaved pipeline, our basic unit of time is limited to one thread cycle, which is 40 nanoseconds in our implementation.
+This has a subtle effect on the minimum precision that the timing instructions can support.
+   
+
+ 
+\subsubsection{Timed Loop example revisited}
 \begin{lstlisting}[float=h, label=lst:timed_loop_compensate,caption=Timed loops with compensation ]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, deadline timestamp stored in [c2, c3]
 loop:

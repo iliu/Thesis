@@ -365,6 +365,8 @@ Currently load/store halfword doubleword is not implemented in PTARM, as they fa
 These instructions can easily be implemented using the same principles described below without significant hardware additions.       
   
 \subsubsection{Load/Store Register}
+\label{sec:ptarm_instruction_ldstr}
+
 Load instructions load data from the memory and writes them into the registers.
 Store instructions store data from the registers into memory, thus store instructions utilize the extra register read port to read in the register value to be stored into memory.
 The address used to access memory is formed by combining a base register and an offset value.
