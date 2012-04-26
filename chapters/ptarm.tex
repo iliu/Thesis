@@ -368,10 +368,58 @@ So we envision an interrupt controller that allows each thread to register speci
 %FIXME: Compare to XMOS style handling of interrupts?
 
 \subsection{Timing Instructions}
+In section~\ref{sec:programming_models} we presented various instruction extensions to the ISA to bring timing semantics at the ISA level.
+We will now present a primitive implementation of those instructions in PTARM.  
+ARM provides extra instruction encoding slots to be used to implement instructions for co-processors attached to the core. 
+In our case, we implement our timing instructions as part of co-processor 13.
+We have already described the functionality and use case of the different timing instructions, table~\ref{table_deadline_insts} shows a summary of the instructions and their op codes.
+All instructions have the assembly syntax ``\textbf{\textit{cdp, p13, $<$opcode$>$ rd, rn, rm, 0}}'', with $<$opcode$>$ differentiating the instruction type.
+   
+\begin{table}
+\noindent\makebox[\textwidth]{%
+\begin{tabular}{ | l | l | p{6cm} | }
+  \hline                        
+  Type & Opcode &  Functionality \\ \hline
+  \textbf{\textit{get\_time}} & 8  & 
+offset = (crm $<<$ 32) + crn; \newline
+deadline = \textit{current\_time + offset}; \newline
+crd = low32(deadline); \newline
+crd+1 = high64(deadline); 
+  \\ \hline 
+  \textbf{\textit{delay\_until}} & 4 & 
+deadline = (crm $<<$ 32) + crn; \newline
+if ( \textit{current\_time} $<$ \textit{deadline} )  \newline
+\hspace*{5 pt} stall\_thread(); 
+ \\ \hline 
+  \textbf{\textit{exception\_on\_expired}} & 2 &
+offset = (crm $<<$ 32) + crn; \newline
+register\_exception(offset);  
+\\ \hline
+  \textbf{\textit{deactivate\_exception}} & 3 &
+deactivate\_exception();  
+\\ \hline
+\end{tabular}}
+\caption{List of assembly deadline instructions}
+\label{table_deadline_insts}
+\end{table}
 
+The timing instructions uses a master clock to obtain and compare deadlines.
+PTARM implements the clock in the \emph{timer} block that is shown in figure~\ref{fig:ptarm_pipeline_five_stage}.   
+Time is currently represented as an unsigned 64 bit value with nanoseconds as its units, and starts at zero when PTARM is reset. 
+Unsigned 64 bits of nanoseconds can represent time up to approximately 584 years.
+Each of the timing instructions operate on 64 bit values, which is stored in two 32 bit registers.
+Because the deadlines are stored in general purpose registers, standard arithmetic instructions can be used to manipulate the values. 
+However, PTARM does not current provide 64 bit arithmetic operations, so programmers must handle the overflow in software.
 
+For each thread, the timer value is latched into the pipeline at the decode stage, which is where each thread's reference to time is.
+PTARM contains 4 hardware threads that are interleaved through the pipeline, so each hardware thread can only access the timer once every 4 processor clock cycles, the granularity of time observed by each thread.
+Each thread operates on their own private deadlines, and are not affected by the timing instructions from other threads.
+	
 \subsubsection{Get\_Time}    
-get time blah blah
+The \emph{get\_time} instruction is used to obtain the current timer value and store it in two general purpose registers.
+The \emph{get\_time} instruction also takes two optional source operands to calculate an offset to the current timer value. 
+This is meant for the programmer to obtain the deadline time without additional arithmetic instructions in the program.
+Figure~\ref{fig:get_time_pipeline_implementation} shows how \emph{get\_time} is implemented in the PTARM pipeline. 
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -381,6 +429,8 @@ get time blah blah
   \caption{Get\_Time Instruction Execution in the PTARM Pipeline}
   \label{fig:get_time_pipeline_implementation}
 \end{figure}
+
+The timer value and source registers are read in at the decode stage  
 
 \subsubsection{Delay\_Until}    
 delay until blah blah
