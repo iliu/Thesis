@@ -37,8 +37,8 @@ By defining the timing instructions as part of the instruction set, we unify the
 This brings the \emph{control} of timing up to software, instead of it being a side effect of the underlying architecture implementation.  
 In this section, we will introduce the timing instructions added to the instruction set that allow us to experiment and investigate the effects and possibilities of extending ISA with timing properties.
 Formally defining the ISA extensions is part of an ongoing work for the PRET project.
-Here, we describe informally their semantics, and in section~\ref{sec:ptarm_instructions} we will present the initial implementation.
-Through illustrative examples we will also present their usage.
+Here, we describe informally their semantics and through illustrative examples we will also present their usage. 
+In section~\ref{sec:ptarm_instructions} we will present the implementation and timing details of these instructions.
 
 \subsection{Timing Instructions}
 Our extension of the ISA assumes a \emph{platform clock} that is synchronous with the execution of instructions.
@@ -183,12 +183,63 @@ Listing~\ref{lst:exception-sample} shows the sample assembly code of using \exce
 \end{lstlisting}
 
 In the code sample, line 1 to 3 is used to setup the timestamp that is passed into \exceptiononexpire.
+It uses \gettime\ and then adds an offset to the timestamp obtained. 
+Line 4 passes the timestamp to \exceptiononexpire, which stores it to be checked in hardware. 
+If the platform time were to exceed the the timestamp during execution of lines 6 and 7, which signifies a missed deadline, then a timer expired exception would trigger in hardware, and the control flow would jump to the exception handler. 
+Or else, the \deactivateexception\ instruction on line 9 would deactivate that timestamp, and the program would continue to execute.
 
 Currently only one timeout value is kept in hardware as part of the processor state.
+This means that at any moment in time, only one timestamp value can be stored and checked in hardware.
+Multiple deadlines can be managed in software, using data structures to keep an ordered list of deadlines to be checked. 
+Multiple timeout slots can be implemented and checked in hardware at the cost of hardware complexity.
 
-\subsection{Example Timing Constructs}
+\bigskip
+
+Similar to \delayandset\ and \delayuntil, the \exceptiononexpire\ and \deactivateexception\ merely create a mechanism to specify desired timing constraints. 
+None of the timing instructions enforce execution time behavior, they merely provide a method for users to monitor, detect, and interact with the timing variability in software.     
+This is in line with our original goal, to introduce timing semantics to the ISA without over-constraining the temporal properties of the ISA.
+These instructions do not limit the improvement of performance in the architecture for other instructions, as long as the timing properties of the timing instructions are faithfully implemented.  
+With the introduction of these timing instructions, programmers can reason and control temporal properties of the program with timing instructions, independently of the architecture. 
+At the same time, these instructions by themselves do not provide guarantees on the execution time of programs.
+An underlying architecture must still provide predictable execution times in order to for static analysis to guarantee a worst-case execution time.     
+
+\subsection{Sample use cases}
 \label{sec:timing_instruction_usage_notes}
-%explore the subtle jitter when updating based on timestamp or platform time
+In this section we show different use cases for the timing instructions introduced.  
+We demonstrate different timing behaviors that can be built with the timing instructions to show how the assembly level instructions can be used by higher level languages to synthesize different timing behaviors.
+
+\subsubsection{Controlling Different Timing Behaviors}
+First we will show various methods of constructing different timing behaviors from a code block.
+The code block could be task, a function, or any piece of code that could exhibit timing variability.    
+We assume there is a desired execution time for this code block. 
+The desired execution time could be from a specification of the application, or synthesized timing requirement from a higher level model.
+This desired execution time   
+
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.7]{figs/timing_behaviors.pdf}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Different Desired Timing Behaviors}
+  \label{fig:timing_behaviors}
+\end{figure}
+
+\subsubsection{Timed Loops}
+
+\begin{figure}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.7]{figs/timed_loop_differences.pdf}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Timing diagram of different timed loops}
+  \label{fig:timed_loop_differences}
+\end{figure}
+
+
+\subsubsection{Synchronization with external clocks}
+
 
 \begin{itemize}
   \item periodic loops v1 - exact loop iterations
@@ -199,25 +250,19 @@ Currently only one timeout value is kept in hardware as part of the processor st
   \item Synchronization with external clocks
 \end{itemize}
 
-\subsection{Four Desirable Capabilities of an ISA}
-We have identified the following four capabilities to control timing that would be desirable at the ISA level:
-\begin{itemize}
-  \item[C1] Execute a block of code taking at least a specified time~\cite{ip2006processor}.
-  \item[C2] Execute a block of code. Conditionally branch if the execution of the block exceeded a specified amount of time (the deadline).
-  \item[C3] Execute a block of code. If, \emph{during} the execution of the block, a specified amount of time is exceeded, branch immediately to an exception handler.
-  \item[C4] Execute a block of code in \emph{at most} a specified amount of time (the deadline).
-\end{itemize}
-Capabilities C1, C2, and C3 can be added to a given ISA relatively easily.
-They can be used to ensure that a block takes at least a certain amount of time, and to act upon deadline misses, either immediately, in case of C3, or after finishing the execution of a block of code (C2).
 
-Capability C4, on the other hand, is more challenging, but also more intriguing, as it requires to bound the execution times of blocks of code.
-% To realize C4, one needs to either introduce a timed semantics too all instructions of the ISA, or one needs to reach down to the microarchitectural level to prove a deadline is met on a particular application.
-% \todo{discuss this in more or less detail?}
-% How can we guarantee an upper bound on execution time?
-% There are two approaches:
-% \begin{enumerate}
-%   \item Provide bounds on the execution time of each instruction as part of the instruction's semantics in the ISA.
-%   \item Reach down to the microarchitectural level and prove the deadline is met for a particular implementation of the ISA.
-% \end{enumerate}
-% In both cases, ISA implementations 
+
+% \subsection{Four Desirable Capabilities of an ISA}
+% We have identified the following four capabilities to control timing that would be desirable at the ISA level:
+% \begin{itemize}
+%   \item[C1] Execute a block of code taking at least a specified time~\cite{ip2006processor}.
+%   \item[C2] Execute a block of code. Conditionally branch if the execution of the block exceeded a specified amount of time (the deadline).
+%   \item[C3] Execute a block of code. If, \emph{during} the execution of the block, a specified amount of time is exceeded, branch immediately to an exception handler.
+%   \item[C4] Execute a block of code in \emph{at most} a specified amount of time (the deadline).
+% \end{itemize}
+% Capabilities C1, C2, and C3 can be added to a given ISA relatively easily.
+% They can be used to ensure that a block takes at least a certain amount of time, and to act upon deadline misses, either immediately, in case of C3, or after finishing the execution of a block of code (C2).
+% 
+% Capability C4, on the other hand, is more challenging, but also more intriguing, as it requires to bound the execution times of blocks of code.
+% 
 
