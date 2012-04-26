@@ -1,5 +1,13 @@
-\section{Eliminating Side-Channel-Attacks}
+\section{Eliminating Timing Side-Channel-Attacks}
 \label{sec:app_side_channel_attack}
+
+It was mostly believed that these attacks were unfeasible, because the underlying architectural unpredictability introduced a fair amount of “noise” that shielded this variation. 
+However, several successful attempts have shown that it is very possible to conduct such attacks. 
+In fact, more attacks have been discovered due to the architectural unpredictability. 
+Thus, solutions such as random delay injection and blinding signatures have been proposed to inject additional noise to make the attack more difficult. 
+These, however, do not address the root cause of the vulnerability. 
+
+
 Encryption algorithms are based on strong mathematical properties to prevent attackers from deciphering the encrypted content. 
 %only timing attacks
 However, their implementations in software naturally introduce varying run times because of data-dependent control flow paths.
