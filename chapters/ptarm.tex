@@ -308,12 +308,12 @@ One operand is always a register value, the second operand is labeled the shifte
 The shifter operand could be an immediate value or a register value, both which can be shifted to form the final operand that is fed into the ALU.
 Figure~\ref{fig:data_processing_pipeline_implementation} explains how data-processing instructions are executed through the pipeline.
 
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/data_processing_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Data Processing Instruction Execution in the PTARM Pipeline}
   \label{fig:data_processing_pipeline_implementation}
 \end{figure}
@@ -338,12 +338,12 @@ Conditional branches are implemented using the ARM predicated instruction mechan
 So the condition used to determine if a conditional branch is taken is simply the condition code flags in the thread state. 
 Figure~\ref{fig:branch_pipeline_implementation} show how branch instructions are executed in the thread-interleaved pipeline.
 
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/branch_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Branch Instruction Execution in the PTARM Pipeline}
   \label{fig:branch_pipeline_implementation}
 \end{figure}
@@ -377,12 +377,12 @@ The offset value can be a 12 bit immediate supplied from the instruction, or a r
 The current load/store instructions can support word operations or byte operations.
 Figure~\ref{fig:ldstr_pipeline_implementation} shows how the load/store instruction is executed in the pipeline.
 
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/ldstr_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Load/Store Instruction Execution in the Ptarm Pipeline}
   \label{fig:ldstr_pipeline_implementation}
 \end{figure}
@@ -417,12 +417,12 @@ The 0th bit of the bit field representing R0 and the 15th bit representing R15.
 A base register supplies the base memory address that is loaded from or stored to, which then is sequentially incremented or decremented by 4 bytes for each register that is operated on. 
 Figure~\ref{fig:ldstrm_pipeline_implementation} shows how the load/store multiple instruction is executed in the pipeline. 
 
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/ldstrm_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Load/Store Multiple Instruction Execution in the PTARM Pipeline}
   \label{fig:ldstrm_pipeline_implementation}
 \end{figure}
@@ -452,12 +452,12 @@ In our five stage pipeline, we commit the next PC in the memory stage so the nex
 However, when the branch target address is loaded from memory, the address is not yet present in the memory stage to be committed, but only at the beginning of the writeback stage will it be present. 
 Thus, we introduce a forwarding path that forwards the PC straight from the writeback stage to the fetch stage. 
 Figure~\ref{fig:ld_to_pc_pipeline_implementation} shows how this is implemented in our pipeline.   
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/ld_to_pc_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Load to R15 Instruction Execution in the PTARM Pipeline}
   \label{fig:ld_to_pc_pipeline_implementation}
 \end{figure}
@@ -487,7 +487,7 @@ All instructions have the assembly syntax ``\textbf{\textit{cdp, p13, $<$opcode$
    
 \begin{table}
 \noindent\makebox[\textwidth]{%
-\begin{tabular}{ | l | l | p{6cm} | }
+\begin{smalltabular}{ | l | l | p{6cm} | }
   \hline                        
   Type & Opcode &  Functionality \\ \hline
   \textbf{\textit{get\_time}} & 8  & 
@@ -508,7 +508,7 @@ register\_exception(offset);
   \textbf{\textit{deactivate\_exception}} & 3 &
 deactivate\_exception();  
 \\ \hline
-\end{tabular}}
+\end{smalltabular}}
 \caption{List of assembly deadline instructions}
 \label{table_deadline_insts}
 \end{table}
@@ -532,12 +532,12 @@ The \emph{get\_time} instruction is used to obtain the current timer value and s
 The \emph{get\_time} instruction also takes two optional source operands to calculate an offset to the current timer value. 
 This allows the programmer to obtain the desired deadline time without additional arithmetic instructions.
 Figure~\ref{fig:get_time_pipeline_implementation} shows how \emph{get\_time} is implemented in the PTARM pipeline. 
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/get_time_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Get\_Time Instruction Execution in the PTARM Pipeline}
   \label{fig:get_time_pipeline_implementation}
 \end{figure}
@@ -559,12 +559,12 @@ The 2 source operands are usually the results of a \emph{get\_time} instruction.
 As described in section~\ref{sec:programming_models}, the \emph{delay\_until} instruction can be used to specify a lower bound execution time for a code block.
 This could be useful for synchronization between tasks or communicating with external devices.
 Figure~\ref{fig:delay_until_pipeline_implementation} shows the implementation of the \emph{delay\_until} instruction in the PTARM pipeline.       
-\begin{figure}
-  \vspace{-20pt}
+\begin{figure}[h]
+  \vspace{-15pt}
   \begin{center}
     \includegraphics[scale=.54]{figs/delay_until_pipeline_implementation}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{Delay\_Until Instruction Execution in the PTARM Pipeline}
   \label{fig:delay_until_pipeline_implementation}
 \end{figure}
@@ -608,7 +608,7 @@ However, this comes at the cost of additional hardware complexity in the timer, 
   \begin{center}
     \includegraphics[scale=.6]{figs/ptarm_vhdl_high_level}
   \end{center}
-  \vspace{-20pt}
+  \vspace{-3mm}
   \caption{PTARM Block Level View}
   \label{fig:ptarm_vhdl_high_level}
   \vspace{-10pt}

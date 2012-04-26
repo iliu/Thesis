@@ -11,16 +11,7 @@ Designed as a predictable architecture, the instructions of PTARM all exhibit de
 In section~\ref{sec:ptarm_instructions} we discussed the implementation of each instruction and explained the execution time of each instruction type.
 Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each instruction takes in terms of \emph{thread cycles}. 
 
-A \emph{Thread cycle} is the unit used to represent execution time on each thread.  
-Timing analysis can be done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.
-The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
-Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
-One \emph{Thread cycle} represents each time the thread enters in the pipeline, which is the thread's perceived notion of cycles.
-The execution frequency of each thread ($F_{thread}$) is $F_{thread} = F_{processor}/N$, so each \emph{thread cycle} is $1/F_{thread}$ long. 
-For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
-The length of the \emph{thread cycle} will not change because of the predictable thread-switching policy, making it a reliable unit of measurement for execution time.   
-
-\begin{table}
+\begin{table}[h]
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | p{4cm} | c || p{9cm} | }
   \hline                        
@@ -40,9 +31,19 @@ The length of the \emph{thread cycle} will not change because of the predictable
   \multicolumn{2}{|c|}{} &   \multirow{2}{9cm}{${\sigma}$: denotes the minimum execution time. Actual execution time depends on the system clock and the specified deadline.} \\ \cline{1-2}
   \multicolumn{2}{|c|}{} &\\ \hline
 \end{smalltabular}}
-\caption{Timing properties of PTARM instructions}
+\caption{Timing properties of PTARM instructions \todo{change this table}}
 \label{table:ptarm_instruction_timing}
 \end{table}
+
+A \emph{Thread cycle} is the unit used to represent execution time on each thread.  
+Timing analysis can be done separately for each hardware thread running on PTARM because the threads are temporally isolated; the execution time of each thread cannot be affected by other threads.
+The thread-interleaved pipeline switches thread contexts every processor cycle in a predictable round robin fashion. 
+Thus, each thread is fetched and executed in the pipeline every $N$ processor cycles, $N$ being the number of threads in the pipeline.
+One \emph{Thread cycle} represents each time the thread enters in the pipeline, which is the thread's perceived notion of cycles.
+The execution frequency of each thread ($F_{thread}$) is $F_{thread} = F_{processor}/N$, so each \emph{thread cycle} is $1/F_{thread}$ long. 
+For example, our PTARM core is clocked at 100$MHz$ ($F_{processor} = 100 * 10^6$) and has 4 threads ($N=4$) , so each thread cycle is $1/((100 * 10^6)/4) = 40 * 10^{-9}$ secs, or 40 nanoseconds long.
+The length of the \emph{thread cycle} will not change because of the predictable thread-switching policy, making it a reliable unit of measurement for execution time.   
+
 
 \subsection{Memory instructions}
 Data-processing instructions typically have straightforward execution times on most architectures.
@@ -153,13 +154,6 @@ loop:
 \end{lstlisting}
 
 \subsubsection{Obtaining the offset}
-\todo{state that we assume instruciton is compiled to instruction scratchpad}
-Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
-During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
-Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
-Without the offset compensation, the loop overhead will cause the miss detection to always detect a missed deadline.
-This can be observed from table~\ref{table:timed-loop-compensate-timing}, where we show a sample execution trace of four iterations in this timed loop.  
-Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of these four iterations, where a missed deadline in the second iteration will cause the third iteration to compensate by executing the shorter version of the task.
 
 \begin{table}
 \vspace{-5mm}
@@ -223,6 +217,16 @@ Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of thes
 \caption{Instruction execution trace of the self compensating timed loop\\ (TC = thread cycles)}
 \label{table:timed-loop-compensate-timing}
 \end{table}
+
+\todo{state that we assume instruction is compiled to instruction scratchpad}
+Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
+During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
+Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
+Without the offset compensation, the loop overhead will cause the miss detection to always detect a missed deadline.
+This can be observed from table~\ref{table:timed-loop-compensate-timing}, where we show a sample execution trace of four iterations in this timed loop.  
+Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of these four iterations, where a missed deadline in the second iteration will cause the third iteration to compensate by executing the shorter version of the task.
+
+
 
 In table~\ref{table:timed-loop-compensate-timing}, execution starts at time $t$.
 As mentioned before, each thread cycle is $40ns$, which is reflect in the left most column that shows the progression of time.
