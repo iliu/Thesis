@@ -53,11 +53,12 @@ The PC forward path forwards a loaded address from main memory for instructions 
 We will discuss the need for the forwarding path below when we describe the \emph{writeback stage}.
 A simple $log(n)$ bit upcounter is used to keep track of which thread current to fetch.
 
-The \emph{decode stage} contains the pipeline controller which does the full decoding of instructions and sets the correct pipeline signals to be propagated down the pipeline.
+The \emph{decode stage} contains the \emph{pipeline controller} which does the full decoding of instructions and sets the correct pipeline signals to be propagated down the pipeline.
 Most of ARM instructions are conditionally executed, so the pipeline controller first checks the condition bis to determine whether the instruction is to be executed or not.  
-Typically the controller needs to know the current instructions in the pipeline to detect the possibility of pipeline hazards and stall the current instruction.
+Typically the \emph{pipeline controller} needs to know the current instructions in the pipeline to detect the possibility of pipeline hazards and stall the current instruction.
 However,in a thread-interleaved pipeline, other instructions down the pipeline are from threads, thus the controller logic is greatly simplified. 
-It simply decodes the instruction to determine the correct signals to send to the data-path and multiplexers down the pipeline. 
+It simply decodes the instruction to determine the correct signals to send to the data-path and multiplexers down the pipeline.
+It does not need to know any information about instructions already in flight. 
 A small decoding logic, the \emph{register address decoder}, is inserted in parallel with the controller to decode the register addresses from the instruction bits.  
 Typical RISC instruction sets, such as MIPS, set the encoding of instruction bits so the register operands have a fixed location for all instruction types.
 However, in the ARM instruction set, certain instructions encode the register read address at different bit locations of the instruction.
@@ -114,7 +115,8 @@ The forwarding path does not cause any timing analysis difficulties because the 
 Also, this causes no stall in the pipeline, and does not effect the timing of any following instructions. 
 This allows us to interleave four threads in our five stage pipeline instead of five.    
 
-\section{Memory Hierarchy} 
+\section{Memory Hierarchy}
+\label{sec:ptarm_memory}
 The instruction memory is currently composed of an instruction scratchpad and a boot ROM. 
 The boot ROM \todo{mention bootROM size} is shared between all the threads and contains the initialization code for each thread. 
 It also contains the exception vector table that stores entries for handling different exceptions that occur in the pipeline, along with some of the exception handlers. 
@@ -123,6 +125,8 @@ Each of the threads contains its own private instruction region, and a shared re
 Both the boot ROM and instruction scratchpad are also synthesized to FPGA block RAMs, and both give single cycle access latencies.
 
 The data memory 
+
+Also talk about I/O bus connections and the protocol to determine if data is ready
 
 \section{Instruction Implementations}
 \label{sec:ptarm_instructions}
@@ -138,6 +142,7 @@ Most data-processing instructions take two operands.
 One operand is always a register value, the second operand is labeled the shifter operand. 
 The shifter operand could be an immediate value or a register value, both which can be shifted to form the final operand that is fed into the ALU.
 Figure~\ref{fig:data_processing_pipeline_implementation} explains how data-processing instructions are executed through the pipeline.
+
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -162,6 +167,12 @@ The instructions that update the flags do not write any data back to the registe
 
 All data-processing instructions only take one pass through the pipeline, even instructions that read from or write to R15, so all data-processing instructions take one thread cycle to execute. 
 \subsection{Branch}
+Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB.
+There is no explicit conditional branch instruction in ARM.
+Conditional branches are implemented using the ARM predicated instruction mechanism.
+So the condition used to determine if a conditional branch is taken is simply the condition code flags in the thread state. 
+Figure~\ref{fig:branch_pipeline_implementation} show how branch instructions are executed in the thread-interleaved pipeline.
+
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -171,11 +182,6 @@ All data-processing instructions only take one pass through the pipeline, even i
   \caption{Branch Instruction Execution in the PTARM Pipeline}
   \label{fig:branch_pipeline_implementation}
 \end{figure}
-Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB.
-There is no explicit conditional branch instruction in ARM.
-Conditional branches are implemented using the ARM predicated instruction mechanism.
-So the condition used to determine if a conditional branch is taken is simply the condition code flags in the thread state. 
-Figure~\ref{fig:branch_pipeline_implementation} show how branch instructions are executed in the thread-interleaved pipeline.
 
 The branch instructions for the ARM ISA calculate the branch target address by adding a 24 bit signed offset, specified in the instruction, to the current PC incremented by 8. 
 Thus, the PC adder, in addition to incrementing the PC by the conventional offset of 4, also increments the PC by 8, to be used as an operand for the ALU to calculate the target branch address.
@@ -188,9 +194,22 @@ The execution time of instructions from the same thread after the branch is not 
 The thread-interleaved pipeline simplified the implementation of the branch instruction and control hazard handling logic, as the pipeline will not need the results of the branch target address calculation the very next processor cycle.  
 Instead, instructions from other threads will be fetched before the results of the branch is needed.
 
-\subsection{Memory Operations}
+\subsection{Memory Instructions}
+There are two type of memory instructions implemented in PTARM from the ARM ISA: Load/Store Register and Load/Store Multiple.
+We discuss both type of memory instructions, and in particular, the interaction of the pipeline with the memory hierarchy presented earlier. 
+We also present a special case when the load instruction loads to R15, which loads a branch target address from memory and triggers a branch.  
+This slightly complicates our pipeline design, but we show that it does not affect the timing and execution of the instruction and subsequent instructions.
+Currently load/store halfword doubleword is not implemented in PTARM, as they fall under the miscellaneous instructions category. 
+These instructions can easily be implemented using the same principles described below without significant hardware additions.       
+  
+\subsubsection{Load/Store Register}
+Load instructions load data from the memory and writes them into the registers.
+Store instructions store data from the registers into memory, thus store instructions utilize the extra register read port to read in the register value to be stored into memory.
+The address used to access memory is formed by combining a base register and an offset value.
+The offset value can be a 12 bit immediate supplied from the instruction, or a register operand that can be shifted.
+The current load/store instructions can support word operations or byte operations.
+Figure~\ref{fig:ldstr_pipeline_implementation} shows how the load/store instruction is executed in the pipeline.
 
-\subsubsection{Load/Store Registers}
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -200,20 +219,36 @@ Instead, instructions from other threads will be fetched before the results of t
   \caption{Load/Store Instruction Execution in the Ptarm Pipeline}
   \label{fig:ldstr_pipeline_implementation}
 \end{figure}
-Very similar to data processing instructions, except the ALU results gets used for the memory access.
-Write about incrementing the base register 
 
-For load and store instructions, the memory access address is formed by combining a base register and an offset value. 
-ARM also specifies the ability to update the base register after any memory operation. 
+All load and store instructions in ARM have the ability to update the base register after any memory operation. 
 This compacts code that reads arrays, as a load or store instruction can access memory and updates the base register so the next memory access is done on the updated base register.
-ARM calls these pre-indexed and post-indexed addressing modes. 
+Different address modes differentiate how the base address register is updated. 
 Pre-indexed addressing mode calculates the memory address by first using the value of the base register and offset, then updating the base register. 
-Post-indexed addressing mode first updates the base register, then uses the updated base register value along with the offset to form the memory address. 
-The base register could be incremented or decremented when it is being updated.   
-Because there is only one write port to our register file however, we cannot simultaneously write back a load result from memory and the updated base register to the register file in a single cycle. 
-As a result,
+Post-indexed addressing mode first updates the base register, then uses the updated base register value along with the offset to form the memory address.
+Offset addressing mode simply calculates the address from the base register and offset, and does not update the base register. 
+The base register could be either incremented or decremented. 
+When pre and post-indexed addressing modes are used, memory operations require at least an additional thread cycle to complete.
+Because the register file only contains one write port, we cannot simultaneously write back a load result from memory and the updated base register to the register file. 
+Thus, we need to spend an extra pass through the pipeline to update the base register.
+
+When the memory address is accessing the scratchpad memory region, memory operations can be completed in a single cycle, and the data is ready by the next (\emph{writeback}) stage to be written back to the registers.
+However, if the memory read/write operation is accessing the memory region of the DRAM, the request must go through the DRAM memory controller to access the DRAM. 
+%FIXME: update DRAM access latency
+DRAM operations typically take three or four thread cycles to complete. 
+As discussed in chapter~\ref{chapter:pret}, our thread-interleaved pipeline implementation does not dynamically switch threads in and out of execution when they are stalled waiting for memory access to complete. 
+Thus, the when a memory instruction accesses the DRAM memory region, the same instruction is replayed by withholding the update for the next PC, until the data from DRAM arrives and is ready to be written back in the next stage.
+For memory instructions accessing I/O regions, the access latency depends on the I/O accessed and the connection of the bus.  
+As mentioned in section~\ref{sec:ptarm_memory}, the actual access time to I/O devices is device dependent, and a discussion of time-predictable buses is outside the scope of this thesis.
+In the hardware implementation, for memory instructions that access the DRAM or I/O region, it is possible to update the base register earlier during the cycles where the instruction is waiting for access to complete.
+However, the current PTARM implementation uses the same logic and datapath for all memory accesses (scratchpad, DRAM, I/O etc) to minimize hardware resources, so an additional cycle is used to update the base register for all memory accesses regardless of the address region they are accessing.
 
 \subsubsection{Load/Store Multiple}
+The load/store multiple instruction is used to load (store) a subset, or possibly all, of the general purpose registers from (to) memory.
+This instruction is often used to compact code that pushes or pops registers from the program stack.
+The list of registers that are used in this instruction is specified in the register list as a 16 bit field in the instruction.
+The 0th bit of the bit field representing R0 and the 15th bit representing R15.
+A base register supplies the base memory address that is loaded from or stored to, which then is sequentially incremented or decremented by 4 bytes for each register that is operated on. 
+Figure~\ref{fig:ldstrm_pipeline_implementation} shows how the load/store multiple instruction is executed in the pipeline. 
 
 \begin{figure}
   \vspace{-20pt}
@@ -225,8 +260,31 @@ As a result,
   \label{fig:ldstrm_pipeline_implementation}
 \end{figure}
 
+The load/store multiple instruction is inherently a multi-cycle instruction, because each thread cycle we can only write back one value to the register or store one value to memory. 
+Thus, the execution state and remaining register list of the load/store multiple instruction is stored in thread state.
+After the decoding the instruction, the remaining thread cycles load the register field from the thread state and clears it as registers are being operated on. 
+The instruction completes when all registers have been operated on.
+Each iteration the \emph{register address decoder} in the pipeline decodes the register list and determines the register being operated on.
+For load multiple, this indicates the destination register that is written back to.
+For store multiple, this indicates the register whose value will be stored to memory.
+The \emph{load/store multiple offset} block is used to obtain the current memory address offset depending on how far we are in the execution of this instruction.
+The offset is added to the base register to form the memory address fed into memory.
+
+The execution time of this instruction depends on the number of registers specified in the register list and the memory region that is being accessed. 
+For accesses to the scratchpad, each register load or store takes only a single cycle. 
+However, if memory accesses are to the DRAM region, then register load/store will take multiple cycles.
+It is also possible for the load/store multiple instruction to update the base register after all the register operations completes. 
+Similar to the load/store register instruction, an additional thread cycle will be used to update the base register.
+Although the execution time of this instruction seems to be dynamic depending on the number of registers specified in the register list, but the instruction binary will allow us to statically determine that number by parsing the bit field of the instruction.
+Thus, the execution time of this instruction can still be statically analyzed.   
+
 \subsubsection{Load to PC}    
-  
+When load/store operations load to the destination register R15, it triggers a branch in the pipeline.
+This also holds true for the load multiple instruction if the 15th bit is set in the register list.
+In our five stage pipeline, we commit the next PC in the memory stage so the next instruction fetch from the same thread can fetch the updated PC.
+However, when the branch target address is loaded from memory, the address is not yet present in the memory stage to be committed, but only at the beginning of the writeback stage will it be present. 
+Thus, we introduce a forwarding path that forwards the PC straight from the writeback stage to the fetch stage. 
+Figure~\ref{fig:ld_to_pc_pipeline_implementation} shows how this is implemented in our pipeline.   
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -236,12 +294,84 @@ As a result,
   \caption{Load to R15 Instruction Execution in the PTARM Pipeline}
   \label{fig:ld_to_pc_pipeline_implementation}
 \end{figure}
+
+An extra multiplexer is placed in the fetch stage before the instruction fetch to select the forward path.
+When a load to R15 is detected, it will signal the thread state to use the forwarded PC on the next instruction fetch, instead of the one stored in next PC.
+Because the data from memory will be ready at the beginning of the writeback stage, the correct branch target address will be selected and used.
+We discussed in section~\ref{sec:pipeline_hazards} the timing implications of data-forwarding logic in the pipeline.
+Those same principles are applied in this situation.
+Although it seems the selection of PC is dynamic, but when forwarding occurs is actually static; this PC forwarding only and always occurs when instructions load from memory to R15.
+This mechanism has no additional timing effects on any following instructions, as no stalls are needed to wait for the address to be ready. 
+Even if the load to R15 instruction is accessing the DRAM region, the timing of this instruction does not deviate from a load instruction destined for other registers.
+Although the target address will not be known until after the DRAM access completes, a load instruction that does not load to R15 also needs to wait until the DRAM access completes before the thread fetches the next instruction. 
+So this extra forwarding mechanism does not cause load to R15 instructions to deviate from other load timing behaviors.
+
+If the load to R15 instruction updates the base register, then the forwarding path is not used and not needed. 
+The extra cycle used to update the base register will allow us to propagate the results from memory to be committed in the memory stage.
+The timing behavior still conforms to a regular load to registers instruction. 
+
 \subsection{Exception Handling}
+When exceptions occur in a single threaded pipeline, the whole pipeline must be flushed because of the control flow shift in the program. 
+The existing instructions in the pipeline become invalid, and the pipeline overwrites the PC to jump to a specified exception handler. 
+The ARM ISA specifies seven types of exceptions, and an exception vector table that points the PC to specified handler addresses when those exceptions occur. 
+The exception vector table is stored in the BootROM in our implementation.
+Exceptions can be triggered by external or internal events that occur in the pipeline, such as an toggling an external interrupt signal or using a software interrupt instruction to trigger the exception programmatically.
+But no matter how the exceptions are generated, they must be handled predictably in the pipeline.
+ 
+In the context of a thread interleaved pipeline, all threads are temporally isolated. 
+Thus, an exception that occurs on one thread must not effect the execution of other threads in the pipeline.
+In our pipeline, any exceptions or interrupts that occur during execution are latched at each stage and propagated down the pipeline with the instruction. 
+An instruction flush signal is toggled to ensure that this instruction does not commit any state to memory or registers. 
+The exception type is checked at the memory stage in the PC write logic before the next PC is committed.  
+According to the exception type, the program state register bits are set, and the PC is redirected to the correct entry in the exception vector table. 
+The current PC is passed on to the writeback stage to store in the link register (R14).
+This provides a mechanism for the program return to the initial instruction where the exception occurs and re-execute it if desired, since the instruction did not complete its execution.
+If the exception is generated from after a memory access and detected in the writeback stage, the PC forwarding path is used to fetch the exception vector entry for data memory exceptions. 
+Note that it is up the each exception handler to save the register states and stack of the program.  
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/exception_handling_pipeline}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Handling Exceptions in PTARM}
+  \label{fig:exception_handling_pipeline}
+  \vspace{-10pt}
+\end{wrapfigure} 
+None of the instructions that are executing in the pipeline are flushed when an exception occurs in our pipeline. 
+As shown in figure~\ref{fig:exception_handling_pipeline}, the instructions that are executing in other pipeline stages all belong to other threads, so no flushing of the pipeline is required because no instruction was executed speculatively.
+This simplifies the timing analysis of exceptions in our pipeline, as the timing behavior of other threads in the pipeline are unaffected.
+For the thread which the exception occurs, the only overhead to handling the exception is that the current instruction does not complete its execution this thread cycle.  
+The next thread cycle the pipeline will be handling the exception already, resulting in no additional stalls for the thread.
+
+It is possible that an exception occurs during a memory access instruction that is waiting for the results from DRAM to complete. 
+In this case, because the memory request is also sent to the DRAM controller, and possible already being serviced by the DRAM, we cannot cancel the memory request abruptly.
+In the case that the interrupted instruction was a load, we can simply disregard the results of the load, but if the instruction was a store, we cannot cancel the store request that is writing data to the memory.
+So it is up to the programmer to disable interrupts before writing to critical memory locations that require a consistent program state.
+By interrupting an instruction that is waiting on memory access to complete, we also potentially complicate the interaction with our DRAM controller.
+The DRAM controller can only service one request from each thread at a time for predictable performance\todo{elaborate on this?}.
+This normally is not an issue because our pipeline does not reorder instructions or speculatively execute while there are outstanding memory requests, but the pipeline waits until the request is finished before continuing execution.
+However, if a memory instruction is interrupted, the pipeline flushes the current instruction and continues execution of the exception handler in the Boot ROM.
+If at this point, the exception handler contains a memory request instruction to the DRAM, a memory request would be issued to the DRAM controller that is still servicing the previous request prior to the exception from this thread.
+The current memory request in this case would need to wait until the previous ``canceled'' memory request to complete its service by the DRAM before it can begin being serviced.
+This creates timing variability to the load instructions because the execution time of load instructions would be different depending on whether an exception just occurred or not.
+Because this situation can only occur in the exception handler, because it contains the instructions executed right after an exception, so we leave it to the compiler to ensure that the first few instructions in the exception handler code does not access the DRAM memory region.
+In PTARM, the compiler simply needs to ensure that the first three instructions executed from an exception handler are not instructions that access the DRAM.
+
+Currently PTARM does not implement an external interrupt controller to handle external interrupts. 
+But when implementing such an interrupt controller, each thread should be able to register specific external interrupts that it handles.
+For example, we might have a hard real-time task that is executing on one thread, while another thread without timing constraints is executing on another thread waiting for an interrupt to signal the completion of a UART transfer.
+In this case the thread running the hard real-time task should not be effected even if it is in execution when the interrupt occurs.
+Only the specific thread handling the UART transfers should be interrupt by this interrupt.  
+So we envision an interrupt controller that allows each thread to register specific interrupts that it handles, without affecting other threads in the pipeline.  
+%FIXME: Compare to XMOS style handling of interrupts?
 
 \subsection{Timing Instructions}
 
-\subsubsection{Get\_Time}    
 
+\subsubsection{Get\_Time}    
+get time blah blah
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -253,7 +383,7 @@ As a result,
 \end{figure}
 
 \subsubsection{Delay\_Until}    
-
+delay until blah blah
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -265,6 +395,7 @@ As a result,
 \end{figure}
 
 \subsubsection{Exception\_on\_Expire, Deactivate\_Exception}    
+exception on expire blah blah
 
 \section{Worst Case Execution Time Analysis}
 \label{sec:wcet}
@@ -278,8 +409,4 @@ Talk about I/O devices, including UART, DVI controller and Interface with DDR2 D
 \label{sec:ptarm_sim}
 
 Talk about experimentation with DMA and memory hierarchy
-
-
-
-
 
