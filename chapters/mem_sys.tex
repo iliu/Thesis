@@ -214,7 +214,7 @@ $t_{AL}$			& set by user			& Additive latency: determines how long posted column
 \vspace{-7.5mm}
 %\todo{group constraints by their origin: constraints due to DRAM array structure, constraints due to sharing within DRAM device, constraints due to sharing of bus among ranks}
 \end{center}
-\caption{\small{Overview of DDR2-400 timing parameters of the Qimonda HYS64T64020EM-2.5-B2.~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}}\label{table:ddr2-constraints}
+\caption{Overview of DDR2-400 timing parameters of the Qimonda HYS64T64020EM-2.5-B2.~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}\label{table:ddr2-constraints}
 \end{table}
 
 \subsubsection{Predictable DRAM Controller}
@@ -241,7 +241,7 @@ Figure~\ref{fig:backend} shows an example of the following access requests: read
 \begin{center}
 \includegraphics[width=0.92\linewidth]{figs/backend}
 \end{center} 
-\caption{\small{The periodic and pipelined access scheme employed by the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}}\label{fig:backend}
+\caption{The periodic and pipelined access scheme employed by the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}\label{fig:backend}
 \end{figure}
 
 Each access request is translated into a RAS (Row Access), posted-CAS (Column Access) and NOP command, which we call an access slot. 
@@ -278,7 +278,7 @@ Instead, it relies on the frontend to refresh the DRAM cells using regular row a
 \begin{center}
 \includegraphics[width=1.1\linewidth]{figs/dram-backend-implementation}
 \end{center}
-\mycaption{\small{Sketch of implementation of the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}}\label{fig:dram-backend-implementation}
+\mycaption{Sketch of implementation of the backend~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.}\label{fig:dram-backend-implementation}
 \end{wrapfigure}
 
 A high level block view of our backend implementation is shown in figure~\ref{fig:dram-backend-implementation}.
