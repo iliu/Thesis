@@ -44,9 +44,7 @@ With $N-1$ threads interleaving through the $N$ stage pipeline, data hazards are
 However, control hazards are present if the PC is committed at the writeback stage, because the PC needed for the thread in the fetch stage has not been committed yet.
 In most cases, the next PC can be determined as early as the decode stage (data-processing and load/store instructions).
 For branch instructions, the address calculation is completed after the execute stage. 
-The only case 
-
-
+%continue discussion about four thread 5 stage pipeline
  
 Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
 The multiplexers within the pipeline have been omitted in the figure for a simplified view of the hardware components that make up the pipeline.
@@ -145,7 +143,6 @@ Post-indexed addressing mode first updates the base register, then uses the upda
 The base register could be incremented or decremented when it is being updated.   
 Because there is only one write port to our register file however, we cannot simultaneously write back a load result from memory and the updated base register to the register file in a single cycle. 
 As a result, 
-\subsection{Floating Point}
 
 \subsection{Timing Instructions}
 
