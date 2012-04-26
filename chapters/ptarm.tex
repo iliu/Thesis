@@ -311,6 +311,7 @@ The extra cycle used to update the base register will allow us to propagate the 
 The timing behavior still conforms to a regular load to registers instruction. 
 
 \subsection{Exception Handling}
+\label{subsec:exception_handling_in_ptarm}
 When exceptions occur in a single threaded pipeline, the whole pipeline must be flushed because of the control flow shift in the program. 
 The existing instructions in the pipeline become invalid, and the pipeline overwrites the PC to jump to a specified exception handler. 
 The ARM ISA specifies seven types of exceptions, and an exception vector table that points the PC to specified handler addresses when those exceptions occur. 
@@ -407,18 +408,20 @@ The timing instructions uses a master clock to obtain and compare deadlines.
 PTARM implements the clock in the \emph{timer} block that is shown in figure~\ref{fig:ptarm_pipeline_five_stage}.   
 Time is currently represented as an unsigned 64 bit value with nanoseconds as its units, and starts at zero when PTARM is reset. 
 Unsigned 64 bits of nanoseconds can represent time up to approximately 584 years.
+\todo{discuss timer implementation relative to different clock speeds. }
 Each of the timing instructions operate on 64 bit values, which is stored in two 32 bit registers.
 Because the deadlines are stored in general purpose registers, standard arithmetic instructions can be used to manipulate the values. 
 However, PTARM does not current provide 64 bit arithmetic operations, so programmers must handle the overflow in software.
 
 For each thread, the timer value is latched into the pipeline at the decode stage, which is where each thread's reference to time is.
-PTARM contains 4 hardware threads that are interleaved through the pipeline, so each hardware thread can only access the timer once every 4 processor clock cycles, the granularity of time observed by each thread.
 Each thread operates on their own private deadlines, and are not affected by the timing instructions from other threads.
+PTARM contains 4 hardware threads that are interleaved through the pipeline, so each hardware thread can only access the timer once every 4 processor clock cycles, the granularity of time observed by each thread.
+We will discuss the timing implications of this in section~\ref{subsec:precision_timing_inst_ptarm}, in this section we merely present how they  are implemented in the pipeline.
 	
 \subsubsection{Get\_Time}    
 The \emph{get\_time} instruction is used to obtain the current timer value and store it in two general purpose registers.
 The \emph{get\_time} instruction also takes two optional source operands to calculate an offset to the current timer value. 
-This is meant for the programmer to obtain the deadline time without additional arithmetic instructions in the program.
+This allows the programmer to obtain the desired deadline time without additional arithmetic instructions.
 Figure~\ref{fig:get_time_pipeline_implementation} shows how \emph{get\_time} is implemented in the PTARM pipeline. 
 \begin{figure}
   \vspace{-20pt}
@@ -430,10 +433,23 @@ Figure~\ref{fig:get_time_pipeline_implementation} shows how \emph{get\_time} is 
   \label{fig:get_time_pipeline_implementation}
 \end{figure}
 
-The timer value and source registers are read in at the decode stage  
+The timer value and source registers are read in at the decode stage. 
+The \emph{timer adder} adds the lower 32 bits of the timer value and source operand while the ALU computes the upper 32 bits taking into account the carry of the \emph{timer adder}.
+Once the new deadline has been calculated, it is loaded back into the register file. 
+Because our register file only contains one write port, so this instruction also takes two thread cycles to complete; each cycle writes back 32 bits of the new value. 
+The calculated 64 bit deadline value is written to the destination register rd and rd+1, with rd storing the lower 32 bits and rd+1 storing the higher 32 bits. 
+This instruction will not write to R15 (PC), and it will not cause a branch. 
+If R14 or R15 is specified as rd, causing a potential write to R15, then this instruction will simply act as a NOP.
+
+\todo{Talk about whether or not the time passed back adjusts for the latency of the instruction.}
 
 \subsubsection{Delay\_Until}    
-delay until blah blah
+\emph{Delay\_until} is used to delay the thread until the a specified deadline has been reached.
+It takes in 2 source operands which forms a 64 bit deadline value that is checked against the timer every thread cycle.
+The 2 source operands are usually the results of a \emph{get\_time} instruction.  
+As described in section~\ref{sec:programming_models}, the \emph{delay\_until} instruction can be used to specify a lower bound execution time for a code block.
+This could be useful for synchronization between tasks or communicating with external devices.
+Figure~\ref{fig:delay_until_pipeline_implementation} shows the implementation of the \emph{delay\_until} instruction in the PTARM pipeline.       
 \begin{figure}
   \vspace{-20pt}
   \begin{center}
@@ -444,16 +460,47 @@ delay until blah blah
   \label{fig:delay_until_pipeline_implementation}
 \end{figure}
 
+The implementation of the \emph{delay\_until} instruction is very straightforward, but highlights the reason the \emph{timer adder} is added into the pipeline.
+The source operands and the timer value is latched at the decode stage, then compared using the \emph{timer adder} and ALU. 
+The next PC is only updated if the timer value is greater than the deadline values passed in.  
+Without the additional \emph{timer adder} in the pipeline, comparing 64 bits using our 32 bit ALU would take two thread cycles. 
+This would decrease the precision of this instruction by a factor of two, because now we can only check the deadline against the timer every two thread cycles.
+The added \emph{timer adder} allows \emph{delay\_until} to check the deadline every thread cycle, to ensure that no additional threads cycles have elapsed right after the deadline is reached. 
+
 \subsubsection{Exception\_on\_Expire, Deactivate\_Exception}    
-exception on expire blah blah
+\emph{Exception\_on\_expire} and \emph{deactivate\_exception} provide a mechanism to actively check for missed code that runs longer than a specified deadline.  
+\emph{Exception\_on\_expire} is used to register a deadline for immediate miss detection. 
+\emph{Deactivate\_exception} is used to deactivate the active checking before the deadline expires.   
+Unlike the \emph{delay\_until} instruction, which checks the deadline when the instruction is decoded, the deadlines registered with \emph{exception\_on\_expire} are checked in hardware in the background. 
+A timer expired exception is triggered in the pipeline when a missed deadline is detected.
+In section~\ref{sec:programming_models} we have outlines examples of how the instructions are used.
+
+The actual execution of the \emph{exception\_on\_expire} and \emph{deactivate\_exception} instructions is straightforward.    
+Within the \emph{timer} unit, there is one 64 bit deadline slot for each thread to register an actively checked deadline.
+With four threads in PTARM, there are four slots in the \emph{timer} hardware. 
+Whenever an \emph{exception\_on\_expire} instruction is executed, two source operands are read in and stored to the thread's corresponding deadline slot in the \emph{timer}. 
+Every clock cycle of the timer, active deadlines are checked against the current timer value.
+Once the current timer value surpasses one of the active deadlines, a timer expired exception for the particular thread is raised in the pipeline.
+We add an entry to the existing ARM exception vector table to create this timer expired exception. 
+The exception is handled the same as any other exception, as discussed in section~\ref{subsec:exception_handling_in_ptarm}, and is only handled by the thread that registered the deadline. 
+The other threads in the pipeline remain temporally isolated from this exception.
+The execution of a \emph{deactivate\_exception} instruction simply clears the deadline slot for the specific thread.
+
+If threads need to simultaneously check for multiple deadlines, then the single deadline slot for the thread needs to be managed in software.
+The software overhead involves managing a list of deadlines and ensuring that the earliest deadline is always being checked in the timer. 
+It is possible to implement more than one deadline slot for each thread in the timer if more precise deadline checking is needed. 
+However, this comes at the cost of additional hardware complexity in the timer, so currently in PTARM we simply have one deadline slot per thread, and use software mechanisms to manage multiple deadlines in a thread. 
 
 \section{Worst Case Execution Time Analysis}
 \label{sec:wcet}
  
+\subsection{Precision of timing instructions}
+\label{subsec:precision_timing_inst_ptarm}
+
 \section{PTARM VHDL Soft Core}
 Our pipeline can be clocked up to $100MHz$ when synthesized to a Virtex-5 lx110t FPGA.
 
-Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller  
+Talk about I/O devices, including UART, DVI controller and Interface with DDR2 DRAM controller
 
 \section{PTARM Simulator}
 \label{sec:ptarm_sim}
