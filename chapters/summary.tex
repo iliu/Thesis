@@ -2,6 +2,16 @@
 
 This is my summary
 
+%temporally isolation can be relaxed, but must be controlled
+It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful. 
+But only by achieving predictability in the hardware architecture can we begin to reason about more dynamic behavior in software.
+For example, we discussed that dynamically scheduling threads in hardware causes timing interference. 
+However, it is not the switching of threads that is unpredictable, but how the thread switching is triggered that makes it predictable.   
+For example, the Giotto\todo{cite} programming model specifies a periodic software execution model that can contain multiple program states. 
+If such a programming model was implemented on a thread-interleaved pipeline, different program states might map different tasks to threads or have different number of threads executing within the pipeline.
+But by explicitly controller the thread switches in software, the execution time variances introduced is transparent at the software level, allowing potential for timing analysis.
+
+
 \section{Publications}
 
 \section{Future Work}

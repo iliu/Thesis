@@ -3,7 +3,7 @@ Specifically, we discuss the implementation of a predictable pipeline and memory
 It is important to understand why and how current architectures fall short of timing predictability and repeatability.
 Thus, we first discuss the common architectural designs and their effects on execution time, and point out some key issues and trade-offs when designing architectures for predictable and repeatable timing.
 
-\section{Pipelines}
+\section{Pipelines \todo{change time to cycles in figures and text}}
 The introduction of pipelining vastly improved the performance of processors.
 Pipelining increases the number of instructions that can be processed at one time by splitting up instruction execution into multiple steps.
 It allows for faster clock speeds, and improves instruction throughput compared to single cycle architectures.
@@ -425,58 +425,39 @@ We show in section~\ref{sec:app_side_channel_attack} how our predictable thread-
 
 \subsubsection{Deterministic Execution}
 The time-predictable thread-interleaved pipeline uses multithreading to improve instruction throughput, and maintains temporal isolation of threads to achieve deterministic execution.  
-To highlight the effect of these, we revisit the two examples presented earlier.
-The source code for both examples are shown in figure~\ref{fig:sample_code_for_pipeline_hazards}.
-For each example, we directly compare the execution sequence on both the single-threaded 5 stage RISC pipeline and our time-predictable thread interleaved pipeline.
-
-
-\begin{figure}[h]
-\begin{center}
-\noindent\makebox[\textwidth]{%
-\includegraphics[scale=.58]{figs/branch_execution_compare}}
-\end{center}
-\vspace{-3mm}
-\caption{Comparison of GCD execution}
-\label{fig:branch_execution_compare}
-\end{figure}
+To highlight these features, we show the isolated execution of threads within a thread-interleaved pipeline.
+We use the example shown earlier (in figure~\ref{fig:execution_thread_interleaved_pipeline}), where we execute the sample GCD (figure ~\ref{fig:sample_gcd_code}) and data-dependent (figure ~\ref{fig:sample_data_dependent_code}) code on a 5 thread 5 stage thread-interleaved pipeline.   
+Figure~\ref{fig:thread_isolated_execution} shows the execution of the first two threads in isolation. 
+Thread 0 executes GCD, and thread 1 executes the data-dependent code.
 
 \begin{figure}[h]
 \begin{center}
 \noindent\makebox[\textwidth]{%
-\includegraphics[scale=.6]{figs/data_hazard_execution_compare}}
+\includegraphics[scale=.58]{figs/thread_isolated_execution}}
 \end{center}
 \vspace{-3mm}
-\caption{Comparison of data dependent code execution}
-\label{fig:data_dazard_execution_compare}
+\caption{Isolated execution of threads with a thread-interleaved pipeline}
+\label{fig:thread_isolated_execution}
 \end{figure}
 
-\todo{highlight that the observable latency of long latency instructions are predictably reduced}
-For operations that have long latencies, such as memory operations or floating point operations, thread-interleaved pipelines hides the latency with its execution of other threads. 
-Thread 3 in figure~\ref{fig:execution_thread_interleaved_pipeline} shows the execution of a \emph{ld} instruction that takes the same 5 cycles as shown in figure~\ref{fig:data_depend_execution_non_interleaved}.
-We again assume that this \emph{ld} instruction accesses data from the main memory. 
-While the \emph{ld} instruction is waiting for memory access to complete, the thread-interleaved pipeline executes instructions from other threads.
+From the perspective of a thread, most instructions observe a 5 cycle latency, as shown in figure ~\ref{fig:thread_isolated_execution}. 
+The minimum observable latency for instructions depend on the number of threads in the pipeline. 
+This can also be understood as the latency for each thread between instruction fetches.
+In our time-predictable thread-interleaved pipeline, the static round robin thread schedule enables this latency to be constant.  
+We use the term \emph{thread cycle} to encapsulate this latency, and simplify the numbers for timing analysis. 
+In our example, the instructions shown in thread 0 each take 1 thread cycle.
 
-\begin{wrapfigure}{r}{0.5\textwidth}
-  \vspace{-20pt}
-  \begin{center}
-    \includegraphics[scale=.65]{figs/sample_code_for_pipeline_hazards}
-  \end{center}
-  \vspace{-3mm}
-  \caption{Code with pipeline hazards}
-  \label{fig:sample_code_for_pipeline_hazards}
-\end{wrapfigure}
+The \emph{ldr} instruction in thread 1 accesses main memory.
+From the thread-interleaving, the access latency to main memory is hidden the concurrent execution of other threads. 
+Thus, long latency instructions can appear to have a reduced latency in the isolated view of threads.
+In this example, the \emph{ldr} instruction observes only a 2 thread cycle latency, even though the actual memory access latency could have been up to 10 processor cycles. 
 
-
-%temporally isolation can be relaxed, but must be controlled
-It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful. 
-But only by achieving predictability in the hardware architecture can we begin to reason about more dynamic behavior in software.
-For example, we discussed that dynamically scheduling threads in hardware causes timing interference. 
-However, it is not the switching of threads that is unpredictable, but how the thread switching is triggered that makes it predictable.   
-For example, the Giotto\todo{cite} programming model specifies a periodic software execution model that can contain multiple program states. 
-If such a programming model was implemented on a thread-interleaved pipeline, different program states might map different tasks to threads or have different number of threads executing within the pipeline.
-But by explicitly controller the thread switches in software, the execution time variances introduced is transparent at the software level, allowing potential for timing analysis.
-
-
+Threads are temporally isolated in our thread-interleaved pipeline, so execution of each thread can be analyzed in isolation.
+From the isolated view of each thread, each instruction completes its execution before the next one is fetched, and no instruction is executed speculatively.
+Because instructions do not overlap in execution, instruction's execution time is not affected by prior instructions.
+Control hazards are eliminated because a branch or exception is resolved before the next instruction fetch. 
+The long latencies caused by structural or data hazards are hidden from the thread interleaving, improving the throughput of the pipeline.    
+We will describe in detail our implementation of the thread-interleaved pipeline in the beginning of chapter ~\ref{chapter:ptarm}.
 
 \section{Memory System}
 \label{section:memory_system}
