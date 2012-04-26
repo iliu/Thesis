@@ -6,11 +6,11 @@ set logscale y
 set grid
 set format y "10^{%L}"
 set xtics nomirror rotate by -45
-set lmargin 0
+set lmargin 2
 set tmargin 0
 set rmargin 0
-set bmargin 0
-set term postscript enhanced
+set bmargin 1
+set term postscript enhanced "Helvetica" 20
 set output "wcet_latency.ps"
 
 

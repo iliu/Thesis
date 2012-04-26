@@ -684,8 +684,11 @@ The instructions \exceptiononexpire\ and \deactivateexception\ can easily be mod
   
 The PTARM soft core is written in VHDL.
 It includes the pipeline, scratchpad memories, predictable memory controller and connects to several I/O devices on the FPGA.
-These include several LEDS, the UART, DVI controller and the DDRII DRAM.
+We synthesize PTARM on the Xilinx ML505~\cite{xilinx-ml505} evaluation board, which includes a Virtex 5 xcvlx110t FPGA~\cite{xilinx-v5-overview} and several I/O interfaces on the board. 
+PTARM connects to the on board LEDS, RS232 connector, DVI transmitter device and the DDRII DRAM.
 All I/O devices are connected through the I/O bus, while the DDRII DRAM is connected directly to the DRAM controller.
+We also include the Xilinx Integrated Logic Analyzer (ILA) to be used for debugging the pipeline and memory controller.
+All VHDL source code, software code samples, and instruction manual can be downloaded from http://chess.eecs.berkeley.edu/pret.    
 Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the PTARM soft core.
 
 \begin{wrapfigure}{r}{0.5\textwidth}
@@ -699,73 +702,152 @@ Figure~\ref{fig:ptarm_vhdl_high_level} shows the high level block diagram of the
   \vspace{-10pt}
 \end{wrapfigure} 
 
+PTARM communicates with the current I/O devices through memory mapped control registers.
+Each control register can be accessed within a single cycle, so no contention arises on the I/O bus.  
 The LEDs are memory mapped and can be toggled by setting and clearing bits.
-PTARM communicates to the UART through the UART gateway, which queues read and write requests from the core and relays it to the UART.
-The default buffer size on the UART gateway is one.
+PTARM interfaces to the UART through the UART gateway, which queues read and write requests from the core and relays it to the UART.
 The UART gateway status registers are mapped to memory I/O locations so programs can poll them to determine that status of the UART.  
 Currently all read and write operations to the UART is done through blocking procedure calls. 
-The UART runs at a baud rate of 115200 and can send and receive bytes.
+The UART runs at a baud rate of 115200, and sends and receives bytes.
 
-The DVI controller is used to control the DVI input port on the FPGA, so a monitor can be connected.
-%\todo{look at documentation of the DVI controller, what mode we're using it.}
-We implemented a DVI controller application similar to the one presented in~\cite{ip2006processor}, where a vga controller is managed purely in software through the deadline instructions presented in the paper.
+The DVI controller interfaces with the Chrontel CH7301C DVI transmitter device~\cite{chrontel-dvi} on the evaluation board. 
+We initialize the DVI transmitter to rgb bypass mode to manually supply the sync signals to the DVI output.   
+We a software DVI controller similar to the one presented in~\cite{ip2006processor} has been implemented, where the vga sync signals are managed in software through the deadline instructions presented in the paper.
 Here, we use the timing constructs presented in section~\ref{sec:programming_models} to control the sending out of vertical and horizontal sync signals in software.
-As one hardware thread manages the sync signals, other hardware threads in our core can be used to calculate and draw to the screen buffer.  
+As one hardware thread manages the sync signals, other hardware threads in our core are used to render pixels and draw to the screen buffer.  
 Because hardware threads are temporally isolated, the timing of hardware sync signals are not affected by the operations on other hardware threads.  
 
-We synthesized the core on a Virtex-5 lx110t FPGA to obtain the maximum clock frequency and resource usage. 
-\todo{show area and clock speed on FPGA}  
-We current clock PTARM at $100MHz$ and the memory controller at $200MHz$. 
-All VHDL source code, software code samples, and instruction manual can be downloaded from http://chess.eecs.berkeley.edu/pret.   
+%We synthesized the core on a Virtex-5 lx110t FPGA to obtain the maximum clock frequency and resource usage.
+We target a $100MHz$ clock rate for the PTARM pipeline and a $200MHz$ clock rate for memory controller to interface with the DDR2 DRAM.
+We compare the resource consumption to the Xlinx MicroBlaze~\cite{xilinx-microblaze} soft processor platform generated from the Xilinx Embedded Development Kit (EDK)~\cite{xilinx-edk}.
+We also target the MicroBlaze at a $100Mhz$ clock rate, and choose to optimize the area over performance.
+We configure the MicroBlaze platform to include a DDR2 DRAM controller, a UART controller and a generated LED controller. 
+The MicroBlaze also includes a local memory block (LMB) and instruction and data caches. 
+For fair comparison, we configure the caches and local memory block to have similar sizes to the scratchpads and boot memory on PTARM.       
 
+We use the Virtex5 xcvlx110t FPGA to implement both PTARM and MicroBlaze.
+Each Virtex5 xcvlx110t logic slice contains four 6-input look up tables (LUT6s), four flip flops (FFs), muxes, and carry chains.
+The FPGA also includes block RAMs (BRAMS), which are dedicated memory blocks, and DSP slices, which are special logic slices for DSP or other computational functions.
+The BRAMs are used to implement the scratchpads and register file for PTARM. 
+The physically duplicate copies of the register file for each hardware thread warrants the use of BRAMs to save on logic slices.
+We use the DSP slices to implement the most of the timer increment and comparison functions.
+
+\begin{table}[h]
+\vspace{-5pt}
+\noindent\makebox[\textwidth]{%
+\begin{smalltabular}{ lc|c|c|c||c|c||c|c|c||c }
+\cline{2-10} 
+ & \multicolumn{9}{||c||}{\textbf{PTARM}} & \\
+\cline{2-10} 
+ & \multicolumn{4}{||c||}{\textbf{Pipeline}}  & \multicolumn{2}{c||}{\textbf{DRAM Interface}} & \multicolumn{3}{c||}{\textbf{Peripherals}} & \\ 
+\cline{2-11} 
+ & \multicolumn{1}{||c|}{Shifter} & Timer & ALU & \textbf{Total} & Controller & \textbf{Total} & UART & DVI & ILA & \multicolumn{1}{|c|}{\textbf{Total}} \\ \hline \hline
+\multicolumn{1}{|c}{Slices} & \multicolumn{1}{||c|}{133} & 30 & 138 & 960 & 255 & 1284 & 65 & 42 & 586 & \multicolumn{1}{|c|}{3055}  \\\hline
+\multicolumn{1}{|c}{DSP Slices} &  \multicolumn{1}{||c|}{0} & 4 & 1 & 6 & 0 & 0 & 0 & 0 & 0 & \multicolumn{1}{|c|}{6}  \\ \hline \hline
+ & \multicolumn{1}{||c|}{SPMs} & Boot & Registers & \textbf{Total} & Controller & \textbf{Total} &  UART & DVI & ILA & \multicolumn{1}{c|}{\textbf{Total}}\\  \hline \hline
+\multicolumn{1}{|c}{BRAMs} &  \multicolumn{1}{||c|}{6} & 1 & 3 & 10 & 0 & 2 & 0 & 0 & 9 & \multicolumn{1}{c|}{21}\\\hline \\
+
+\cline{2-10} 
+ & \multicolumn{9}{||c||}{\textbf{Microblaze}} & \\
+\cline{2-10} 
+ & \multicolumn{4}{||c||}{\textbf{Pipeline}}  & \multicolumn{2}{c||}{\textbf{DRAM Interface}} & \multicolumn{3}{c||}{\textbf{Peripherals}} & \\ 
+\cline{2-11} 
+ & \multicolumn{1}{||c|}{Shifter} & Timer & ALU & \textbf{Total} & - & \textbf{Total} & UART & LEDs & - & \multicolumn{1}{|c|}{\textbf{Total}} \\ \hline \hline
+\multicolumn{1}{|c}{Slices} & \multicolumn{1}{||c|}{46} & - & 34 & 1207 & - & 1686 & 98 & 135 & - & \multicolumn{1}{|c|}{3377}  \\\hline
+\multicolumn{1}{|c}{DSP Slices} &  \multicolumn{1}{||c|}{-} & - & - & 3 & - & 0 & 0 & - & - & \multicolumn{1}{|c|}{3}  \\ \hline \hline
+ & \multicolumn{1}{||c|}{Caches} & Local & Registers & \textbf{Total} & - & \textbf{Total} &  UART & LEDs & - & \multicolumn{1}{c|}{\textbf{Total}}\\  \hline \hline
+\multicolumn{1}{|c}{BRAMs} &  \multicolumn{1}{||c|}{6} & 1 & - & 7 & - & 13 & 0 & 0 & - & \multicolumn{1}{c|}{20}\\\hline
+\end{smalltabular}}
+\vspace{1mm}
+\caption{PTARM and Microblaze Resource Usage on the Xilinx Virtex5 ML505 Evaluation Board}
+\label{table:ptarm_syn_results}
+\end{table}
+
+Table~\ref{table:ptarm_syn_results} shows that the resource consumption of PTARM is similar to the area optimized MicroBlaze. 
+PTARM uses slightly less logic slices for the pipeline , as the data and control hazard logic is stripped out, and the cost of the extra copies of the register file is absorbed by the BRAM implementation of the register file.    
+The timer added to extend the ISA with timing semantics uses mostly DSP slices to implement the platform clock and comparator for timing exceptions. 
+The BRAMs used for scratchpads vs caches were the same because we configured the sizes to be similar, but the scratchpads also saved on the logic slices used to implement the hardware replacement policies of caches.
+Thus, even though the MicroBlaze implements a more optimized ALU and shifter compared to PTARM, the PTARM pipeline still observes less resource usage.
+The critical path of our pipeline was at the execute stage, which included a serial connection of the 32 bit barrel shifter and the ALU.
+To further improve the clock frequency, we can split up this stage into 2 stages, one for the shifter and one for the ALU, at the cost of one additional hardware thread. 
+We show this in chapter~\ref{chapter:app} for an engine fuel rail simulation application, which we clock a six thread six stage thread-interleaved pipeline at $150MHz$.
+
+The PTARM DRAM Interface is implemented based on the Xilinx core generated~\cite{xilinx_coregen} DRAM Interface, which is what is used in the MicroBlaze architecture. 
+We replaced the queuing and reordering logic in the generated DRAM controller with our own front and back end implementation of bank privatization. 
+The slice consumption is shown in the table labeled ``controller'' under the DRAM interface, which show less total logic slice and BRAM usage for our predictable DRAM interface.  
+
+Although these results may vary slightly depending on the synthesis toolchains, settings and versions used, it gives us a general estimate of the resource consumed by our predictable architecture. 
+The resource comparisons confirm our conjecture that a predictable thread-interleaved pipeline, scratchpads and memory controller can lead to reduced resources compared to conventional architectures that use hardware techniques to optimize average case performance. 	 
+  
 \subsection{PTARM Simulator}
 \label{sec:ptarm_sim}
-Along with the VHDL soft core, we also developed a C++ cycle accurate software simulator of our architecture.
-The simulator is meant for architectural exploration, and provides better debugging for software written for PTARM.  
-The C++ simulator models the pipeline and memory hierarchy, including the predictable DRAM controller.  
+Along with the VHDL soft core, we also provide a cycle accurate simulator of our architecture written in C++, which can also be downloaded from http://chess.eecs.berkeley.edu/pret. 
+The simulator faithfully models the five stage thread-interleaved pipeline and its interaction with the memory hierarchy, including scratchpads and the predictable DRAM controller.
+The simulator is mainly used for software experimentation and architecture exploration.    
+The DMA units described in section~\ref{sec:ptarm_dram_integration} are currently implemented only in the simulator, as we are still exploring the architectural design to make DMA transfers from scratchpad to the DRAM predictable. 
+The timing instruction are also implemented in the simulator to allow for software experimentation of the ISA with timing semantics, and cycle-accurate view of the results.
 
-The simulator provides a framework that allows us to do more architectural exploration and observe the behavior.
-For example, the DMA units for each thread mentioned in section~\ref{sec:ptarm_dram_integration} that provide threads with the ability to transfer contents from the DRAM to the scratchpads in the background is currently only implemented on the simulator. 
-The simulator allows us to quickly test out different software behaviors and verify our assumptions. 
+To evaluate the performance of our architecture, we used the Malardalen WCET benchmarks~\cite{Gustafsson:WCET2010:Benchmarks} and compare our simulator against the SimIT-ARM~\cite{Qin:2003:FFM:789083.1022785} cycle-accurate simulator.
+The SimIT-ARM simulator simulates a StrongARM 1100~\cite{intel-sa-1100}, which contains a five stage pipeline, branch delay slots without branch prediction, and 16kb instruction cache with 8kb data cache.
+We configured our PTARM simulator to use similar sizes for the instruction and data scratchpad.
+Both architectures implement the ARMv4 ISA, so we used similar ARM cross-compilers to compile the benchmarks for both architectures.
+In this way, the compiler or ISA played no effect on the performance differences. 
+PTARM has four hardware threads interleaved through the pipeline, so we setup our experiments to run the same benchmark on all four threads of the PTARM architecture, and four times sequentially on the SimIt-ARM simulator.
+The total number of instructions executed on both architectures were roughly the same.  
 
+Most of the benchmarks we choose fit entirely within the scratchpad/cache of the architectures.
+This is intentional, as a full system evaluation of scratchpads vs caches involves several factors including the scratchpad allocation scheme, and is beyond the scope of the thesis.
+We thus mainly measure the effects of the thread-interleaved pipeline compared to the StrongARM1100 five stage pipeline. 
+For the benchmarks that did not fit entirely within the scratchpad for PTARM, we profiled and statically compiled the most frequently used memory locations onto the scratchpad.
+Because the StrongARM1100 use instruction and data caches, it suffers from a cache cold start, which the initial run of the benchmarks suffers more cache misses to load the instruction and data onto the caches. 
+``SA1100 cold'' denotes the measurement of four runs including the cold start.  
+To mitigate the performance effects from the cold start, we warm up the cache by first running the benchmark once, then measuring four sequential runs of the benchmark on the StrongARM100.  
+This is labeled as ``SA1100 warm'' in the figure. 
+To further remove the effects of caches from the StrongARM architecture, we adjusted the memory access latency to 0 cycles, to appear as if every memory access was to the cache. 
+This is labeled as ``SA1100 allcache''.
+We obtained the cycle counts for both architectures, and compare the instruction throughput, shown in figure~\ref{fig:wcet_throughput}, and overall latency, shown in figure~\ref{fig:wcet_latency}, for several benchmarks.
 
-% 
-% \begin{figure}
-% \noindent\makebox[\textwidth]{
-% \begin{minipage}[b]{0.5\linewidth}
-% \centering
-% \includegraphics[scale=.29]{data/wcet_throughput.pdf}
-% \caption{Malardalen benchmarks throughput}
-% \label{fig:wcet_throughput}
-% \end{minipage}
-% \hspace{0.5cm}
-% \begin{minipage}[b]{0.5\linewidth}
-% \centering
-%   \includegraphics[scale=.29]{data/wcet_latency.pdf}
-%   \caption{Malardalen benchmarks latency}
-%   \label{fig:wcet_latency}
-% \end{minipage}
-% }
-% \end{figure}
-
-\begin{figure}[h]
-  \begin{center}
-  \includegraphics[scale=.55]{data/wcet_throughput.pdf}
-  \end{center}
-  \caption{Malardalen benchmarks throughput}
-  \label{fig:wcet_throughput}
-\end{figure}
-
-
-\begin{figure}[h]
-  \begin{center}
-  \includegraphics[scale=.55]{data/wcet_latency.pdf}
-  \end{center}
+\begin{figure} [h]
+\noindent\makebox[\textwidth]{
+\begin{minipage}[b]{0.5\linewidth}
+\centering
+\includegraphics[scale=.29]{data/wcet_throughput.pdf}
+\vspace{1mm}
+\caption{Malardalen benchmarks throughput}
+\label{fig:wcet_throughput}
+\end{minipage}
+\hspace{0.5cm}
+\begin{minipage}[b]{0.5\linewidth}
+\centering
+  \includegraphics[scale=.29]{data/wcet_latency.pdf}
+  \vspace{1mm}
   \caption{Malardalen benchmarks latency}
   \label{fig:wcet_latency}
+\end{minipage}
+}
 \end{figure}
 
-The simulator and corresponding documentation can be downloaded from http://chess.eecs.berkeley.edu/pret. 
+Several observations can be made from these measurements. 
+First, we observe from figure~\ref{fig:wcet_throughput} that PTARM achieves almost an one instruction/cycle throughput for all benchmarks. 
+The thread-interleaved pipeline removes the control and data hazards from within the pipeline, thus the pipeline almost never stalls.
+On the contrary, with the single threaded StrongARM1100, the effects of pipeline hazards reduce the throughput of instructions, as the pipeline needs to stall for control and data hazards that can arise within the pipeline. 
+With the higher instruction throughput, PTARM observes a smaller latency for all benchmarks executed, as shown in figure~\ref{fig:wcet_latency}.
+  
+Second, we observe the effects of caches on the execution time variance by comparing the throughput and latency of ``SA1100 cold'' and ``SA1100 warm.'' 
+The greatest execution time variance can be observed from \emph{binsearch}, which performs a binary search on an array of 15 elements. 
+In this particular benchmark, the throughput and latency difference is a factor of two between the warmed up cache and the cold started cache.
+By comparing the throughput of ``SA1100 warm'' and ``SA1100 all cache,'' we can observe that most benchmarks fit entirely in the cache, as they were roughly the same. 
+Because the memory hierarchy is hidden by caches, even though most benchmarks fit entirely in the cache, we cannot avoid the cold start because the programmer has no control over the cache. 
+With an exposed memory hierarchy in PTARM, we statically compile the benchmarks on the scratchpad, and are able to benefit from the smaller code size without suffering the effects of cold starts, and maintain a deterministic execution time. 
+
+In this experiment, we highlight the higher instruction throughput achieved by interleaving hardware threads in the pipeline, provided that enough execution contexts is available to fully occupy the hardware threads in the pipeline.  
+A thread-interleaved pipeline allows us to clock the pipeline at a higher frequency, because the data hazard handling logic can be stripped out of the pipeline, providing less logic within each pipeline stage.
+Thus, with a higher instruction throughput and higher clock speed, we can achieve timing predictability and composability without sacrificing performance. 
+We also highlight the uncontrollable execution time variance with a hidden memory hierarchy using caches.
+We do not claim that scratchpads will always provide better average case performance, as a full performance comparison between scratchpads and caches are outside of the scope of this thesis. 
+However, with an exposed memory hierarchy, we are able to control and remove the execution time variance by statically compiling instructions and data onto scratchpads, providing timing determinism for memory accesses.
+For the predictable DRAM controller, Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability} shows that bank privatization of DRAMs not only achieves predictable DRAM access latencies, but also a lowered worst case access latency, and an improved throughput and average case memory latency under high contention. 
+These results demonstrate that one does not need to forgo performance in order to achieve timing-predictability in architecture design, but with an architecture focused on predictability, we can achieve timing determinism without sacrificing performance.
 
 \section{Timing Analysis}
 \label{sec:wcet}

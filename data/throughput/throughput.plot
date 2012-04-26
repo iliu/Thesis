@@ -5,11 +5,11 @@ set ylabel "instruction throughput (instructions/cycle)"
 set xtics nomirror rotate by -45
 set yrange [0:1.3]
 set grid
-set lmargin 2
+set lmargin 4
 set tmargin 0
 set rmargin 0
-set bmargin 0
-set term postscript enhanced
+set bmargin 1
+set term postscript enhanced "Helvetica" 20
 set output "wcet_throughput.ps"
 
 

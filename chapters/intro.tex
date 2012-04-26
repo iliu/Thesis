@@ -3,7 +3,7 @@
 \emph{Cyber-Physical Systems} (CPS) are integrations of computation with physical processes~\cite{Lee08_CyberPhysicalSystemsDesignChallenges}.
 In these systems, computation and physical process often form a tight feedback loop, affecting the behavior of each other.
 The embedded platforms and networks employed not only control the physical process, but at the same time monitor and adapt to the changes of the physical process.
-An enormous amount of applications can benefit from the potential of CPS.
+An enormous number of applications can benefit from the potential of CPS.
 They include high confidence medical devices and systems, assisted living, traffic control and safety, advanced automotive systems, process control, energy conservation, environmental control, avionics, instrumentation, critical infrastructure control (electric power, water resources, and communications systems for example), distributed robotics (telepresence, telemedicine), defense systems, manufacturing, and smart structures.
 However, in order for CPS to be deployed in high confidence systems, such as advanced automotive or avionics systems, the platforms employed need to deal with two important properties of the physical process: they are inherently concurrent, and time progresses at its own pace.
  
@@ -12,19 +12,19 @@ However, in order for CPS to be deployed in high confidence systems, such as adv
 % We deal with the ISA and architecture design
 
 Traditionally, real-time embedded systems have dealt with the notion of time.
-These systems impose deadlines and timing constraints to its underlying tasks to deliver services in real time. 
-The timing constraints of \emph{soft real-time systems} are typically used guarantee quality of service, while the constraints of \emph{hard real-time systems} are used to guarantee safety critical tasks, so they must be met. 
-The real-time embedded community has widely adopted techniques proposed for general purpose applications, believing that they will provide the same advantages and benefits for embedded systems.
+These systems impose deadlines and timing constraints to their underlying tasks to deliver services in real time. 
+The timing constraints of \emph{soft real-time systems} are typically used to guarantee quality of service, while the constraints of \emph{hard real-time systems} are used to guarantee safety critical tasks, so they must be met. 
+The real-time embedded community has widely adopted techniques developed for general purpose applications, believing that they will provide the same advantages and benefits for embedded systems.
 These include the programing language, the operating system, the tool-chains, and the computer architecture.
 However, these techniques are designed for general purpose systems that do not require stringent interaction with the physical environment. 
-Thus, they emphasize on improving average performance over predictability.   
-As a result, when computing systems absolutely must meet tight timing constraints, these recent computing advances often do more harm than good~\cite{LeeOnTime2005}.
+Thus, they place emphasis on improving average performance over predictability.   
+As a result, when computing systems absolutely must meet tight timing constraints, these computing advances often do more harm than good~\cite{LeeOnTime2005}.
 %this is contrary to reality~\cite{halang:DSP:2004:4,thiele:04:predictable}.
-The scale and complexity of traditional embedded systems allowed designers to compensate with extra effort in design and analysis. 
+The scale and complexity of traditional embedded systems allow designers to compensate with extra effort in design and analysis. 
 However, these solutions begin to break down when transitioning to CPS.   
 
 In the current state of embedded software, nearly every abstraction has abstracted away \emph{time}.
-The Instruction Set Architecture (ISA), meant to hide the hardware implementation details from the software, does not include a timing semantic for the instruction executions.  
+The Instruction Set Architecture (ISA), meant to hide the hardware implementation details from the software, does not include timing semantics for the instruction executions.  
 Widely adopted programming languages, meant to hide the details of the ISA from the program logic, do not express timing properties; timing is merely an accident of the implementation.
 Real-time operating systems (RTOS), meant to hide the details of the program from their concurrent orchestration, often use priorities to dictate the execution of tasks; the execution time of tasks can easily affect the scheduled outcome of execution.
 The lack of \emph{time} in the abstraction layers lead to the following consequences:
@@ -50,18 +50,18 @@ As the WCET is often the basis for priority of any scheduling scheme, the conser
 
 When the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers, and understand thoroughly the complex underlying details and its affect on execution time. 
 This not only increases the design complexity and effort, but the designed systems are \emph{brittle} and extremely sensitive to change~\cite{Sangiovanni-Vincentelli2007automotive, edwards2007case}.  
-For example, Sangiovanni-Vincentelli et al.\cite{Sangiovanni-Vincentelli2007automotive} showed that when increasing the execution time of a task, any priority based scheduling scheme results in discontinuity in the timing of all tasks besides the task with the highest priority. 
-At a lower level, adding a few instructions can easily result in a huge variation in program execution time; the state of the hardware dynamic prediction and speculation units, such as caches and pipelines, can easily be affected by the minimum program additions, causing misprediction penalties.
-Thus, in order to verify the timing of safety critical systems, the verification must be done on both the software system and its execution platform, they cannot be separated. 
+For example, Sangiovanni-Vincentelli et al.\cite{Sangiovanni-Vincentelli2007automotive} show that when increasing the execution time of a task, any priority based scheduling scheme results in discontinuity in the timing of all tasks besides the task with the highest priority. 
+At a lower level, adding a few instructions can easily result in a huge variation in program execution time; the state of the hardware dynamic prediction and speculation units, such as caches and pipelines, can easily be affected by small program additions, causing misprediction penalties.
+Thus, in order to verify the timing of safety critical systems, the verification must be done on both the software system and its execution platform; they cannot be separated. 
 This process is often time consuming and expensive.
-Since the abstraction layers do not give any temporal semantics to the system, each layer must be completely understood in order to reason and prove the timing properties of the full system.  
-For avionics manufactures, this means stockpiling the same hardware for the lifetime of an aircraft; any upgrade of components or software in their system could result in drastic timing changes, and thus require re-certification.
+Since the abstraction layers do not give any temporal semantics to the system, each layer must be completely understood in order to reason about and prove the timing properties of the full system.  
+For avionics manufacturers, this means stockpiling the same hardware for the lifetime of an aircraft; any upgrade of components or software in their system could result in drastic timing changes, and thus require re-certification.
 
 
 \subsection{Timing Predictable Systems}
 Thiele et al.~\cite{thiele:04:predictable}, Henzinger~\cite{Henzinger2008} and Lee~\cite{LeeOnTime2005} have all identified the importance and difficulties of designing \emph{timing-predictable systems}.
 Timing-predictable systems should exhibit the following property: \textit{a small change in the input must not result in a large change in the output}~\cite{Henzinger2008}.
-If the definition of \emph{output} includes the timing behavior exhibited by the system, then current abstracts disrupts this property at almost all levels. 
+If the definition of \emph{output} includes the timing behavior exhibited by the system, then current abstractions disrupts this property at almost all levels. 
 
 A change is needed to efficiently and safely design next generation systems, especially if they effect the well being of our lives.
 In particular, how software and hardware deal with the notion of \textit{time} needs to be more carefully understood and designed.
@@ -69,8 +69,8 @@ At the lowest levels of abstraction, circuits and microarchitectures, timing is 
 For example, in a microarchitecture, if the output of an ALU is latched at the wrong time, the ISA will not be correctly implemented.
 However, at higher levels, for example, the ISA, timing is hidden, and there is no temporal semantics; the execution time is irrelevant to correctness. 
 Thus, each abstraction layer needs to be revisited to judiciously introduce some form of temporal semantics. 
-Specifically for CPS, platforms must to be equip to handle the \emph{inherent concurrency} and the \emph{inexorable passage of time} for physical processes.   
-Sangiovanni-Vincentelli et al.~\cite{Sangiovanni-Vincentelli2007automotive} identified these issues as the \textit{timing composability} and \textit{timing predictability} of systems, and lists them as requirements to enable efficient designs of large-scale safety-critical applications.    
+Specifically for CPS, platforms must be equip to handle the \emph{inherent concurrency} and the \emph{inexorable passage of time} for physical processes.   
+Sangiovanni-Vincentelli et al.~\cite{Sangiovanni-Vincentelli2007automotive} identified these issues as the \textit{timing composability} and \textit{timing predictability} of systems, and list them as requirements to enable efficient designs of large-scale safety-critical applications.    
 
 \subsubsection{Timing Composability}
 Modern systems handle the concurrency of physical processes with multiple tasks, components or subsystems that are integrated together.    
@@ -82,16 +82,16 @@ However, if component properties may be destroyed during integration, then the c
 To preserve component properties during integration, modern designs often use a \textit{federated architecture}.
 A federated architecture develops functions and features on physically separate platforms which are later integrated through an interconnect or system bus. 
 As these features are only loosely coupled through an interconnect, interference is limited, allowing the preservation of certain properties independently verified. 
-However, as each platform is feature specific, they are often idle during run time.
+However, as each platform is feature specific, it is often idle during run time.
 In order to reduce resource consumption, there is a shift towards \textit{integrated architectures}~\cite{Obermaisser2009FedtoIMA,AvionicsWatkins2007IMA}, where multiple functions are integrated on a single, shared platform.
 Several challenges exists to make the shift, but among them, it is crucial to guarantee that the timing properties are preserved during system integration.
-Only then, can designs continue to stay modular. 
+Only then can designs continue to stay modular. 
 Modern abstractions result in unnecessary complexity in the interaction of concurrent components, which leads to unpredictable interference between components. 
 This hinders the ability to compose functions together on a shared resource while maintaining timing properties. 
 
 These challenges are present not only in research, but also in industry.  
 The Integrated Modular Avionics (IMA) concept~\cite{IMA} aims to replace numerous separate processors and line replaceable units (LRU) with fewer, more centralized processing units in order to significant reduce the weight and maintenance savings in new generation of commercial airliners.
-AUTOSAR (AUTomotive Open System ARchitecture)\cite{autosarsite} is an architecture for automotive systems that is jointly being developed by manufacturers, suppliers and tool developers which attempts to defined standards and protocols to help modularize the design of these complex systems.
+AUTOSAR (AUTomotive Open System ARchitecture)\cite{autosarsite} is an architecture for automotive systems that is jointly being developed by manufacturers, suppliers and tool developers that attempts to defined standards and protocols to help modularize the design of these complex systems.
 We contend that in order for these standards to be safely defined, modern layers of abstractions that have been adopted from conventional computing advances must be redefined to allow for  predictable composition of components.  
 
 \subsubsection{Timing Predictability}
@@ -99,34 +99,34 @@ In order to keep up with the continuous passage of time in physical processes, t
 \textit{Timing predictability} is the ability to predict timing properties of the system.
 Timing composition plays a big part of this when features are integrated, but even individually, it is difficult to analyze the execution time of programs.
 
-Wilhelm et al.~\cite{wilhelm-survey-paper} described the abundant amount of research and effort that has been put into bounding the worst-case execution time(WCET).   
+Wilhelm et al.~\cite{wilhelm-survey-paper} described the abundant amount of research and effort that has been put into bounding the worst-case execution time (WCET) of programs.   
 Not only is determining the worst case program flow a challenge, but the precision and usefulness of the analysis also depends on the underlying architecture\cite{Heckmann2003processor}. 
-Conventional architectures have proposed techniques that target the improvement of average case execution time (ACET) at the expense of execution time variability.    
+Conventional architectures have implemented techniques that target the improvement of average case execution time (ACET) at the expense of execution time variability.    
 As a result, it's extremely complex, if not impossible to obtain a precise bound of the execution time on modern architectures.
-The imprecision is often propagated through the system during integration, requiring pessimistic over-provisions to ensure timing requirements are met.     
+The imprecision is often propagated through the system during integration, requiring pessimistic over-provisioning to ensure timing requirements are met.     
 Thus, time determinism and reduced jitter are needed for future systems to increase performance~\cite{Sangiovanni-Vincentelli2007automotive}.    
 
-As modern layers of abstractions have no notion of \emph{time}, the passage of time is a merely a consequence of the implementation.  
+As modern layers of abstraction for computing have no notion of \emph{time}, the passage of time is a merely a consequence of the implementation.  
 Therefore, existing techniques can only bound the WCET for a processor-program pair, and not the individual programs.
 Time bounds from the analysis are broken even when the underlying processor is upgraded to a newer model.
 Thus, the redefinition of abstraction layers must also include temporal semantics at different layers in order to reason about timing properties at higher levels.  
 
 \section{Contributions}
-The contribution of this work is to propel design of cyber-physical systems from the lower levels of abstractions. 
-Specifically in this thesis, we focus on the ISA abstraction layer, and its effects on microarchitecture design. 
+The contribution of this work is to improve the design of cyber-physical systems from the lower levels of abstractions. 
+Specifically in this thesis, we focus on the ISA abstraction layer and its effects on microarchitecture design. 
 The ISA defines the contract between software instructions and hardware implementations.
 Any correct implementation of an ISA will yield a consistent view of the processor state (eg. the contents registers or memory) for a given program developed with that ISA.     
 However, modern ISAs do not specify timing properties of the instructions as part of the contract, and the benchmarks typically used to evaluate architectures compare them by the measured average performance.   
 Thus, architecture designs have largely introduced techniques that improve average performance at the expense of execution time variability, leading to imprecise WCET bounds that limit the timing predictability and timing composability of CPS.
-The key challenges we contribute to are two fold.
+The key challenges we contribute to are twofold.
 
 First, we address the difficulty of predicting execution time and integrating multiple programs on modern computer architectures by proposing a new design paradigm for computer architectures.
-Instead of performance, PREcision Timed (PRET) machines~\cite{edwards2007case} are designed with \textit{timing-predictability} as the main metric for success.   
-We believe that as systems are becoming increasingly large and complex, increasing the speed of the underlying architecture through complexity will only do more harm than benefit.  
-If we roll back computer architecture for 20 years, processors were all perfectly predictable.
-But the performance in terms of speed is undesirable and limiting, and we would be throwing away years of quality and technology enabling research. 
-Thus, we do not intend to reinvent computing advancements, but instead evaluate them through the lenses of predictability and composability.
-In doing so, we gain a thorough understanding of the trade-offs between architectural performance gain and predictability, and show an architecture that is timing-predictable with reasonable performance.      
+PREcision Timed (PRET) machines~\cite{edwards2007case} are designed with \textit{timing-predictability} as the main metric for success.
+However, predictability can be easily achieved if one is willing to forgo performance; computer architectures 50 years ago were very predictable.
+Thus, our contribution is to deliver both predictability and performance.    
+We believe that as systems are becoming increasingly large and complex, increasing the speed of the underlying architecture through complexity will only do more harm than good.
+We do not intend to reinvent computing advancements, but instead evaluate them through the lenses of predictability and composability.
+In doing so, we present an architecture designed for timing-predictability without sacrificing performance.   
 
 Second, we address the lack of temporal semantics in the ISA by exploring instruction extensions that introduce timing semantics and control into programs.
 Introducing temporal semantics into any abstraction layer is a non-trivial task. 
@@ -135,12 +135,12 @@ Instead we explore instruction extensions that aim to give temporal meaning to t
 These instruction extensions allow programmers to describe the passage of time within programs, and any architecture implementation of the extended ISA must abide to those descriptions. 
 In doing so, we give temporal meaning to programs without limiting the innovation of architecture designs.
 
-We contend that these two contributions must go hand in hand. 
-Our ISA extensions provide the ability to give temporal meaning to programs, but do not enforce a predictable execution of its instructions.
-Without a predictable architecture, programs can still exhibit unpredictable execution time variances.    
-On the other hand, a predictable architecture by itself does not bring temporal meaning to the programs, it merely executes them predictably.
+We contend that both contributions are essential to cyber-physical systems. 
+%Our ISA extensions provide the ability to give temporal meaning to programs, but do not enforce a predictable execution of its instructions.
+Without a predictable architecture, programs can exhibit unpredictable execution time variances.    
+But a predictable architecture by itself does not bring temporal meaning to the programs, it merely executes them predictably.
 Time will still only be a side effect of the underlying implementation.
-However, with both the ISA extensions and the predictable architecture, we can equip platforms with the ability to handle physical processes and provide 
+With both the ISA extensions and the predictable architecture, we equip platforms with the ability to handle physical processes and provide 
 a solid foundation to propel the design of CPS at higher levels of abstractions.       
  
 % 
@@ -178,7 +178,7 @@ This is illustrated in figure~\ref{fig:program_execution_times}, which shows the
     \includegraphics{figs/program_executiontimes.pdf}
   \end{center}
   \vspace{-3mm}
-  \caption{Program Execution Times~\cite{wilhelm-survey-paper}}
+  \caption{``Program Execution Times~\cite{wilhelm-survey-paper}''}
   \label{fig:program_execution_times}
 \end{figure}
 It highlights several key issues that are important to understanding program execution time.
@@ -250,7 +250,7 @@ However, the contention for pipeline resources between threads can easily vary t
   \vspace{-10pt}
 \end{wrapfigure}
 The common misconception is that at least a \emph{safe} upper bound on the execution time can be easily determined by assuming the worse case in unknown situations.
-This is not true because dynamic processors can exhibit \emph{timing anomalies}~\cite{Reineke06adefinition,Lundqvist1999}, situations where a local worst-case does not entail the global worst-case.
+This is not true because dynamic processors can exhibit \emph{timing anomalies}~\cite{Reineke06adefinition,Lundqvist1999}, situations where a local worst-case does not result in the global worst-case.
 Reineke et al.~\cite{Reineke06adefinition} illustrates this with the example in figure~\ref{fig:speculation_anomaly}.
 In this example, a mispredicted branch results in unnecessary instruction fetching that destroys the cache state. 
 However, if the first instruction being fetched is a cache miss, the correct branch condition will be computed before the fetch, and no speculatively executed instruction will destroy the cache state. 
@@ -269,13 +269,19 @@ As a result, decrypting the state of the processor to obtain reasonable executio
 %   unpredictable timing behavior.''
 % }
 % \end{quote}
-In this thesis we present the design and implementation of a PREcision Timed (PRET) machine~\cite{edwards2007case} -- the PREcision Timed ARM (PTARM).
+In this thesis we present the design and implementation of a Precision Timed (PRET) machine~\cite{edwards2007case} -- the PREcision Timed ARM (PTARM).
 PTARM employs a thread-interleaved pipeline and memory controller designed for predictable and composable execution, and implements an extended ARM~\cite{armrefman} ISA to demonstrate the ISA extensions with temporal semantics.
 We show that an architecture designed for timing predictability and composability does not need to sacrifice performance, and provides a robust, non brittle foundation for future cyber-physical systems.       
+
+Many people have contributed to the results given in this thesis. 
+The predictable DRAM controller that is presented in section~\ref{sec:pret_dram_controller} is a collaborative effort jointly done with Jan Reineke and Sungjun Kim. 
+Hiren Patel, Ben Lickly, Jan Reineke, David Broman and Edward Lee have all greatly contributed to timing extensions to the ISA presented in section~\ref{sec:programming_models}.
+And finally, the engine fuel rail simulation application presented in section~\ref{sec:1dCFD} is a collaborated effort with Matthew Viele, Guoqiang Wang and Hugo Andrade.
+It is a pleasure to thank those who made this thesis possible, as this thesis could not have been complete without them. 
  
-In the remaining chapters we first discuss the design decisions of the hardware and ISA extensions in chapter~\ref{chapter:pret}, then show the details and architecture of PTARM in chapter~\ref{chapter:ptarm}.
-In chapter~\ref{chapter:app} we present two applications implemented with the PRET machine to demonstrate its applicability.
-Finally, in chapter~\ref{chapter:related} we discuss the related research work, and conclude in chapter~\ref{chapter:summary}.
+% In the remaining chapters we first discuss the design decisions of the hardware and ISA extensions in chapter~\ref{chapter:pret}, then show the details and architecture of PTARM in chapter~\ref{chapter:ptarm}.
+% In chapter~\ref{chapter:app} we present two applications implemented with the PRET machine to demonstrate its applicability.
+% Finally, in chapter~\ref{chapter:related} we discuss the related research work, and conclude in chapter~\ref{chapter:summary}.
 
 % The remaining chapters are organized as follows. 
 % Chapter~\ref{chapter:pret} explains the architecture of PRET including the \thdint pipeline and memory hierarchy, Chapter~\ref{chapter:ptarm}, Chapter~\ref{chapter:app}, Chapter~\ref{chapter:related}, Chapter~\ref{chapter:summary}.
