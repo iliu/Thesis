@@ -4,99 +4,128 @@ We show that with the architectural design principles of PRET, the PTARM archite
   
 The architecture of PTARM closely follows the principles discussed in chapter~\ref{chapter:pret}.
 This includes a thread-interleaved pipeline with scratchpads along with the timing predictable memory controller.
-The ARM ISA was chosen not only for its popularity in the embedded community, but also because it is a Reduced Instruction Set Computer(RISC), which has simpler instructions that allow more precise timing analysis. 
-Complex Instruction Set Computers(CSIC) on the other hand adds un-needed complexity to the hardware and timing analysis.
+The ARM ISA was chosen not only for its popularity in the embedded community, but also because it is a Reduced Instruction Set Computer (RISC), which has simpler instructions that allow more precise timing analysis. 
+Complex Instruction Set Computers (CSIC) on the other hand adds un-needed complexity to the hardware and timing analysis.
 RISC architectures typically features a large uniform register file, a load/store architecture, and fixed-length instructions.
 In addition to these, ARM also contains several unique features.
-ARM's ISA requires build a single cycle hardware shifter along with an arithmetic logic unit(ALU), as all of its data-processing instructions can shift its operands before passed onto the ALU. 
-ARM's load/store instructions also contain auto-increment capabilities that can increment or decrement the base address. 
-This is useful to compact code that is reading through an array in a loop, as one instruction can load the contents and prepare for the next read in one instruction.
+ARM's ISA requires a built in hardware shifter along with the arithmetic logic unit (ALU), as all of its data-processing instructions can shift its operands before passed onto the ALU. 
+ARM's load/store instructions also contain auto-increment capabilities that can increment or decrement the value stored in the base address register. 
+This is useful to compact code that is reading through an array in a loop, as one instruction can load the contents and prepare for the next load in one instruction.
 In addition, almost all of the ARM instructions are conditionally executed.
 The conditional execution improves architecture throughput with potential added benefits of code compaction\todo{Citation}.     
-ARM programmer's model specifies 16 registers (R0 to R15) to be accessed with its instructions, with register 15 being the program counter. 
-Any data-operation done on register 15 triggers a branch.  
+ARM programmer's model specifies 16 general purpose registers (R0 to R15) to be accessed with its instructions, with register 15 being the program counter (PC). 
+Writing to R15 triggers a branch, and reading from R15 reads the current PC plus 8.    
 
 ARM has a rich history of versions for their ISA, and PTARM implements the ARMv4 ISA, currently without support for the thumb mode.
 PTARM uses scratchpads instead of caches, and a DDR2 DRAM for main memory managed by the timing predictable memory controller.
-PTARM includes hardware support for several floating point operations, and implements the timing instructions introduced in chapter~\ref{chapter:programming_models}.   
-We will first discuss the architectural details of PTARM, then present the C++ software simulator of PTARM.   
-   
+PTARM also implements the timing instructions introduced in chapter~\ref{chapter:programming_models}.   
+%We will first discuss the architectural details of PTARM, then present the C++ software simulator.   
+
 \section{PTARM Architecture}
-\begin{figure}
+PTARM implements a thread-interleaved pipeline for the ARM instruction set.
+PTARM was initially written to target Xilinx Virtex-5 Family FPGAs, thus several design decisions were made to optimized the PTARM architecture for Xilinx V5 FPGAs.
+PTARM has a 32 bit datapath in a five stage pipeline with four threads interleaving through the pipeline. 
+Chapter~\ref{chapter:pret} discussed the timing and hardware benefits of a typical thread-interleaved pipeline which removes pipeline hazards with multiple threads.
+Section~\ref{section:pret_thread_pipeline} mentioned that conventional thread-interleaved pipelines typically have at least as many threads as pipeline stages to keep the pipeline design simple and maximize the clock speed.
+However, having more threads in the pipeline increases single thread latency, since all threads are essentially time-sharing the pipeline resource. 
+Lee and Messerschmitt~\cite{lee1987pip} showed that the minimum number of threads required to remove hazards is actually less than the number of pipeline stages in the pipeline. 
+In our design, we implement a five stage thread-interleaved pipeline with four threads by carefully designing the PC writeback mechanism one pipeline stage earlier.
+
+\subsection{Thread-Interleaved Pipeline}
+Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
+Some multiplexers within the pipeline have been omitted in the figure for a simplified view of the hardware components that make up the pipeline.
+There contains four copies of the Program Counter(PC), Thread States, and Register File, which abstracted away in the figure.
+Most of the pipeline design follows a typical Hennessy and Patterson\todo{citation} five stage pipeline, with the five stages in the pipeline being -- Fetch, Decode, Execute, Memory, Writeback.
+We will briefly describe the functionality of each stage, and leave more details when we discuss how instructions are implemented in section~\ref{sec:ptarm_instructions}.
+
+\begin{figure}[b]
   \vspace{-20pt}
   \begin{center}
-    \includegraphics[scale=.6]{figs/ptarm_pipeline_five_stage}
+    \includegraphics[scale=.54]{figs/ptarm_pipeline_five_stage}
   \end{center}
   \vspace{-20pt}
   \caption{Block Level View of the PTARM 5 stage pipeline}
   \label{fig:ptarm_pipeline_five_stage}
 \end{figure}
 
-The pipeline of PTARM implements a thread-interleaved pipeline for the ARM instruction set.
-PTARM is written in VHDL and targets Xilinx Virtex-5 Family FPGAs, thus a the design decisions made tailored the PTARM architecture towards optimizing the design for the Xilinx V5 FPGA.
-It has a 32 bit datapath and consists of a five stage pipeline with four threads interleaving through the pipeline. 
-In chapter~\ref{chapter:pret} we discussed the timing and hardware benefits of a typical thread-interleaved pipeline that has at least as many threads as pipeline stages. 
-However, have more threads in the pipeline means decreased performance for each thread, since the more threads are utilizing the same pipeline resources. 
-Thus, we design our pipeline to support a minimum of one less thread than the number of pipeline stages, and create a four thread five stage thread interleaved pipeline. 
-As discussed in chapter~\ref{chapter:pret}, interleaving $N$ threads through the an $N$ stage pipeline helps remove data and control hazards in the pipeline. 
-With $N-1$ threads interleaving through the $N$ stage pipeline, data hazards are removed because the data committed at the last stage is not used for the next thread until the decode stage of the pipeline. 
-%TODO: show this is an image
-However, control hazards are present if the PC is committed at the writeback stage, because the PC needed for the thread in the fetch stage has not been committed yet.
-In most cases, the next PC can be determined as early as the decode stage (data-processing and load/store instructions).
-For branch instructions, the address calculation is completed after the execute stage. 
-%continue discussion about four thread 5 stage pipeline
- 
-Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
-The multiplexers within the pipeline have been omitted in the figure for a simplified view of the hardware components that make up the pipeline.
-There contains four copies of the Program Counter(PC), Thread States, and Register File, which are not shown in the figure.
-Most of the pipeline design follows a typical Hennessy and Patterson\todo{citation} five stage pipeline, with the five stages in the pipeline being -- Fetch, Decode, Execute, Memory, Writeback.
-
-%TODO: Talk about register file, 3 read and 1 write port
-
-The fetch stage of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction scratchpad.
-A simple $Log(n)$ bit upcounter is used to keep track of which thread current to fetch.  
-At this point we assume the source code fits entirely on the instruction scratchpad.
-Later when we present the memory hierarchy of PTARM we will discuss further about the implications of larger code bases.
-Once the instruction is received from the scratchpad, it goes through a register address decoder to quickly determine what bits to send to the register.
-Typical RISC instruction sets such as MIPS have encoding of instruction bits where the register operands have a fixed location for all instruction types.
-Thus, once the instruction is received from instruction memory, the selected bits can be propagated as addresses to the register file. 
-In the ARM instruction set however, not all instruction encoding have the register addresses at the same location. 
-Thus, we insert in a simple and small logic block for a quick decoding of register addresses.
-%Todo: Add more description of the logic block? 
-
-The decode stage of the pipeline consists of the pipeline controller which does the full decoding of instructions and sets the correct pipeline signals to be propagated down the pipeline. 
-Typically the controller needs to know the current instructions in the pipeline to detect the possibility of pipeline hazards.
-However,in a thread-interleaved pipeline, other instructions in the pipeline belong to other threads, thus the controller logic is greatly simplified. 
+The \emph{fetch} and \emph{decode} stages setup the data operands and control signals for the later stages to execute the instruction.
+The \emph{fetch stage} of the pipeline selects the correct PC according to which thread is executing, and passes the address to instruction memory. 
+The PC forward path forwards a loaded address from main memory for instructions that load to R15, which causes a branch.
+We will discuss the need for the forwarding path below when we describe the \emph{writeback stage}.
+A simple $Log(n)$ bit upcounter is used to keep track of which thread current to fetch.
+The \emph{decode stage} contains the pipeline controller which does the full decoding of instructions and sets the correct pipeline signals to be propagated down the pipeline.
+Most of ARM instructions are conditionally executed, so the pipeline controller first checks the condition bis to determine whether the instruction is to be executed or not.  
+Typically the controller needs to know the current instructions in the pipeline to detect the possibility of pipeline hazards and stall the current instruction.
+However,in a thread-interleaved pipeline, other instructions down the pipeline are from threads, thus the controller logic is greatly simplified. 
 It simply decodes the instruction to determine the correct signals to send to the data-path and multiplexers down the pipeline. 
-These signals get propagated down the pipeline stages, and they control the execution units to ensure the correct actions are taken, and signal the multiplexers to select the correct data operands.  
-Because most of ARM instructions are conditionally executed, the pipeline controller also checks the condition bis to determine whether the instruction is to be executed or not.  
-The PC Adder is almost just a simple adder that increments the PC. 
-The only addition is instead only outputting an address incremented by four, it outputs two addresses, the PC incremented by both four and eight. 
-The address calculation of ARM branch instructions add the offset to PC+8, instead of just the current PC, so we need to store the additional PC offset of eight in case of branch instructions.
-The Timer logic block is a hardware counter clocked to the processor clock which is used to implement the timing instructions mentioned in chapter~\ref{chapter:programming_models}.
-The Timer counts time in nanoseconds, and it's hardware logic does not reside in the decode stage. 
-The time value however is latched in the decode stage as the subsequent stages use it for timer manipulation, so in figure~\ref{fig:ptarm_pipeline_five_stage} we include it in the decode stage.
-We will discuss in more detail how the timing instructions are implemented later in this chapter. 
+A small decoding logic, the \emph{register address decoder}, is inserted in parallel with the controller to decode the register addresses from the instruction bits.  
+Typical RISC instruction sets, such as MIPS, set the encoding of instruction bits so the register operands have a fixed location for all instruction types.
+However, in the ARM instruction set, certain instructions encode the register read address at different bit locations of the instruction.
+For example, ARM data-processing register shift instructions reads a third operand from the register to determine the shift amount.
+Store instructions also read a third register to obtain the register value that is stored to memory. 
+However, both instructions have different bit locations in the instruction encoding to determine what register to read from.
+Thus, a small register address decoding logic is inserted for a quick decoding of the register addresses from the instruction bits.
+The \emph{PC Adder} is used to increment the PC.
+The ARM ISA programmer's model states that reading from R15 reads the current PC+8, the PC adder not only increments the PC by 4 to get the potential next PC, but it also increments the current PC by 8 to be used as an operand. 
+Single threaded pipelines need to increment the PC immediately in the fetch stage to prepare for the next instruction fetch.  
+For thread-interleaved pipelines, since the next PC from the current thread is not needed until several cycles later, it doesn't need to be in the fetch stage. 
+But because we need the results of PC+8 as a data operand, it is placed in the decode stage. 
+The \emph{timer} is a hardware counter clocked to the processor clock which is used to implement the timing instructions mentioned in chapter~\ref{chapter:programming_models}.
+The timer contains a 64 bit value that represents nanoseconds, and starts at 0 when the pipeline starts up.  
+The time value is latched in the decode stage as the subsequent stages use it for timer manipulation.
 
-The shift stage of the pipeline is the additional stage on top of a conventional five stage pipeline. 
-The ARM ISA data-processing instructions include shifter bits and even a shifter operand for data-processing register shift instructions to shift the operands before the logical or arithmetic operations.
-Thus, an extra 32 bit shifter is included to shift the operands before the execution stage. 
-The Load/Store Multiple Offset logic block is used to calculate the offset of load/store multiple instructions.
+The \emph{execute}, \emph{memory} and \emph{writeback} stages execute the instruction and commits the result. 
+The \emph{execute} stage contains mostly execution units and muxes that select the correct operand and feeds it to the ALU.  
+The ARM ISA assumes a built in shifter to shift the operands before operations, so a 32 bit \emph{shifter} is included to shift the operands before the ALU.   
+The \emph{load/store multiple offset} logic block is used to calculate the offset of load/store multiple instructions.
 The load/store multiple instruction uses a 16 bit vector to represent each of the 16 general purpose registers.
 The bits that are set in that bit vector represents a load/store on that register.
 The an offset is added to the base memory address for the instruction, and that offset depends on how many bits are set. 
 Thus, the load/store multiple offset logic block does a bit count on the bit vector and adjusts the offset to be passed into the ALU for load/store multiple instructions.
-We will later describe in detail how the load/store multiple instructions are executed within the pipeline.
-The timer adder logic block is a 32 bit add/subtract unit. 
-Since time is represented in 64 bit values, we add an additional 32 bit add/subtract-er so the execution stage doesn't need to incorporate a 64 bit ALU.
+%We will later describe in detail how the load/store multiple instructions are executed within the pipeline.
+The \emph{timer adder} logic block is a 32 bit add/subtract unit.
+Time in the pipeline is a 64 bit value representing nanoseconds. 
+Thus, any timing instruction that interacts with the timer in the pipeline needs to operate on 64 bit values.
+We could have reuse the existing ALU at the expense of having all timing instructions take an additional pass through the pipeline.
+But we chose to include an addition add/subtract unit specifically for the implementation of the delay\_until instruction so it can check for deadline expiration every cycle, which we will discuss in detail in section~\ref{sec:ptarm_instructions} when we show how delay\_until is implemented.    
+A 32 bit \emph{ALU} does most of the logical and arithmetic operations, including data-processing operations and branch address calculations.
+The results is passed to the \emph{memory stage}, which either uses it as an address to interact with the data memory, or forwards it along to the \emph{writeback stage} to commit back to the registers.
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace{-20pt}
+  \begin{center}
+    \includegraphics[scale=.65]{figs/four_thread_pipeline}
+  \end{center}
+  \vspace{-20pt}
+  \caption{Four thread execution in PTARM}
+  \label{fig:four_thread_pipeline}
+  \vspace{-10pt}
+\end{wrapfigure}      
+%Although the register values are committed in the write back stage, the next PC address needs to be written back earlier. 
+Figure~\ref{fig:four_thread_pipeline} shows an execution sequence of the four thread five stage pipeline.
+The instruction in the fetch stage belongs to the same thread as the instruction in the writeback stage.
+This does not cause any data hazards because the data from the registers will not be read until the decode stage. 
+But committing the PC at the writeback stage would result in a control hazard because the PC would not be ready for the subsequent fetch.
+For most instructions, the next PC calculation is completed before the memory stage, so we move the PC commit one stage earlier so the next instruction can be fetched.
+However, the ARM ISA allows instructions to write to register 15 (PC), which acts as a branch to the value written to R15.   
+This means a load instruction can write to R15 and cause a branch whose target is not known until after the memory read.   
+Thus, a PC forwarding path is added to forward the PC back from memory if a load instruction writes to R15.  
+The forwarding path does not cause any timing analysis difficulties because the statically the forwarding path is only used when a load instruction writes to R15, which can be statically deteremined. 
+Also, this causes no stall in the pipeline, and does not effect the timing of any following instructions. 
+This allows us to interleave four threads in our five stage pipeline instead of five.    
 
-The execute stage simply just contains the 32 bit ALU that can do both logical and arithmetic operations. 
-The memory stage interacts with the data scratchpad and memory controller, and the write back stage writes the correct data back to the registers and hardware thread states.
 
-The floating point hardware units are pipelined floating point computation units generated with the Xilinx Coregen tool. 
- 
-%TODO: Memory Hierarchy
+\subsection{Memory Hierarchy} 
+The instruction memory is currently composed of an instruction scratchpad and a boot ROM. 
+The boot ROM \todo{mention bootROM size} is shared between all the threads and contains the initialization code for each thread. 
+It also contains the exception vector table that stores entries for handling different exceptions that occur in the pipeline, along with some of the exception handlers. 
+The instruction scratchpad \todo{size?} is currently logically divided into five regions. 
+Each of the threads contains its own private instruction region, and a shared region where all threads can access.
+Both the boot ROM and instruction scratchpad are also synthesized to FPGA block RAMs, and both give single cycle access latencies.
+
+The data memory 
+
 \section{Instruction Implementations}
+\label{sec:ptarm_instructions}
 In this section we will go into more details about how each instruction type is implemented and how the hardware blocks shown in the previous sections are used.
 We will go through different instruction types and also discuss the timing implications of our implementation. 
 We will summarize with a table with all instructions and the cycle count it takes to execute them.   
@@ -143,6 +172,8 @@ Post-indexed addressing mode first updates the base register, then uses the upda
 The base register could be incremented or decremented when it is being updated.   
 Because there is only one write port to our register file however, we cannot simultaneously write back a load result from memory and the updated base register to the register file in a single cycle. 
 As a result, 
+
+\subsection{Exception Handling}
 
 \subsection{Timing Instructions}
 
