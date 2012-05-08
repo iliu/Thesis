@@ -274,7 +274,8 @@ Figure~\ref{fig:backend} shows an example of the following access requests: read
 \label{fig:backend}
 \end{figure}
 
-Each access request is translated into a RAS (Row Access), posted-CAS (Column Access) and NOP command, which we call an access slot. 
+Each access request is translated into a RAS (Row Access), posted-CAS (Column Access) and NOP command. 
+An access slot is formed of all three commands.  
 The NOP command in the access slot is inserted between any two consecutive requests to avoid a collision on the data bus that occurs when a read request follows and a write request.
 This collision is cause by the one cycle offset between the read and write latencies. 
 The RAS command moves a row into the row buffer, and the CAS command accesses the columns within the row loaded into the row buffer. 
@@ -341,11 +342,11 @@ In section~\ref{sec:ptarm_memory} we will detail how our implemented thread-inte
 The privatization of resources for predictable access means that there is no shared data in the DRAM.
 This serves as an interesting design challenge, as it is impossible to assume no communication between contexts in a multicore or multithreaded environment.
 In our implementation, which we will detail in section~\ref{sec:ptarm_memory}, the scratchpads can be configured to be shared between the hardware threads for communication.  
-This can be done because the scratchpad and DRAM memory has distinct address regions, so no shared memory space will overlap onto the DRAM address space. 
+This can be done because the scratchpad and DRAM memory have distinct address regions, so no shared memory space will overlap onto the DRAM address space. 
 %If conventional caches were used, which can cache
 Most multi-core processors use DRAM to share data while local scratchpads or caches are private.
 In this case, the sharing of data on the DRAM can be achieved by arbitrating accesses in the frontend.
-The four resources in the backend can be combined into one, and any access to this single resource would result in four smaller accesses to all the backend resources. 
+The four independent resources in the backend can be combined into one, and any access to this single resource would result in four smaller accesses to all the backend resources. 
 This single resource could then be shared among the different cores of a multi-core architecture using predictable arbitration mechanisms such as Round-Robin or CCSP~\cite{Akesson08} or predictable and composable ones like time-division multiple access (TDMA). 
 This sharing of DRAM resources comes at a cost of increased memory access latency, which is detailed in~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
 
@@ -353,16 +354,16 @@ This sharing of DRAM resources comes at a cost of increased memory access latenc
 The frontend of our memory controller also manages the refreshing of DRAM cells. 
 DRAM cells need to be refreshed at least every 64 ms.
 Conventionally this is done by issuing a hardware refresh command that refreshes several rows of a device at once\footnote{Internally, this still results in several consecutive row accesses.}.
-Hardware refresh commands have longer refresh latencies each time a refresh is issued, but requires less refresh commands to meet the refresh constraints posed by the DRAM.
+Hardware refresh commands have longer refresh latencies each time a refresh is issued, but requires fewer refresh commands to meet the refresh constraints posed by the DRAM.
 However, when the hardware refresh command is issued, all banks in the target DRAM device are refreshed, prohibiting any other memory access to the device.
 In our backend, this would extend across multiple resources, causing multiple resources to be blocked for memory accesses. 
-Memory access latencies now need to account for potential refresh command latencies, which varies depending on the refresh progress.  
+Memory access latencies now need to account for potential refresh command latencies, which vary depending on the refresh progress.  
 Instead, we use the distributed, RAS-only refresh~\cite{spec:micronddr2} to each bank separately.
 Memory refreshes is in this case is equivalent to a row accesses to a bank, and each resource can be refreshed without effecting others.
 Manually accessing rows on the other have much shorter latencies each time, but incurs a slight bandwidth hit because more accesses need to be performed to meet the refresh constraints.
-The shorter latencies however improves the worst-case access latency, because the refresh latency is shorter.
+The shorter latencies however improve the worst-case access latency, because the refresh latency is shorter.
 
-When a refresh is required can be statically analyzed. 
+%When a refresh is required can be statically analyzed. 
 In our device, each bank consists of 8192 rows, so each row has to be refreshed every $64\textit{ms}/8192=7.8125 {\mu}s$.
 At a clock rate of 200 MHz of the memory controller, this corresponds to $7.8125 {\mu}s \cdot (200 \textit{cycles}/{\mu}s) = 1562.5$ cycles.
 Since each resource contains two banks, we need to perform two refreshes every $1562.5$ cycles, or one every $781.25$ cycles.
