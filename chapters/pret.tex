@@ -7,7 +7,7 @@ Thus, we first discuss the common architectural designs and their effects on exe
 The introduction of pipelining vastly improves the performance of processors.
 Pipelining increases the number of instructions that can be processed at one time by splitting up instruction execution into multiple steps.
 It allows for faster clock speeds, and improves instruction throughput compared to single cycle architectures.
-Ideally each in processor cycle, one instruction completes and leaves the pipeline as another enters and begins execution. 
+Ideally in each processor cycle, one instruction completes and leaves the pipeline as another enters and begins execution. 
 In reality, different pipeline hazards occur that reduce the throughput and create stalls in the pipeline.
 The techniques introduced to mitigate the penalties of pipeline hazards greatly effect to the timing predictability and repeatability of architectures.     
 We analyze several commonly used techniques to reduce the performance penalty from hazards, and show their effects on execution time and predictability. 
@@ -249,7 +249,7 @@ with deterministic execution time behaviors.
 Thread-interleaved pipelines use a fine-grain thread scheduling policy; every cycle a different hardware thread is fetched for execution.
 A round robin scheduling policy is often employed to reduce the context switch overhead every cycle.     
 The thread-interleaved pipeline is known for implementing the peripheral processors of the CDC6600~\cite{CDC6600}.
-Each the ``peripheral processor'' is implemented as a hardware thread.     
+Each ``peripheral processor'' is implemented as a hardware thread.     
 Interacting with input/output peripherals often leads to idle processor cycles to wait for the peripherals' responses.
 By interleaving several threads, thread-level parallelism is fully exploited, and the idle cycles can be used for simultaneous interaction with multiple input/output devices.       
 Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage single width thread-interleaved pipeline with 5 threads.

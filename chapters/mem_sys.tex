@@ -23,7 +23,7 @@ The goal is to speed up program performance by placing commonly accessed values 
   \vspace{-10pt}
 \end{wrapfigure}   
 A \emph{CPU Cache} (or cache) is commonly used in the memory hierarchy to manage the smaller fast access memory made of SRAMs.
-The cache manages of contents of the fast access memory in hardware by leveraging the spatial and temporal locality of data accesses. 
+The cache manages the contents of the fast access memory in hardware by leveraging the spatial and temporal locality of data accesses. 
 The main benefits of the cache is that it abstracts away the memory hierarchy from the programmer.
 When a cache is used, all memory accesses is routed through the cache. 
 If the data from the memory access is in the cache, then a cache hit occurs, and the data is returned right away.
@@ -49,7 +49,7 @@ Thus, when execution time is important, the variability and uncontrollability of
 The cache's internal states include the controller state and memory contents. 
 As the programmer cannot explicitly control the state of the cache, it is extremely difficult to analyze execution time on systems with caches.
 At an arbitrary point of execution, if the state of the cache is unknown, a conservative worst-case execution time analysis needs to assume the worst case, as if the memory access went directly to main memory.
-In order to acquire tighter execution time analysis, the cache must be modeled with program execution to predict the current cache state.
+In order to acquire tighter execution time analysis, the cache must be modeled with program execution to predict the cache state.
 The ease of such modeling depends on the replacement policy used in the cache.
 
 For example, the \emph{Least Recent Used} (LRU) replacement policy replaces the least recently used cache line whenever an eviction occurs. 
@@ -62,8 +62,8 @@ In practice, the complexity of modern programs and memory architectures often in
 
 Even outside of the context of real-time applications, caches can present unintended side effects.
 For applications that require extreme high speed, the best-effort memory management that caches offer simply is not good enough.
-Programs often need to be hand tuned and tailored to specific cache architectures and parameters to achieve the desired performance. 
-In order to tune algorithm performance, algorithm designers are required to understand to the abstracted away memory architecture and enforce data access patterns that conform to the cache size and replacement policy.   
+Programs often need to be tuned and tailored to specific cache architectures and parameters to achieve the desired performance. 
+In order to tune algorithm performance, algorithm designers are required to understand the abstracted away memory architecture and enforce data access patterns that conform to the cache size and replacement policy.   
 For example, instead of operating on entire rows or columns of an array, algorithms are rewritten to operate on a subset of the data at a time, or blocks, so the faster memory in the hierarchy can be reused.
 This technique is called \emph{Blocking}~\cite{Lam91thecache}, and is very well-known and commonly used.   
 %\todo{talk about LAPACK? Libraries that tune programs to caching}.

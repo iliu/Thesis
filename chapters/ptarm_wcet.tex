@@ -1,8 +1,8 @@
 \label{subsec:precision_timing_inst_ptarm}
 Worst-case execution time (WCET) analysis requires a combination of software analysis to determine the worst-case path, and architectural analysis to determine the time it takes to execute that paths on the underlying architecture. 
 A plethora of research has been done on the software analysis of program paths. 
-Wilhelm et al.~\cite{wilhelm-survey-paper} presented a survey of tools and techniques available for worst-case path enumeration and loop analysis etc.
-However, the precision of the WCET analysis of those techniques ultimately depend on the underlying architecture implementation~\cite{Heckmann2003processor}.
+Wilhelm et al.~\cite{wilhelm-survey-paper} present a survey of tools and techniques available for worst-case path enumeration, loop analysis, etc.
+However, the precision of the WCET analysis of those techniques ultimately depends on the underlying architecture implementation~\cite{Heckmann2003processor}.
 Architectures that exhibit wildly unpredictable execution times will result in overly conservative WCET analysis, even if the software structure is simple. 
 Designed as a predictable architecture, the instructions of PTARM all exhibit deterministic timing behaviors, allowing precise architectural analysis for the WCET analysis.
 Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each instruction takes in terms of \emph{thread cycles}. 
@@ -30,8 +30,8 @@ Table~\ref{table:ptarm_instruction_timing} summarizes the execution time each in
    &  &   \\ \hline
   \multicolumn{5}{|l|}{\textbf{Notes:}} \\ \hline
   \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$N_{reg}$: This is number of registers in the register list.}} \\
-  \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$^{\delta}$: The single store buffer (described in section~\ref{sec:ptarm_dram_store_buffer}) can hide the store latency to DRAM down a 1 thread cycle. But in cases where the store buffer cannot be used, the latency is 2 thread cycles.}} \\
-  \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$^{\phi}$: The dram load latency is 3 or 4 thread cycles depending on the alignment of the pipeline and the dram controller backend, as described in section~\ref{sec:ptarm_dram_integration}. For conservative estimates, 4 thread cycles is used.}} \\
+  \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$^{\delta}$: The single store buffer (described in section~\ref{sec:ptarm_dram_store_buffer}) can hide the store latency to DRAM, making it 1 thread cycle. But in cases where the store buffer cannot be used, the latency is 2 thread cycles.}} \\
+  \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$^{\phi}$: The DRAM load latency is 3 or 4 thread cycles depending on the alignment of the pipeline and the DRAM controller backend, as described in section~\ref{sec:ptarm_dram_integration}. For conservative estimates, 4 thread cycles is used.}} \\
   \multicolumn{5}{|p{.9\textwidth}|}{\scriptsize{$^{\dagger}$: This is the minimum execution time of \delayuntil. The actual execution time varies depending on the input timestamp.}} \\ \hline
 \end{smalltabular}}
 \vspace{1mm}
@@ -52,7 +52,7 @@ The length of the \emph{thread cycle} will not change because of the predictable
 
 \subsection{Memory instructions}
 Data-processing and branch instructions have straightforward execution times.
-The execution time of branches are deterministic because the branch penalty is completely hidden by the thread interleaving.
+The execution time of branches is deterministic because the branch penalty is completely hidden by the thread interleaving.
 On the other hand, memory instructions in our architecture can have several different latencies depending on addressing mode or region of access, as listed in table~\ref{table:ptarm_instruction_timing}.
 For memory instructions that use pre or post-indexed addressing mode to update the base register, an additional cycle latency is needed to write back to the base register.
 This is documented in the instruction implementation of load/store register in section~\ref{sec:ptarm_instruction_ldstr}.
@@ -64,30 +64,30 @@ The exposed memory hierarchy allows us to clearly label and identify access late
 In execution time analysis tools, \emph{value analysis} attempts to determine the address accessed by each instruction~\cite{wilhelm-survey-paper}.
 Once the \emph{value analysis} determines the memory address, a precise memory access latency can be associated with the memory instruction.    
 This allows for a simpler timing analysis and more accurate execution analysis compared to conventional memory hierarchies with caches. 
-If caches are used to hide the memory hierarchy, additional modeling of the cache state is required after the \emph{value analysis} to predict the cache state and determine if the access hit or missed the cache. 
+If caches are used to hide the memory hierarchy, additional modeling of the cache state is required after the \emph{value analysis} to predict the cache state and determine whether the access hit or misses the cache. 
 
-For store instructions, the single store buffer described in section~\ref{sec:ptarm_dram_store_buffer} can usually hide the latency to access DRAM, if the subsequent instruction does not accesses the DRAM. 
+For store instructions, the single store buffer described in section~\ref{sec:ptarm_dram_store_buffer} can usually hide the latency to access DRAM, if the subsequent instruction does not access the DRAM. 
 Otherwise the store to DRAM will observe full memory access latency of two thread cycles.
-Architectural timing analysis can account for the store buffer by statically checking the next instructions to see if there are memory accessing instructions to the DRAM.
-The window of instructions that need to be checked is only one, so only slightly complicates the timing analysis.
+Architectural timing analysis can account for the store buffer by statically checking the next instruction to see whether it is a memory accessing instruction to the DRAM.
+Since only one instruction needs to be checked, it only slightly complicates the timing analysis.
 If it is not possible, then the full store to DRAM latency can be used for conservative analysis. 
 
 The execution time of load/store multiple instructions depend on the number of registers operated on, and the memory region it accesses. 
 Because the register list is statically encoded in the instruction, the number of registers operated on can be determined statically.
 For each register that is operated on, the latency will depend on which memory region it accesses. 
 The total execution time of the instruction will be the sum of the latencies for all register operations. 
-Store multiple instructions to the DRAM do not benefit from the store buffer, because it issues consecutive stores to the DRAM. 
+Store multiple instructions to the DRAM do not benefit from the store buffer, because they issue consecutive stores to the DRAM. 
 Thus, each store takes the full DRAM store latency.
 If pre or post-indexed addressing mode is used, an extra cycle is added to update the base register, just as regular load/store instructions. 
 
 \subsection{Timing instructions}
 \label{sec:jitter_of_timing_instructions}
-With the exception of \delayuntil, which by design exhibits variable execution time, the execution time of all other timing instructions are static.  
-However, they can impact the execution time the program in a very dynamic way.
-For example, the execution of \exceptiononexpire\ and \deactivateexception\ only take one thread cycle, but when the \timerexpired\ exception is thrown, the execution time of the whole program dynamically changed. 
+With the exception of \delayuntil, which by design exhibits variable execution time, the execution time of all other timing instructions is static.  
+However, the timing instructions can impact the execution time of the program in a very dynamic way.
+For example, the execution of \exceptiononexpire\ and \deactivateexception\ only take one thread cycle, but when the \timerexpired\ exception is thrown, the execution time of the whole program dynamically changes. 
 To precisely understand the timing effects of the timing instructions, we must understand the jitter of the timing instructions caused by the underlying implementation.
 It is impossible for any hardware implementation to provide absolute precision of time, as we are limited by the digital synchronous circuits that discretize the notion of time. 
-Although the timing extensions allow the manipulation of nanoseconds in software, with the thread-interleaved pipeline in PTARM, the basic unit of time for each thread is one thread cycle, or $40ns$.
+Although the timing extensions allow the manipulation of timestamps, representing nanoseconds, in software, with the thread-interleaved pipeline in PTARM, the basic unit of time for each thread is one thread cycle, or $40ns$.
 In other words, $40ns$ is the shortest interval of time that is observable by each thread.
 This can also be understood from the implementation of the thread-interleaved pipeline.
 Each thread only latches the clock value in the fetch stage, and the timestamp is propagated along the pipeline and associated with the instruction. 
@@ -95,13 +95,13 @@ Since there are four threads cycling in a round robin fashion, each thread latch
 With 100MHz clocking the pipeline in our implementation, 4 processor cycles is equivalent to $40ns$.
 
 When manipulating timestamps, the execution time of the timing instructions and jitter must be accounted for.
-The timestamp associated with each instruction represent the \emph{time of execution} of that instruction.
+The timestamp associated with each instruction represents the \emph{time of execution} of that instruction.
 In our implementation, the \emph{time of execution} is when the instruction begins to execute, so the timestamp is latched in the fetch stage.
-This is the value store into registers for \gettime\ instructions.  
+This is the value stored into registers for \gettime\ instructions.  
 %This means the timestamp obtained from \gettime\ will contain the time at the beginning of execution of \gettime.
 Since \gettime\ takes 2 thread cycles to complete, $80ns$  will have elapsed when the next instruction begins its execution.
-In the same way, \delayuntil\ delay programs execution until the current \emph{time of execution} is $\geq$ the input timestamp value.
-When \delayuntil\ completes its execution, the next instruction will observe a the platform time of \emph{at least} $40ns$ greater than the input timestamp passed to \delayuntil.
+In the same way, \delayuntil\ delays programs execution until the current \emph{time of execution} is greater than or equal to the input timestamp value.
+When \delayuntil\ completes its execution, the next instruction will observe a platform time of \emph{at least} $40ns$ greater than the input timestamp passed to \delayuntil.
 This effect is illustrated in figure~\ref{fig:delay_until_details}.
 \begin{figure}[h]
   \begin{center}
@@ -161,14 +161,14 @@ loop:
   subs r5, r5, #80           ; compensate for loop overhead and delay_until 
   sbc  r4, r4, #0            ; 
 
-  subs r5, r3, r5            ; Check if previous iteration deadline is missed
+  subs r5, r3, r5            ; Check whether previous iteration deadline is missed
   sbc  r4, r2, r4            ; 
 
-  blmi task_short            ; execute shorter task if previous deadline mess 
+  blmi task_short            ; execute shorter task if previous deadline miss 
   blpl task_normal           ; or else execute normal task 
   
   adds r3, r3, #4000         ; assuming the deadline is 4 us (4000 ns)
-  adc r2, r2, #0             ; calculate the deadline timestamp for this iter.
+  adc r2, r2, #0             ; calculate the deadline timestamp for this iteration
   cdp p13, 4, c2, c2, c3, 0  ; delay_until
    
   b loop
@@ -177,7 +177,7 @@ loop:
 \subsubsection{Obtaining the offset}
 Listing~\ref{lst:timed_loop_compensate_revisit} shows the source code that is used to construct this timed loop. 
 During the miss detection (lines 3 to 8), an additional \textit{offset} is used to compensate for the execution of \delayuntil\ and loop overhead.
-Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ used for miss detection (line 3) in the current iteration.
+Time elapses between the \delayuntil\ of the previous loop iteration (line 15), where the previous deadline timestamp is checked, and the \gettime\ is used for miss detection (line 3) in the current iteration.
 Without the offset compensation, the loop overhead will cause the miss detection to always detect a missed deadline.
 This can be observed from table~\ref{table:timed-loop-compensate-timing}, where we show a sample execution trace of four iterations in this timed loop.  
 Figure~\ref{fig:self_compensating_loop_timing} shows the timing behavior of these four iterations, where a missed deadline in the second iteration will cause the third iteration to compensate by executing the shorter version of the task.
@@ -249,7 +249,7 @@ In table~\ref{table:timed-loop-compensate-timing}, execution starts at time $t$.
 As mentioned before, each thread cycle is $40ns$, which is reflect in the left most column that shows the progression of time.
 We also show the thread cycle (TC) count, which starts at $n$ when execution begins.
 The execution time of each instruction is according to table~\ref{table:ptarm_instruction_timing}.
-All instructions are compiled on the instruction scratchpad.
+All instructions are statically compiled onto the instruction scratchpad.
 In this code segment, we keep track of two timestamps each iteration. 
 The \emph{deadline\_timestamp} keeps track of the loop deadlines, and is stored in registers r2 and r3.  
 The \emph{current\_timestamp} is updated with \gettime\ in the beginning of each loop iteration to detect if the previous iteration missed its deadline.
@@ -266,22 +266,22 @@ At time $t+4080ns$, \gettime\ is called to initiate the miss detection sequence.
 The previous \deadlinet\ is $t+4000$, which was met in the first iteration.  
 However, \gettime\ updates the \currentt\ to $t+4080$, because the execution of \delayuntil\ and \emph{b loop} took 2 thread cycles combined. 
 Thus, our miss detection needs to account for this by subtracting the 2 thread cycles ($80ns$) difference from \currentt\ before comparing it with \deadlinet.
-In general, the \emph{offset} that needs to be account for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
+In general, the \emph{offset} that needs to be accounted for is the time elapsed between the deadline checking \delayuntil\ instruction and the miss detection \gettime\ instruction.
 Intuitively, we want to check whether the previous \delayuntil\ executed before the previous \deadlinet, so the \emph{offset} is calculates the time of execution of the previous \delayuntil.  
 
 \subsubsection{Overhead of the self compensating timed loop}
 In this self compensating timed loop, the loop period is set to $4000ns$ and regulated with the \delayuntil\ instruction.
 Each loop period includes the execution of the actual task along with the loop and timing control overhead.
 The loop overhead in this example is only the branch instruction on line 17 in listing~\ref{lst:timed_loop_compensate_revisit}, which is 1 thread cycle (40 ns).
-The overhead for timing control and self compensation consists of all the timing instructions, the arithmetic on the timestamps, and the 2 conditional branch instructions that determines which task to execute.
+The overhead for timing control and self compensation consists of all the timing instructions, the arithmetic on the timestamps, and the 2 conditional branch instructions that determine which task to execute.
 From table~\ref{table:timed-loop-compensate-timing} we can count a total overhead of 11 thread cycles which includes: 1 \gettime\ (2 thread cycles), 1 \delayuntil\ (1 thread cycle), 6 arithmetic operations on the timestamps (6 thread cycles), and 2 conditional branch instructions (2 thread cycles).
 Overall the timed loop contains an overhead of 12 thread cycles ($480ns$) , which means both tasks have a soft timing requirement of 88 thread cycles ($3520ns$) for each loop iteration to meet its deadline.  
-In the second loop iteration of our example, \emph{task\_normal} executed for 89 thread cycles, exactly one thread cycle over its timing requirement. 
-As a result, the \delayuntil\ of the second loop iteration did not delay program execution, and the third iteration miss detection detects a missed deadline, and switches to execute \emph{task\_short}. 
+In the second loop iteration of our example, \emph{task\_normal} executes for 89 thread cycles, exactly one thread cycle over its timing requirement. 
+As a result, the \delayuntil\ of the second loop iteration does not delay program execution, and the third iteration miss detection detects a missed deadline and switches to execute \emph{task\_short}. 
 
 \subsubsection{First loop iteration jitter}
 The \emph{offset} previously derived is the time difference between the desired deadline and the time of execution of the \gettime\ used for miss detection.  
-In our code, because of the simple loop structure, the \emph{offset} only included the execution time of the \delayuntil\ and a branch. 
+In our code, because of the simple loop structure, the \emph{offset} only includes the execution time of the \delayuntil\ and a branch. 
 However, if the difference was larger, for example, in a conditional loop structure, then it could introduce jitter for the first iteration.
 An example is shown in figure~\ref{fig:setup_look_timing}.
 \begin{figure}[h]
@@ -358,8 +358,8 @@ By doing so, the first loop iteration will observe the same loop period as all s
 \label{sec:exception_timing_example}
 %\todo{change this example to interrupt a memory access to DRAM, to demo what's discussed in the exception section?}
 In section~\ref{subsec:exception_handling_in_ptarm} we described how exceptions are thrown in PTARM.
-When an exception is triggered in one hardware thread, none of the other hardware threads are affected, as the pipeline is not flushed.
-For the thread on which the exception occurred, only one thread cycle is lost, and the control flow jumps to the correct exception handler depending on the exception vector table.    
+When an exception is triggered in one hardware thread, none of the other hardware threads is affected, as the pipeline is not flushed.
+For the thread on which the exception occurs, only one thread cycle is lost, and the control flow jumps to the correct exception handler depending on the exception vector table.    
 Here, we give a concrete example of the timing behavior of exceptions on PTARM by using \exceptiononexpire\ and \deactivateexception\ to trigger a \timerexpired\ exception.
 The code for the example is shown in listing~\ref{lst:exception-sample}.
 
@@ -395,7 +395,7 @@ When a \timerexpired\ exception occurs, the current address is saved and control
 This table entry redirects execution to a \timerexpired\ exception setup code which calls the user-level exception handler registered.
 This setup code is shown in listing~\ref{lst:timer-expire-handler}.
 The setup code loads the address of \timerhandlerloc\ into a register, and jumps to the handler on line 7.
-If the handler returns, lines 9 to 11 re-enable interrupts, and line 12 returns control to the original PC when the exception occurred.  
+If the handler returns, lines 9 to 11 re-enable interrupts, and line 12 returns control to the original PC where the exception occurred.  
 \begin{lstlisting}[float=h, label=lst:timer-expire-handler,caption=The \timerexpired\ exception setup code]
 .text
 .global _tmr_exp_setup;
@@ -451,7 +451,7 @@ The execution trace of this example is shown in table~\ref{table:exception-expir
 Because execution jumps back and forth between the main code, the \timerexpired\ setup code, and the \delayhandler, we show the address of the instructions to help follow which code segment is being executed.
 The user code is compiled to start at 0x40000000, which is in the instruction scratchpad space.
 As described in section~\ref{sec:ptarm_memory}, the exception vector table and \timerexpired\ setup code are all compiled as part of the boot code.
-The \emph{str} instruction is storing to the \timerhandlerloc, which is a reserved location in the boot code, so executes in one thread cycle.  
+The \emph{str} instruction is storing to the \timerhandlerloc, which is a reserved location in the boot code, so it executes in one thread cycle.  
 The deadline timestamp is set so the \timerexpired\ exception is thrown during the execution of the code block, which occurs at time $t+360$.
 Although the address of execution at that time is 0x400000020, the instruction at that address does not complete, because the \timerexpired\ exception is thrown in that thread cycle.
 That address is saved to the \emph{link register} (R14) by the hardware when the exception is thrown.
@@ -467,9 +467,11 @@ The exposed memory hierarchy with scratchpads allows us to statically compile th
 This ensures that the DRAM is not accessed during the first 3 thread cycles after the exception is thrown, and allows for predictable exception handling.
 
 We show that the timing analysis of exceptions is deterministic and straightforward in the PTARM architecture.
-No flushing of the pipeline occurs, no other hardware threads are affected, and the hardware exception throwing mechanism only observes a single thread cycle overhead.
+No flushing of the pipeline occurs, no other hardware threads are affected, and the hardware exception throwing mechanism only suffers a single thread cycle overhead.
 Due to deterministic instruction execution time and exposed memory hierarchy, the \emph{response time} of hardware exceptions, which is the time elapsed between when the exception is thrown and when the user registered exception handler executes, is deterministic and can be statically obtained. 
 For the \timerexpired\ exception in PTARM, the response time is 8 thread cycles ($320ns$), which includes the one thread cycle when the exception is thrown, and 7 thread cycles for code executed from the exception vector table and \timerexpired\ setup code.   
 This is reflected in table~\ref{table:exception-expire-timing}.
+
+\todo{conclude the chapter.}
 
 

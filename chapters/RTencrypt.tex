@@ -8,7 +8,7 @@ Timing attacks~\cite{Kocher96timingattacks} exploit this variability in cryptosy
 These can lead to deciphering the secret key.
 Kocher describes a timing attack as a basic signal detection problem~\cite{Kocher96timingattacks}. 
 The ``signal'' is the timing variation caused by the key's bits when running the cipher, while ``noise'' is the measurement inaccuracy and timing variations from other factors such as architecture unpredictability and multitasking. 
-This signal to noise ratio determines the number of samples required for the attack -- the greater the ``noise,'' the more difficult the attack. 
+This signal to noise ratio determines the number of samples required for the attack---the greater the ``noise,'' the more difficult the attack. 
 It was generally conceived that this ``noise'' effectively masked the ``signal,'' thereby shielding encryption systems from timing attacks. 
 However, practical implementations of the attack have since been presented~\cite{remoteattackspracticle,DKLMQW98,SCAsurvey} that clearly indicate the ``noise'' by itself is insufficient protection. 
 In fact, the architectural unpredictability that was initially believed to prevent timing attacks was discovered to enable even more attacks.
@@ -167,7 +167,7 @@ We argue that a \textit{predictable} architecture is also required to eliminate 
 \paragraph {Pipeline}
 In order to improve instruction throughput and performance, modern processor architectures implement pipelines to execute multiple instructions in parallel.
 This requires handling of pipeline hazards, which are caused by dependencies in instruction sequences. 
-Conditional branches are the perfect example -- the pipeline cannot fetch and begin executing the next instruction without knowing which instruction to fetch. 
+Conditional branches are the perfect example---the pipeline cannot fetch and begin executing the next instruction without knowing which instruction to fetch. 
 Since a conditional branch usually takes more than one cycle to resolve, the processor is forced to stall until the branch is resolved. 
 
 Computer architects use clever speculative techniques to mitigate the effects of pipeline hazards and to substantially improve the average-case performance.
@@ -252,7 +252,7 @@ These efforts while successful, are ad-hoc, counteracting specific attacks witho
 Without tackling the origin of time-exploiting attacks, we believe that more exploits will eventually be discovered, attacking the \emph{uncontrollable} execution time variation caused by the shared resources of hardware or software control flow.  
 The PRET architecture is designed to ensure repeatable and predictable timing behavior of programs by providing control of timing properties in software and a predictable architecture that provides temporal isolation for hardware threads and processes.
 PRET is impenetrable known attacks such as branch predictor attacks~\cite{Onur07predictingsecret}, cache attacks~\cite{Percival05cachemissing} or other attacks on the pipeline~\cite{2009-x86timing}.
-The more importantly, the predictable architecture design removes the root cause of time-exploiting attacks -- the \emph{uncontrollable} timing variations caused by unpredictable hardware components or software control flows.     
+The more importantly, the predictable architecture design removes the root cause of time-exploiting attacks---the \emph{uncontrollable} timing variations caused by unpredictable hardware components or software control flows.     
 
 \subsection{Case Studies}
 \label{sec:rtencrypt-results}
@@ -444,8 +444,7 @@ Note that we could have done this for the previous example as well to fix the ex
 
 For RSA, key lengths typically need to be longer than $512$ bits to be considered cryptographically strong~\cite{redhatadminguide}. 
 This gives roughly $2^{512}$ possible keys, which is far more than needed for most applications.
-Suppose we are able reduce the key space the application covers --
-instead of using $100\%$ of the keys, we refine our encryption system to only assign $97\%$ of all possible keys. Namely, the subset of keys whose RSA execution times fall on the left of the $+2$ standard deviation line on the curve.
+Suppose we are able reduce the key space the application covers---instead of using $100\%$ of the keys, we refine our encryption system to only assign $97\%$ of all possible keys. Namely, the subset of keys whose RSA execution times fall on the left of the $+2$ standard deviation line on the curve.
 Statistically, the keys that lie outside of $\pm 2$ standard deviation are the least secure keys anyway, since it is easier for time-exploiting attacks to distinguish those keys. 
 %Then, we can reduce the value specified in the deadline instruction enclosing the whole RSA operation instead of using the absolute worst-case execution time pushed up by the far right outlier.
 By doing so, we reduce the execution time of the encryption algorithm because we know that keys that are right-side outliers will not be used. 
@@ -516,8 +515,8 @@ Other encryption algorithms that do not have software techniques or solutions re
 
 \subsection{Conclusion and Future Work}
 Side-channel attacks are a credible threat to many cryptosystems.  
-They exist  not just because of a weakness in an algorithm's mathematical underpinnings, but also from information leaks in the implementation of the algorithm. %The inability to control timing properties is what directly leads to side channel attacks.
-In particular, this paper targets time-exploiting attacks, and lays out a means of addressing what we consider the root cause of such attacks: the lack of \textit{controllability} over the timing information leaks.
+They exist not just because of a weakness in an algorithm's mathematical underpinnings, but also from information leaks in the implementation of the algorithm. %The inability to control timing properties is what directly leads to side channel attacks.
+In particular, this work targets time-exploiting attacks, and lays out a means of addressing what we consider the root cause of such attacks: the lack of \textit{controllability} over the timing information leaks.
 %Although numerous efforts have been put to discovering and counteracting these attacks, it seems that only more vulnerabilities are being discovered. 
 % Without secure hardware, software cannot be considered truly secure.  
 % Some stopgap measures are implementable in software, but rarely are they a guaranteed fix.

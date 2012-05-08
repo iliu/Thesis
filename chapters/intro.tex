@@ -43,7 +43,7 @@ As tasks or software threads are scheduled for execution in the OS, an explicit 
 \item \emph{Misleading or pessimistic analysis results when analyzing the whole system} -- 
 For example, task scheduling and context switching cost may vary from the cache or pipeline state change after executing each tasks. 
 This is often not factored into the analysis~\cite{thiele:04:predictable}. 
-Furthermore, because the  large variation of execution time in modern complex processors, WCET analysis techniques often lead to overly conservative results for safety~\cite{wilhelm-survey-paper}. 
+Furthermore, because the  large variation of execution time in modern complex processors, worst-case execution time (WCET) analysis techniques often lead to overly conservative results for safety~\cite{wilhelm-survey-paper}. 
 As the WCET is often the basis for priority of any scheduling scheme, the conservativeness is propagated throughout the system.
 \end{itemize}
 %explain composability
@@ -69,7 +69,7 @@ At the lowest levels of abstraction, circuits and microarchitectures, timing is 
 For example, in a microarchitecture, if the output of an ALU is latched at the wrong time, the ISA will not be correctly implemented.
 However, at higher levels, for example, the ISA, timing is hidden, and there is no temporal semantics; the execution time is irrelevant to correctness. 
 Thus, each abstraction layer needs to be revisited to judiciously introduce some form of temporal semantics. 
-Specifically for CPS, platforms must be equip to handle the \emph{inherent concurrency} and the \emph{inexorable passage of time} for physical processes.   
+Specifically for CPS, platforms must be equipped to handle the \emph{inherent concurrency} and the \emph{inexorable passage of time} for physical processes.   
 Sangiovanni-Vincentelli et al.~\cite{Sangiovanni-Vincentelli2007automotive} identified these issues as the \textit{timing composability} and \textit{timing predictability} of systems, and list them as requirements to enable efficient designs of large-scale safety-critical applications.    
 
 \subsubsection{Timing Composability}
@@ -99,7 +99,7 @@ In order to keep up with the continuous passage of time in physical processes, t
 \textit{Timing predictability} is the ability to predict timing properties of the system.
 Timing composition plays a big part of this when features are integrated, but even individually, it is difficult to analyze the execution time of programs.
 
-Wilhelm et al.~\cite{wilhelm-survey-paper} described the abundant amount of research and effort that has been put into bounding the worst-case execution time (WCET) of programs.   
+Wilhelm et al.~\cite{wilhelm-survey-paper} described the abundant amount of research and effort that has been put into bounding the WCET of programs.   
 Not only is determining the worst case program flow a challenge, but the precision and usefulness of the analysis also depends on the underlying architecture\cite{Heckmann2003processor}. 
 Conventional architectures have implemented techniques that target the improvement of average case execution time (ACET) at the expense of execution time variability.    
 As a result, it's extremely complex, if not impossible to obtain a precise bound of the execution time on modern architectures.
@@ -184,7 +184,7 @@ This is illustrated in figure~\ref{fig:program_execution_times}, which shows the
 It highlights several key issues that are important to understanding program execution time.
 First, the \emph{observable execution times} may not observe all \emph{possible execution times}.
 This is important because far too often we rely on testing and end-to-end measurement to determine the WCET.
-This will, in general, overestimate the BCET and underestimate the WCET, and is not safe when timing must be guaranteed. 
+This will, in general, overestimate the best-case execution time (BCET) and underestimate the WCET, and is not safe when timing must be guaranteed. 
 Second, it is often difficult to determine the \emph{actual} WCET, thus the worst case guarantee that is given is usually a bound on the WCET.    
 The goal of the WCET analysis is to obtain a \textit{safe} and \textit{precise} bound on the WCET of a program~\cite{wilhelm-survey-paper}. 
 \textit{Safe} means that the execution time will never exceed the bounded time. 
