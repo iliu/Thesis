@@ -106,17 +106,19 @@ The exposed memory hierarchy gives software full control over the management of 
 Data allocated on the scratchpad will have single cycle access latencies, while other data will take the full DRAM access latency. 
 The memory access latency for each request now depends only on the access address, and not that state of another hardware controller. 
 This drastically improves the predictability of memory access times, and reduces the variability of execution time introduced with caches.
-However, this places the burden of memory management on the programmer. 
+However, this places the burden of memory management on the programmer or compiler toolchains.  
+The Cell processor~\cite{cellproc} is often criticized for being difficult to program, and one of the main reasons is the use of scratchpads. 
+Programmers have become accustomed to a uniform memory space, making it difficult to adjust to the non uniform memory space that must be explicitly managed.
 
+Embedded system designs inherently need to deal with limited resources and other design constraints, such as limited memory or hard timing deadlines.    
+Thus, the design of such systems often requires analysis of memory usage and latency to ensure that the constraints are met.
+These analysis results can be used to generate automatic allocation schemes for scratchpads, lessening the burden on the programmer.
 Two allocation schemes are commonly employed to manage the contents of scratchpads in software.
 \emph{Static allocation schemes} allocate data on the scratchpad during compile time, and the contents allocated on the scratchpad do not change throughout program execution. 
 Static scratchpad allocation schemes~\cite{Suhendra2005WCETSPM, Patel2008PRETSPM} often use heuristics or a compiler-based static analysis of the program to find the most commonly executed instructions or data structures, and allocate them statically on the scratchpad to improve program performance. 
 \emph{Dynamic allocation schemes} modify the data on the scratchpad during run time in software through DMA mechanisms.
 The allocation could either be automatically generated and inserted by the compiler, or explicitly specified by the user programmatically.
-
-Embedded system designs often deal with limited resources and other design constraints, such as limited memory or hard timing deadlines.    
-Thus, the design of such systems often requires analysis of memory usage to ensure that the constraints are met. 
-Higher level models of computation, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto} expose the structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
+Higher level models of computation, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto} expose more structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
 Bandyopadhyay~\cite{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous} presents an automated memory allocation of scratchpads for the execution of Heterochronous Dataflow models.
 The Heterochronous Dataflow (HDF) model is an extension to the Synchronous Dataflow (SDF) model with finite state machines (FCM). 
 The HDF models contain different program states, each state executing a SDF model that contains actors communicating with each other. 

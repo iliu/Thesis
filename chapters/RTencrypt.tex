@@ -35,12 +35,14 @@ The subtle difference is that if timing variability is introduced in a controlle
 However, because of the programmer's \textit{lack of control} over these timing information leaks in modern architectures, noise injection techniques are widely adopted in attempt to make the attack infeasible.
 These include adding random delays~\cite{Kocher96timingattacks} or blinding signatures~\cite{Kocher96timingattacks,blindingrsa}. 
 Other techniques such as branch equalization~\cite{Molnar05theprogram,SCAsurvey} use software techniques to rewrite algorithms such that they take equal time to execute during each conditional branch. 
-We take a different approach, and  directly address the crux of the problem, which is the \textit{lack of control} over timing behaviors in software. 
+We take a different approach to directly address the crux of the problem, which is the \textit{lack of control} over timing behaviors in software.
+By using the PRET architecture, designed to allow predictable and controllable timing behaviors, we prevent the attacker from exploiting uncontrollable timing side-channel leaks from the architecture.   
 %Computer architects have introduced caches and complex pipelines to improve the average-case performance while keeping these optimizations invisible to the programmer. 
 %However, these improvements often attribute to the unpredictable and uncontrollable timing behaviors, which result in time-exploiting attacks.
-We propose the use of an embedded computer architecture that is designed to allow predictable and controllable timing behaviors.
 
-%By proposing a predictable architecture, it may seem that we are making the attacker's job easier by reducing the ``noise'' 
+
+%By proposing a predictable architecture, it may seem that we are making the attacker's job easier by reducing the ``noise''
+
 At first it may seem that a predictable architecture makes the attacker's task simpler, because it reduces the amount of ``noise'' emitted from the underlying architecture.
 However, we contend that in order for timing behaviors to be controllable, the underlying architecture \textit{must} be predictable.
 This is because it is meaningless to specify any timing semantics in software if the underlying architecture is unable to honor them.
@@ -140,8 +142,8 @@ By using the timing instructions provided by the PRET architecture, we can mitig
 At the expense of more programming effort, other solutions have been proposed to alter and pad the execution time of different execution paths~\cite{Kocher96timingattacks} to shield against the timing variability of the algorithm. 
 At a glance it might seem that the timing instruction are a similar solution to these proposals, however, the principles are inherently different. 
 While effective against certain time-exploiting attacks, existing solutions alter the underlying algorithm implementation in attempt to manually pad or distort the execution time. 
-These solutions are not only algorithmically specific, but could lead to unnecessarily degrading of the performance of encryption algorithms. 
-The timing instructions, on the other hand, allows for a separation of concern between the functionality and timing behavior of the code. 
+These solutions are not only algorithmically specific, but could lead to unnecessarily degrading of the performance of the encryption algorithms. 
+The timing instructions, on the other hand, allow for a separation of concerns between the functionality and timing behavior of the code. 
 The programmer can implement the correct functionality of the algorithm, then use timing instructions to regulate its timing behavior.
 The subtle difference will be more apparent in section~\ref{sec:rtencrypt-results} when we show two different implementations of the RSA encryption that both use timing instructions to regulate execution time.
 One implementation mimics existing execution time padding solutions, and the second implementation uses timing instructions to enforce an overall execution time of the RSA algorithm. 
@@ -165,46 +167,41 @@ We argue that a \textit{predictable} architecture is also required to eliminate 
 
 \subsubsection{Predictable Architecture}
 \paragraph {Pipeline}
-In order to improve instruction throughput and performance, modern processor architectures implement pipelines to execute multiple instructions in parallel.
-This requires handling of pipeline hazards, which are caused by dependencies in instruction sequences. 
-Conditional branches are the perfect example---the pipeline cannot fetch and begin executing the next instruction without knowing which instruction to fetch. 
-Since a conditional branch usually takes more than one cycle to resolve, the processor is forced to stall until the branch is resolved. 
-
-Computer architects use clever speculative techniques to mitigate the effects of pipeline hazards and to substantially improve the average-case performance.
-For example, branch predictors are used to guess the next instruction needed by the processor for branches~\cite{Grunwald98confidenceestimation}.
-This allows the processor to execute instructions speculatively while rolling back only when needed. 
-%If the speculation is correct, there is no performance penalty, otherwise, the pipeline is flushed and a new instruction stream is fetched.
-While these speculative techniques improve the average-case performance, they introduce several side effects. 
+% In order to improve instruction throughput and performance, modern processor architectures implement pipelines to execute multiple instructions in parallel.
+% This requires handling of pipeline hazards, which are caused by dependencies in instruction sequences. 
+% Conditional branches are the perfect example---the pipeline cannot fetch and begin executing the next instruction without knowing which instruction to fetch. 
+% Since a conditional branch usually takes more than one cycle to resolve, the processor is forced to stall until the branch is resolved. 
+% 
+% Computer architects use clever speculative techniques to mitigate the effects of pipeline hazards and to substantially improve the average-case performance.
+% For example, branch predictors are used to guess the next instruction needed by the processor for branches~\cite{Grunwald98confidenceestimation}.
+% This allows the processor to execute instructions speculatively while rolling back only when needed. 
+% %If the speculation is correct, there is no performance penalty, otherwise, the pipeline is flushed and a new instruction stream is fetched.
+% While these speculative techniques improve the average-case performance, they introduce several side effects. 
 %they result in computer architectures that are \textit{unpredictable}, and \textit{uncontrollable}. 
 % \FIXME{Isaac: I find that it would be better to say that these architectures are unpredictable, which make cycle-counting and static prediction of execution times virtually impossible. The uncontrollability has two issues: 1) it's not possible to determine the execution times due to unpredictability, and 2) no method of allowing to do so either (no instructions)}
-First, they create \textit{timing variations}.  
+Modern processor architectures often use speculation techniques such as caches and branch predictors to improve average performance.
+These create \textit{timing variations} in the program execution.  
 Depending on the outcome of its speculation, the processor might need to discard the wrongly speculated work, and re-execute the correct instructions. 
-Second, these units are \textit{unpredictable}.
 Since these units are shared by all software processes concurrently running on the processor, the states of speculation units are heavily dependent on the different interleaving of processes. 
 This means that a process can unknowingly be affected by other processes, since the speculation state is shared between them~\cite{leethreads}.
+This makes these units \textit{unpredictable}.
 Because the goal of these speculation techniques is to improve program performance without effort from the programmer, the controls of these speculation units are concealed from the programmer, and cannot be directly accessed in software. 
 Thus, these side effects result in \textit{uncontrollable} timing behaviors in the program.
 
-Several Multithreaded architectures enable more opportunities to exploit the uncontrollable timing behaviors.   
-Multithreading utilizes thread-level parallelism by introducing multiple hardware threads in the processor.
-This allows the execution of another hardware thread during pipeline stalls like branches or memory accesses.
-However, typical multithreaded architectures share hardware units effecting execution time between hardware threads, enabling threads to covertly affect other threads execution time.  
-The class of Simultaneous Multithreading (SMT) architectures presents an example of this.
-Here, the hardware threads share multiple execution units and execute in parallel depending on a hardware scheduler. 
-Attackers exploit such designs by running a spy thread that executes concurrently with a thread that implements the encryption algorithm.
+Multithreaded architectures enable more opportunities to exploit the uncontrollable timing behaviors.   
+Attackers exploit such architectures by running a spy thread that executes concurrently with a thread that implements the encryption algorithm.
 This spy thread probes the components shared with the encryption thread~\cite{Percival05cachemissing,branchpredict} by forcefully occupying the shared units and observing when they are evicted by the encryption thread. 
-The announcement of this vulnerability caused Hyper-Threading, Intel's implementation of SMT, to be disabled by default in some Linux distributions because of its security risks~\cite{hyperthreadharmfulsite}.
+The announcement of this vulnerability caused Hyper-Threading, Intel's implementation of simultaneous multithreading, to be disabled by default in some Linux distributions because of its security risks~\cite{hyperthreadharmfulsite}.
 For general purpose applications, these side effects pose insignificant threats, but for security applications, the consequences are uncontrollable sources of side-channel information leakages.
 
-The PREcision Timed (PRET) architecture is a timing predictable architecture  proposed for real-time embedded systems.
+%The PREcision Timed (PRET) architecture is a timing predictable architecture proposed for real-time embedded systems.
 As discussed in chapter~\ref{section:pret_thread_pipeline}, PRET employs a thread-interleaved pipeline, a multithreaded pipeline that employs a predictable round-robin thread scheduling policy between the hardware threads every cycle.
-Instructions from each thread are predictably fetched into the pipeline every $n$ cycles, where $n$ is the number of hardware threads. 
-If $n$ is greater than the number of stall cycles needed for data dependency hazards, then we effectively remove those hazards because the data value is available during the next cycle in which the thread is dispatched. 
-For example, if we set $n$ to be the number of stages in the pipeline, then we eliminate the need for any data forwarding/bypassing logic, along with the need for hardware speculation units such as branch predictors.
-Most importantly, the hardware threads are temporally isolated, meaning that no threads can affect each others timing behavior.  
+The thread interleaved pipeline eliminates the need for any data forwarding/bypassing logic, along with the need for hardware speculation units such as branch predictors.
 Each individual hardware thread maintains their own copy of the processor state (program counter, general purpose registers, stack pointer, etc.), and each hardware thread runs independently with no shared state in the pipeline. 
 Because of the simple and transparent thread-scheduling policy, each hardware thread gets dispatched in a predictable way that cannot be affected by other hardware threads. 
 Thread-interleaved pipelines allow us to gain higher instruction throughput without the harmful side effects.
+Most importantly, the hardware threads are temporally isolated, meaning that no threads can affect each others timing behavior. 
+This prevents attackers from exploit shared resources from the pipeline to initiate timing side-channel attacks.    
 
 \paragraph{Memory System}
 The memory system presents another opportunity for attackers to gain side-channel information.
@@ -220,16 +217,15 @@ This is possible because the memory hierarchy is abstracted away from the progra
 
 PRET utilizes scratchpads memories (SPM) instead of caches in its memory hierarchy.  
 SPMs are fast access memories controlled by software. 
-SPMs use less power and occupy less area~\cite{Banakar2002} because no speculation logic is needed. 
-SPMs occupy a distinct address space, which exposes the memory hierarchy to the programmer, instead of abstracting it away like caches.  
-The allocation of data between memory and SPM is done with explicit instructions, either at compile time by the compiler or manually by the programmer.
-This gives the software control over memory access latencies, and provides a predictable execution time of the program.
-The performance of SPMs vary based on the data access patterns of the application, but since the control is in software, it is possible to tune the allocation scheme to achieve even better performance than a generic cache for specific applications. 
-There are abundant ongoing research on allocation schemes and methods for optimizing the performance of SPMs~\cite{avissar2002oma,Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous,Patel:EECS-2008-115,Suhendra2005WCETSPM,compilerSPM}. 
-SPMs can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provide 16KB of SPM per thread-bundle~\cite{8800gpu}.
-Although this comes at the cost of more programing effort, but it is not uncommon to see platform specific tuning of software for performance purposes. 
-For example, high performance parallel algorithms are often fine tuned to work on block sizes depending on the cache size and replacement policy of the platform, and re-tuned when running on different platform.
-
+% SPMs use less power and occupy less area~\cite{Banakar2002} because no speculation logic is needed. 
+% SPMs occupy a distinct address space, which exposes the memory hierarchy to the programmer, instead of abstracting it away like caches.  
+% The allocation of data between memory and SPM is done with explicit instructions, either at compile time by the compiler or manually by the programmer.
+% This gives the software control over memory access latencies, and provides a predictable execution time of the program.
+% The performance of SPMs vary based on the data access patterns of the application, but since the control is in software, it is possible to tune the allocation scheme to achieve even better performance than a generic cache for specific applications. 
+% There are abundant ongoing research on allocation schemes and methods for optimizing the performance of SPMs~\cite{avissar2002oma,Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous,Patel:EECS-2008-115,Suhendra2005WCETSPM,compilerSPM}. 
+% SPMs can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provide 16KB of SPM per thread-bundle~\cite{8800gpu}.
+% Although this comes at the cost of more programing effort, but it is not uncommon to see platform specific tuning of software for performance purposes. 
+% For example, high performance parallel algorithms are often fine tuned to work on block sizes depending on the cache size and replacement policy of the platform, and re-tuned when running on different platform.
 For security purposes, the scratchpad on PRET is configured to provide each hardware-thread a private scratchpad region so the scratchpad contents cannot be modified or monitored by spy threads on running another hardware thread.    
 This prevents shared resource time-exploiting attacks on the fast access memory across hardware threads.
 Even if an encryption process is sharing a hardware thread with another process, the contents of the scratchpad is controlled in software or statically compiled in by the compiler.
@@ -256,13 +252,15 @@ The more importantly, the predictable architecture design removes the root cause
 
 \subsection{Case Studies}
 \label{sec:rtencrypt-results}
-In the following section we will show results of two encryption algorithms running on PRET. 
-All experiments are run on the cycle accurate simulator of the PRET architecture described in~\cite{pret_cases08}.
-The simulator implements the SPARC v8 instruction set, and employs six threads on a six stage thread-interleaved pipeline.
+In the following section we will show results of two encryption algorithms running on the cycle accurate simulator of the PRET architecture described in lickly et al~\cite{pret_cases08}.
+Lickly et al.\cite{pret_cases08} introduced the first realization of the PRET architecture that implements the SPARC v8 instruction set.
+It employs six threads on a six stage thread-interleaved pipeline, and also use scratchpads for an expose memory hierarchy.
 Programs are written in C and compiled using a standard gcc cross compiler from Gaisler research labs~\cite{GAISLER}.
-This PRET implementation implements a simple processor extension inspired by Ip and Edwards~\cite{ip2006processor} that adds timing instructions to the ISA.
+Because the results of these experiments have yet to be ported to the newer PTARM, we present the original measurements obtained on the SPARC realization of a PRET architecture.  
+
+The SPARC PRET architecture implements a simple processor extension inspired by Ip and Edwards~\cite{ip2006processor} that adds timing instructions to the ISA.
 To be consistent with the terminology used in~\cite{ip2006processor}, we call this instruction the \textit{deadline instruction}.
-This deadline instruction has similar semantics to the \emph{delay\_and\_set} instruction introduced in section~\ref{sec:programming_models}. 
+This deadline instruction has similar semantics to the \emph{delay\_and\_set} macro introduced in section~\ref{sec:programming_models}. 
 It first ensures the previous deadline specified is met, then sets the deadline for the next instruction sequence.
 The deadline instruction specifies time in units of thread cycle, which is a thread's perceived cycle.
   

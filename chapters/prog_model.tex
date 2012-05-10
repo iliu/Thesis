@@ -46,7 +46,7 @@ In section~\ref{sec:ptarm_instructions} we will present the implementation and t
 Our extension of the ISA assumes a \emph{platform clock} that is synchronous with the execution of instructions.
 This \emph{platform clock} is used by all timing instructions to specify and manipulate the execution time of code blocks.
 The representation of \emph{time} in the ISA is in itself an interesting topic of research.
-For example, IEEE 1588 \todo{citation} timestamps use 32 bits of nanoseconds and 48 bits of seconds to represent time.    
+For example, IEEE 1588~\cite{Lee02ieee-1588standard} timestamps use 32 bits of nanoseconds and 48 bits of seconds to represent time.    
 Our current implementation uses 64 bits of nanoseconds in the \emph{platform clock} to represent time. 
 We choose this representation for several reasons. 
 First, with our timing instructions, timestamps are obtained by the programmer and can be manipulated throughout the program with data operating instructions.
@@ -60,7 +60,7 @@ Unsigned 64 bits of nanoseconds can only represent time up to a little more than
 The \emph{platform clock} is reset to zero on processor reset. 
 Even though the timing instructions operate on the exact 64 bit value of time, they are used to control offsets of time. 
 The actual value of the timestamp is merely used to calculate the elapsed time of code blocks.
-For distributed systems that require communication of timestamps across platforms, the consistent view of time across platforms must be obtained. \todo{cite ptides}
+For distributed systems that require communication of timestamps across platforms, the consistent view of time across platforms must be obtained~\cite{ZhaoLiuLee07_ProgrammingModelForTimeSynchronizedDistributedRealTime}.
 This can occur during system initialization, where the global time is obtained and kept in the system.  
 This initial global time can be appended to the current platform time to obtain the current global time. 
 For systems designed run longer than 584 years each reset, the overflow of the 65th bit must be managed in software to ensure a consistent view of time.

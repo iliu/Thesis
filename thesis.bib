@@ -1,6 +1,54 @@
 % This file was created with JabRef 2.6.
 % Encoding: MacRoman
 
+@inproceedings{ZhaoLiuLee07_ProgrammingModelForTimeSynchronizedDistributedRealTime,
+    author = {Yang Zhao and Jie Liu and Edward A. Lee},
+    title = {A Programming Model for Time-Synchronized
+              Distributed Real-Time Systems},
+    booktitle = {13th IEEE  Real Time and Embedded Technology and
+              Applications Symposium, 2007. RTAS '07},
+    pages = {259 - 268},
+    month = {April},
+    year = {2007},
+    abstract = {Discrete-event (DE) models are formal system
+              specifications that have analyzable deterministic
+              behaviors. Using a global, consistent notion of
+              time, DE components communicate via time-stamped
+              events. DE models have primarily been used in
+              performance modeling and simulation, where time
+              stamps are a modeling property bearing no
+              relationship to real time during execution of the
+              model. In this paper, we extend DE models with the
+              capability of relating certain events to physical
+              time. We propose a programming model, called
+              PTIDES (Programming Temporally Integrated
+              Distributed Embedded Systems), which has DE
+              semantics, but with carefully chosen relations
+              between model time and real time. Key to making
+              this model effective is to ensure that constraints
+              that guarantee determinacy in the semantics are
+              preserved at runtime. To accomplish this, we give
+              a distributed execution strategy that obeys DE
+              semantics without the penalty of totally ordered
+              executions based on time stamps. Our technique
+              relies on having a distributed common notion of
+              time, known to some precision. Based on causality
+              analysis of DE models, we define relevant
+              dependency and relevant orders to enable
+              out-of-order execution without compromising
+              determinism and without requiring backtracking.},
+    URL = {http://chess.eecs.berkeley.edu/pubs/325.html}
+}
+
+
+@INPROCEEDINGS{Lee02ieee-1588standard,
+    author = {Kang Lee and John Eidson},
+    title = {IEEE-1588 Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems},
+    booktitle = {In 34 th Annual Precise Time and Time Interval (PTTI) Meeting},
+    year = {2002},
+    pages = {98--105}
+}
+
 @INPROCEEDINGS{Reineke06adefinition,
   author = {Jan Reineke and Bj{\"o}rn Wachter and Stephan Thesing and Reinhard
 	Wilhelm and Ilia Polian and Jochen Eisinger and Bernd Becker},
@@ -630,6 +678,12 @@
   timestamp = {2012.04.07}
 }
 
+@MISC{Erdem02multi-threadedprocessor,
+  author = {John Glossner Erdem},
+  title = {Multi-Threaded Processor For Software-Defined Radio},
+  year = {2002}
+}
+
 @BOOK{ex2,
   title = {A Book He Wrote},
   publisher = {His Publisher},
@@ -691,6 +745,16 @@
   owner = {hiren},
   timestamp = {2008.04.07},
   url = {http://www.gaisler.com}
+}
+
+@TECHREPORT{sandbridge,
+  author = {Glossner, John and Moudgill, Mayan and Iancu, Daniel and Nacer, Gary
+	 and Jintukar, Sanjay and Stanley, Stuart and Samori, Michael and
+	Raja, Tanuj and Schulte, Michael},
+  title = {THE SANDBRIDGE SANDBLASTER CONVERGENCE PLATFORM},
+  institution = {Sandbridge Technology Inc.},
+  owner = {liuisaac},
+  timestamp = {2012.05.09}
 }
 
 @INPROCEEDINGS{Grund10a,
@@ -1037,7 +1101,7 @@
 @ARTICLE{Kreuzinger2003multithreadeventhandle,
   author = {J. Kreuzinger and U. Brinkschulte and M. Pfeffer and S. Uhrig and
 	Th. Ungerer},
-  title = {Real-Time Event-Handling and Scheduling on a Multithreaded Java Microcontroller},
+  title = {Real-Time Event-Handling and Scheduling on a Multithreaded {Java} Microcontroller},
   journal = {Microprocessors and Microsystems},
   year = {2003},
   volume = {27},
@@ -1182,7 +1246,7 @@
 
 @ARTICLE{lee1987pip,
   author = {Lee, E. and Messerschmitt, D.},
-  title = {Pipeline interleaved programmable DSP's: Architecture},
+  title = {Pipeline interleaved programmable {DSP's}: Architecture},
   journal = {Acoustics, Speech, and Signal Processing [see also IEEE Transactions
 	on Signal Processing], IEEE Transactions on},
   year = {1987},
@@ -1237,6 +1301,23 @@
   location = {Atlanta, GA, USA},
   owner = {liuisaac},
   timestamp = {2011.09.09}
+}
+
+@INPROCEEDINGS{Liu121dcfd,
+  author = {Isaac Liu and Edward A. Lee and Matthew Viele and Guoqiang Gerald
+	Wang and Hugo Andrade},
+  title = {A Heterogeneous Architecture for Evaluating Real-Time One-Dimensional
+	Computational Fluid Dynamics on FPGAs},
+  booktitle = {IEEE International Symposium on Field-Programmable Custom Computing
+	Machines (FCCM), Toronto, Canada},
+  year = {2012},
+  month = {April},
+  note = {Following section 8.1.9 (pg. 56) of the IEEE PSPB Operations Manual
+	we make the following statement: "This work has been submitted to
+	the IEEE for possible publication. Copyright may be transferred without
+	notice, after which this version may no longer be accessible."},
+  day = {29},
+  url = {http://chess.eecs.berkeley.edu/pubs/901.html}
 }
 
 @INPROCEEDINGS{Liu10,
@@ -1320,6 +1401,17 @@
   url = {http://dx.doi.org/10.1145/144953.144998}
 }
 
+@MANUAL{xmos_xs1,
+  title = {The XMOS XS1 Architecture},
+  author = {David May},
+  organization = {XMOS},
+  month = {October},
+  year = {2009},
+  comment = {\url{https://www.xmos.com/download/public/The-XMOS-XS1-Architecture%28X7879A%29.pdf?support=1}},
+  owner = {liuisaac},
+  timestamp = {2012.05.09}
+}
+
 @ARTICLE{Mcfarling_Branch_predict,
   author = {Scott McFarling},
   title = {Combining Branch Predictors},
@@ -1332,7 +1424,7 @@
 
 @ARTICLE{McGhan1998PicoJava,
   author = {McGhan, Harlan and O'Connor, Mike},
-  title = {PicoJava: A Direct Execution Engine For Java Bytecode},
+  title = {PicoJava: A Direct Execution Engine For {Java} Bytecode},
   journal = {Computer},
   year = {1998},
   volume = {31},
@@ -1377,7 +1469,7 @@
 
 @MISC{spec:micronddr2,
   author = {{Micron Technology, Inc.}},
-  title = {Various Methods of DRAM Refresh -- Rev. 2/99},
+  title = {Various Methods of {DRAM} Refresh -- Rev. 2/99},
   year = {1994},
   note = {\\http://download.micron.com/pdf/technotes/DT30.pdf},
   publisher = {{Micron Technology, Inc. Webiste}}
@@ -1834,7 +1926,7 @@
 @INPROCEEDINGS{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability,
   author = {Jan Reineke and Isaac Liu and Hiren D. Patel and Sungjun Kim and
 	Edward A. Lee},
-  title = {PRET DRAM Controller: Bank Privatization for Predictability and Temporal
+  title = {{PRET} {DRAM} Controller: Bank Privatization for Predictability and Temporal
 	Isolation},
   booktitle = {CODES+ISSS '11: Proceedings of the seventh IEEE/ACM/IFIP international
 	conference on Hardware/software codesign and system synthesis},
@@ -1963,7 +2055,7 @@
 
 @ARTICLE{Schoeberl2008265,
   author = {Martin Schoeberl},
-  title = {A Java processor architecture for embedded real-time systems},
+  title = {A {Java} processor architecture for embedded real-time systems},
   journal = {Journal of Systems Architecture},
   year = {2008},
   volume = {54},
@@ -1977,7 +2069,7 @@
 
 @INPROCEEDINGS{jop:wcet,
   author = {Martin Schoeberl},
-  title = {A Time Predictable Java Processor},
+  title = {A Time Predictable {Java} Processor},
   booktitle = {Proceedings of the Design, Automation and Test in Europe Conference
 	(DATE 2006)},
   year = {2006},
@@ -2004,7 +2096,7 @@
 
 @INPROCEEDINGS{jop:jtres_cache,
   author = {Martin Schoeberl},
-  title = {A Time Predictable Instruction Cache for a Java Processor},
+  title = {A Time Predictable Instruction Cache for a {Java} Processor},
   booktitle = {OTM Workshops},
   year = {2004},
   pages = {371-382},
@@ -2033,12 +2125,26 @@
   author = {Mark Sellnau and James Sinnamon and Larry Oberdier and Carroll Dase
 	and Matthew Viele and Kris Quillen and John Silverstri and Iakovos
 	Papadimitriou},
-  title = {Development of a Practical Tool for Residual Gas Estimation in IC
+  title = {Development of a Practical Tool for Residual Gas Estimation in {IC}
 	Engines},
   booktitle = {SAE Paper 2009-01-0695},
   year = {2009},
   owner = {liuisaac},
   timestamp = {2012.04.07}
+}
+
+@INPROCEEDINGS{HEP,
+  author = {Smith, Burton},
+  title = {The architecture of HEP},
+  booktitle = {on Parallel MIMD computation: HEP supercomputer and its applications},
+  year = {1985},
+  pages = {41--55},
+  address = {Cambridge, MA, USA},
+  publisher = {Massachusetts Institute of Technology},
+  acmid = {4834},
+  isbn = {0-262-11101-2},
+  numpages = {15},
+  url = {http://dl.acm.org/citation.cfm?id=4832.4834}
 }
 
 @ARTICLE{Smith2000HEP,
@@ -2631,6 +2737,14 @@
   timestamp = {2012.04.18}
 }
 
+@ELECTRONIC{xmos,
+  author = {XMOS},
+  title = {XMOS XS1-L1 Website},
+  note = {\url{http://www.xmos.com/products/silicon/xs1-l1}},
+  owner = {liuisaac},
+  timestamp = {2012.05.09}
+}
+
 @ARTICLE{Yan2008VLIW,
   author = {Jun Yan and Wei Zhang},
   title = {A time-predictable {VLIW} processor and its compiler support},
@@ -2766,6 +2880,13 @@
   edition = {7.1},
   owner = {liuisaac},
   timestamp = {2012.04.07}
+}
+
+@ELECTRONIC{parallex,
+  title = {Parallex Propeller Chip Website},
+  comment = {/url{http://www.parallax.com/PropellerChips/tabid/833/Default.aspx}},
+  owner = {liuisaac},
+  timestamp = {2012.05.09}
 }
 
 @MANUAL{xilinx_coregen,

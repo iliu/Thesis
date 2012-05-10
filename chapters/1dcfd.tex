@@ -1,23 +1,24 @@
 %\todo{Talk about other potential PRET applications, and that PRET can be used to more tightly integrate software and hardware.}
-In this chapter we will present two applications that have been implemented with our Precision Timed Architecture.
+In this chapter we will present two applications that have been implemented with our precision timed architecture.
 The first application is a real-time one dimensional computational fluid dynamics (1D-CFD) simulator.
 This simulator runs in real-time to simulate the fuel rail pressure and flow rate for an improved engine efficiently when injecting fuel.
 The application makes use of the lightweight hardware threads in our thread-interleaved pipeline to implement a massively parallel simulator with hundreds of computational nodes communicating to their neighbors.
 The timing predictable architecture allows us to statically analyze the execution time to ensure that each computational node can meet the timing constraints imposed by the application.
-A timing based communication and scheme is used to reduce communication overhead.
+A time based communication scheme is used to reduce communication overhead.
 The communication synchronization is enforced in software with timing instructions.
 This minimizes overhead and ensures that the communication of all nodes are in sync.  
-We present the synthesis results to show that by using the PRET architecture we can successfully simulate a common fuel rail configuration of up to 234 nodes on a Xilinx Virtex-6 FPGA, and enable a real-time engine fuel rail simulation.  
+We present the synthesis results to show that by using the PRET architecture we can successfully simulate a common fuel rail configuration of up to 234 nodes on a Xilinx Virtex-6 FPGA, and enable a real-time engine fuel rail simulation.
+This work is joint research in collaboration with Guoqiang Gerald Wang and Hugo Andrade, from National Instruments Corp., and Matthew Viele, from Drivven Inc.
+The results are also published in ~\cite{Liu121dcfd}.
 
 The second application shows how we use our predictable architecture to eliminate timing side-channel attacks for encryption algorithms.
 Time-exploiting attacks take advantage of the variations in execution time of crypto-algorithms to deduce the encryption keys.
-The root cause of these time-exploiting attacks is the uncontrollable run-time variance that is caused by the underlying architecture, allowing attackers to bypass the strong mathematical properties of the encryption and deduce the keys.   
+The root cause of these time-exploiting attacks is the uncontrollable run-time variations that are caused by the underlying architecture, allowing attackers to bypass the strong mathematical properties of the encryption and deduce the keys.   
 We show that by using a timing-predictable architecture that provides more control over execution time, we remove the vulnerability that is exploited to initiate the attack, and remove architecture deficiencies that can lead to more timing-attacks.    
 We demonstrate this by running the RSA and DSA encryption algorithms on PRET, and successfully illustrate the use of PRETÕs timing-centric methods to counter time-exploiting attacks.
  
 \section{Real-Time 1D Computational Fluid Dynamics Simulator}
 \label{sec:1dCFD}
-
 Modern diesel engines inject diesel fuel with high pressure into the combustion chamber for combustion.
 A digital control valve is used to control the amount of fuel injected, which depends on the pressure and fuel rate within the fuel rails delivering the fuel.   
 Several pilot injections are injected ahead of the main injection to mitigate the injection delay in the chamber and reduce audible noise.
