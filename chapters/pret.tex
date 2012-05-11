@@ -27,8 +27,10 @@ We analyze several commonly used techniques to reduce the performance penalty fr
 \end{wrapfigure}
 
 Data hazards occur when the data needed by an instruction are not yet available.
-Pipelines begin the execution of instructions before preceding ones are finished, so consecutive instructions that are data-dependent could simultaneously be executing in the pipeline.
-For example, the code in figure~\ref{fig:sample_data_dependent_code} shows assembly instructions from the ARM instruction set architecture (ISA) that each depend on the result of its previous instruction.
+Pipelines begin the execution of instructions before preceding ones are finished.
+Thus, consecutive instructions that are data-dependent can simultaneously be executing in the pipeline.
+For example, the code in figure~\ref{fig:sample_data_dependent_code} shows assembly instructions from the ARM instruction set architecture (ISA).
+Each instruction in the code segment depends on the result of its previous instruction.
 Figure~\ref{fig:data_depend_execution_non_interleaved} shows two ways data hazards are commonly handled in pipelines. 
 
 \begin{figure}
@@ -94,11 +96,11 @@ Thus, execution time analysis needs to model and account for this additional win
   \label{fig:sample_gcd_code}
 \end{wrapfigure}
 
-Branches cause control-flow hazards (or control hazards) in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
-Conditional branches further complicates matters, as whether or not the branch is taken depends on an additional condition that could also be unknown when the conditional branch is in execution. 
+Branches cause control-flow hazards, or control hazards, in the pipeline; the instruction after the branch, which should be fetched the next cycle, is unknown until after the branch instruction is completed.
+Conditional branches further complicate matters, as whether or not the branches are taken depends on an additional condition that could also be unknown when the conditional branches are in execution. 
 The code segment in figure~\ref{fig:sample_gcd_code} implements the \emph{Greatest Common Divisor} (GCD) algorithm using the conditional branch instructions \emph{beq} (branch equal) and \emph{blt} (branch less than) in the ARM ISA.  
 Conditional branch instructions in ARM branch based on conditional bits that are stored in a processor state register.
-Those conditional bits can be set based on the results of standard arithmetic instructions~\cite{armrefman}.
+The conditional bits can be set based on the results of standard arithmetic instructions~\cite{armrefman}.
 The \emph{cmp} instruction is one such instruction that subtracts two registers and sets the conditional bits according to the results.
 The GCD implementation shown in the code uses this mechanism to determine whether to continue or end the algorithm.
 Figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of the conditional branches from our example, and demonstrates two commonly used techniques to handling control hazards in pipelines. 
@@ -118,8 +120,8 @@ As there are no long latency instructions in our example, all stalls observed in
 Similar to data hazards, control hazards can also be handled by stalling the pipeline until the branch instruction completes. 
 This is shown on the left of figure~\ref{fig:branch_execution_non_interleaved_pipeline}. 
 %The dependencies between instructions are explicitly shown to make clear why the pipeline delays are necessary.
-Branch instructions typically calculate the target address in the execute stage, so two pipeline delays are inserted before the fetching of the \emph{blt} instruction, to wait for \emph{beq} to complete the target address calculation. 
-The reasoning applies to the two pipeline delays inserted before the \emph{sub} instruction. 
+Branch instructions typically calculate the target address in the execute stage, so two pipeline delays are inserted before the fetching of the \emph{blt} instruction to wait for \emph{beq} to complete the target address calculation. 
+The same reasoning applies to the two pipeline delays inserted before the \emph{sub} instruction. 
 The performance penalty (often referred to as the \emph{branch penalty}) incurred in this case is the two delays inserted after every branch instruction, to wait for the branch address calculation to complete.
 
 To mitigate the branch penalty, some architectures require the compiler to insert one or more non-dependent instructions after each branch instruction.
@@ -128,18 +130,18 @@ This way, instead of wasting cycles to wait for the target address calculation, 
 However, if the compiler cannot place useful instructions in the branch delay slot, \emph{nops} need to be inserted into those slots to ensure correct program execution.
 Thus, branch delay slots are less effective for deeper pipelines, because more delay slots need to be filled by the compiler to account for the branch penalty.
   
-Instead of stalling, \emph{branch predictors} are commonly employed to predict the branch condition and target address so the pipeline can speculatively continue execution. 
-Branch predictors internally maintain some form of state machine that is used to determine the prediction of each branch.  
+Instead of stalling, \emph{branch predictors} are commonly employed to predict the branch condition and target address so the pipeline can speculatively continue its execution. 
+Branch predictors internally maintain a state machine that is used to determine the prediction of each branch.  
 The internal state is updated after each branch according to the results of the branch. 
 Different prediction schemes have been proposed, and some can even accurately predict branches up to 98.1\%~\cite{Mcfarling_Branch_predict}.  
 If the branch prediction is correct, no penalty is incurred for the branch because the correct instructions are speculatively executed.  
 %With branch predictor, the pipeline fetches the next instruction based upon the results of the branch prediction, and continues to execute speculatively.
-However, when the prediction is incorrect (often referred as a \emph{branch midpredict}), the speculatively executed instructions are flushed, and the correct instructions are re-fetched into the pipeline for execution.
+However, when the prediction is incorrect (often referred to as a \emph{branch midpredict}), the speculatively executed instructions are flushed, and the correct instructions are re-fetched into the pipeline for execution.
 
 The right of figure~\ref{fig:branch_execution_non_interleaved_pipeline} shows the execution of GCD in the case of a branch misprediction.
 The \emph{beq} branch is predicted to be taken, so the \emph{add} and \emph{mov} instructions from label \emph{end} are directly fetched into execution. 
 When \emph{beq} progresses past the execute stage, \emph{cmp} has forwarded its results used to determine the branch condition, and the branch target address has been calculated, so the branch is resolved.
-At this point, the misprediction is detected, so the \emph{add} and \emph{mov} instruction are flushed out of the pipeline. 
+At this point, the misprediction is detected, so the \emph{add} and \emph{mov} instructions are flushed out of the pipeline. 
 The next instruction from the correct path, the \emph{blt} instruction, is immediately re-fetched, and execution continues.
 The performance penalty of branch mispredictions is derived from the number of pipeline stages between instruction fetch and branch resolution.  
 In our example, the misprediction penalty is 2, as branches are resolved after the execute stage.
@@ -151,16 +153,16 @@ When stalls are used to handle control hazards, the execution time effects are s
 The pipeline will simply \emph{always} insert pipeline delays after a branch instruction.
 Thus, no extra complexity is added to the execution time analysis; the latency of branch instructions simply needs to be adjusted to include the branch penalty.
 On the other hand, if a branch predictor is employed, the execution time of each branch will vary depending on the result of the branch prediction.  
-To determine the success of a branch prediction, both the prediction and the branch outcome, both of which can dynamically change in run-time, must be known.   
+To determine the success of a branch prediction, the prediction and the branch outcome, both of which can dynamically change in run-time, must be known.   
 Program path analysis can attempt to analyze the actual outcome of branches statically from the program code. 
-The predictions made from the branch predictor depend on the internal state stored in the hardware unit.
+However, the predictions made from the branch predictor depend on the internal state stored in the hardware unit.
 This internal state, updated by each branch instruction, must be explicitly modeled in order to estimate the prediction. 
 If the predictor state is unknown, the miss penalty must conservatively be accounted for.
 There has been work on explicitly modeling branch predictors for execution time analysis~\cite{Mitra_branch_wcet_2002}, but the results only take into account the stalls from the branch penalty. 
 Caches and other processor states are assumed to be perfect. 
 In reality, the speculative execution on the predicted program paths lead to further complications that need to be accounted for.
 Other internal states exist in the architecture that could be affected by speculatively executing instructions.
-For example, if caches are used, their internal state could be updated during speculative execution of a mispredicted path.
+For example, if caches are used, their internal state could be updated during the speculative execution of a mispredicted path.
 As architectures grow in complexity, the combined modeling of all hardware states in the architecture often leads to an intractable explosion in state space for the analysis.    
 This makes a tight static execution time analysis extremely difficult, if not impossible.
 
@@ -172,16 +174,16 @@ For real-time and safety critical systems, the challenge remains to improve wors
 Although less often mentioned, the presence of interrupts and exceptions in the pipeline also creates control hazards. 
 Exceptions can occur during the execution of any instruction and change the control flow of the program to execute the exception handler.
 For single threaded pipelines, this means that all instructions fetched and not committed in the pipeline are speculative, because when an exception occurs, all uncommitted instructions in the pipeline become invalid.
-Pipelines often handle this by flushing all instructions and fetching the exception handler for execution.      
+%Pipelines often handle this by flushing all instructions and fetching the exception handler for execution.      
 These effects are acknowledged, but often ignored in static analysis because it is simply impossible to model every possible exception and its effect on the architecture states. 
  
 \subsubsection{Structural Hazards}
-\emph{Structural hazards} occur when a processor's hardware component is needed by two or more instructions at the same time. 
+Structural hazards occur when a processor's hardware component is needed by two or more instructions at the same time. 
 For example, a single memory unit accessed both in the fetch and memory stage results in a structural hazard. 
 The design of the pipeline plays an integral part in eliminating structural hazards. 
 For example, the classic RISC five stage pipeline only issues one instruction at a time, and uses separate instruction and data caches to avoid structural hazards.
 Structural hazards are generally much more prevalent in architectures that issue multiple instructions at a time.
-If structural hazards cannot be avoided, then the pipeline must stall to access the contended hardware component sequentially.
+If structural hazards cannot be avoided, then the pipeline must stall to enforce sequential access to the contended hardware component.
 The execution time effects of structural hazards are specific to how contention is managed for each pipeline design.
 Here we omit a general discussion of the timing effects, and later address them specifically for our proposed architecture. 
 
@@ -208,7 +210,7 @@ It contains 5 hardware threads, so it has 5 copies of the Program Counter (PC) a
 The rest of the pipeline remains similar to a classic five stage RISC pipeline, with the addition of a few multiplexers used to select the thread states.
 Thus, the extra copies of the processor state and multiplexers are most of the hardware additions needed to implement hardware multithreading.
 When a hardware thread executes in the pipeline, its corresponding thread state is passed into the pipeline to be used.
-In most of this thesis, the term \emph{threads} to refer to the explicit hardware threads that have hardware copies of the thread state.
+In most of this thesis, the term \emph{threads} refers to the explicit hardware threads that have physical hardware copies of the thread state.
 This is not to be confused with the common notion of \emph{threads}, which describes software contexts managed by an operating system, with its states stored in memory.
 It will be explicitly noted when we refer to the software notion of threads. 
 %The selection of threads for execution is one of the most important factors to fully utilize thread-level parallelism.
@@ -224,7 +226,7 @@ Some policies trigger context switches on dynamic events, such as a cache miss o
 \emph{Fine-grain} policies switch context much more frequently -- some as frequently as every processor cycle.
 The \emph{execution width} of the pipeline is the number of instructions fetched each cycle.  
 Multithreaded architectures with wider pipeline widths can fetch all instructions a single thread, or mix instructions from different threads.
-The Sumultanous Multithreaded (SMT) architecture~\cite{Tullsen1995SMT} is an example where instructions are fetched from different threads each cycle.
+The Sumultanous Multithreaded (SMT) architecture~\cite{Tullsen1995SMT} is an example where multiple instructions are fetched from different threads each cycle.
 
 Multithreaded architectures present several challenges for static execution time analysis.
 As figure~\ref{fig:multi-thread pipeline simplified} illustrates, threads share the hardware components within the pipeline.
@@ -250,7 +252,7 @@ Thread-interleaved pipelines use a fine-grain thread scheduling policy; every cy
 A round robin scheduling policy is often employed to reduce the context switch overhead every cycle.     
 The thread-interleaved pipeline is known for implementing the peripheral processors of the CDC6600~\cite{CDC6600}.
 Each ``peripheral processor'' is implemented as a hardware thread.     
-Interacting with input/output peripherals often leads to idle processor cycles to wait for the peripherals' responses.
+Interacting with input/output peripherals often lead to idle processor cycles to wait for the peripherals' responses.
 By interleaving several threads, thread-level parallelism is fully exploited, and the idle cycles can be used for simultaneous interaction with multiple input/output devices.       
 Figure~\ref{fig:execution_thread_interleaved_pipeline} shows an example execution sequence from a 5 stage single width thread-interleaved pipeline with 5 threads.
 \begin{figure}[h]
@@ -273,7 +275,7 @@ The interleaving of threads by itself does not guarantee timing predictability f
 Shared hardware components or a selective thread execution policy can easily allow the execution time of threads to be affected by each other.    
 As previously discussed, a combined timing analysis of all threads in the pipeline is extremely difficult, if not impossible.
 In order for multithreaded architectures to achieve predictable performance, threads must be temporally isolated from one another. 
-Temporal isolation removes cross-thread timing dependencies to allows timing analysis of threads independently.
+Temporal isolation removes cross-thread timing dependencies to allow timing analysis of threads independently.
 This enables a simple and more precise execution time analysis.  
 We refine several features on the thread-interleaved pipeline to temporally isolate the threads and predictably handle pipeline hazards.
 This establishes a time-predictable thread-interleaved pipeline.
@@ -311,14 +313,14 @@ Because control hazards are eliminated, branch predictors are not needed in our 
 Removing the branch predictor contributes to the temporal isolation of threads, as the shared internal state of the branch predictor can create \emph{implicit} dependencies between threads.  
 
 \subsubsection{Data Hazards}
-In a thread-interleaved pipeline, data hazards that stem from the pipeline of instructions are removed.  
+In a thread-interleaved pipeline, data hazards that stem from the pipelining of instructions are removed.  
 The same reasoning for control hazard elimination is applied here, that no \emph{explicit} dependencies exist between instructions in the pipeline, 
 However, long latency operations can still cause data hazards in a thread-interleaved pipeline. 
 This happens when a long latency operation is not completed before the next instruction fetch from the same thread.
 Although thread-interleaved pipelines can continue to fill the pipeline with other threads, if all threads simultaneously execute a long latency operation, then no thread will be available to fill the pipeline. 
 
 To maximize pipeline utilization and instruction throughput, thread-interleaved pipelines can mark threads inactive for long latency operations.   
-However, this dynamic thread scheduling leads to non-trivial timing effects for the pipeline 
+However, this dynamic thread scheduling leads to non-trivial timing effects for the pipeline. 
 First, the number of active threads can fall below the minimum number of threads required to remove explicit dependencies of instructions in the pipeline.
 In this case, the eliminated control and data hazards are now reintroduced, and hazard handling logic, like the branch predictor, is required again. 
 %As a result, the timing effects of branch prediction etc are re-introduced in the pipeline. 
@@ -409,7 +411,7 @@ Shared hardware units can create \emph{implicit} dependencies between threads if
 A shared branch predictor, as discussed earlier, is a prime example for this. 
 Our thread-interleaved pipeline removes the need for a branch predictor by the interleaving of hardware threads.  
 A shared cache is another example.   
-A cache maintains internal state that determines whether a memory access goes to the cache or to main memory.
+A cache maintains internal state that determines whether a memory access goes to the cache or to the main memory.
 There is typically an enormous latency difference between the two different accesses.
 When the cache is shared between threads, the different interleaving of threads can affect the execution time of all threads. 
 It is even possible to degrade the performance of the system if threads continuously evict cache lines from each other. 
@@ -440,8 +442,8 @@ Thread 0 executes GCD, and thread 1 executes the data-dependent code.
 \label{fig:thread_isolated_execution}
 \end{figure}
 
-From the perspective of a thread, most instructions observe a 5 cycle latency, as shown in figure ~\ref{fig:thread_isolated_execution}. 
-The minimum observable latency for instructions depend on the number of threads in the pipeline. 
+From the perspective of a thread, most instructions observe a 5 cycle latency, as shown in figure~\ref{fig:thread_isolated_execution}. 
+The minimum observable latency for instructions depend on the number of threads executing in the pipeline. 
 This can also be understood as the latency for each thread between instruction fetches.
 In our time-predictable thread-interleaved pipeline, the static round robin thread schedule enables this latency to be constant.  
 We use the term \emph{thread cycle} to encapsulate this latency, and simplify the numbers for timing analysis. 
@@ -454,7 +456,7 @@ In this example, the \emph{ldr} instruction observes only a 2 thread cycle laten
 
 Threads are temporally isolated in our thread-interleaved pipeline, so execution of each thread can be analyzed in isolation.
 From the isolated view of each thread, each instruction completes its execution before the next one is fetched, and no instruction is executed speculatively.
-Because instructions do not overlap in execution, instruction's execution time is not affected by prior instructions.
+Because instructions do not overlap in execution, each instruction's execution time is not affected by prior instructions.
 Control hazards are eliminated because a branch or exception is resolved before the next instruction fetch. 
 The long latencies caused by structural or data hazards are hidden from the thread interleaving, improving the throughput of the pipeline.    
 We will describe in detail our implementation of the thread-interleaved pipeline in the beginning of chapter ~\ref{chapter:ptarm}.

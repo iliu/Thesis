@@ -1,12 +1,13 @@
 Cyber-Physical Systems (CPS) are integrations of computation with physical processes~\cite{Lee08_CyberPhysicalSystemsDesignChallenges}.
 %A number of applications can benefit from the potential of CPS. 
 These systems must be equipped to handle the inherent concurrency and inexorable passage of time of physical processes.  
-The traditional computing abstractions only concern themselves with the “functional” aspects of a program, and not its timing properties.
+Traditional computing abstractions only concern themselves with the “functional” aspects of a program, and not its timing properties.
 Thus, nearly every abstraction layer has failed to incorporate \emph{time} into its semantics; the passage of time is merely a consequence of the implementation. 
 When the temporal properties of the system must be guaranteed, designers must reach beneath the abstraction layers.
-This not only increases the design complexity and effort, but the designed systems are brittle and extremely sensitive to change.
+This not only increases the design complexity and effort, but the systems are overdesigned, brittle and extremely sensitive to change.
 
-In this work, we re-examine the instruction set architecture (ISA) layer and its affects on microarchitecture design.
+In this work, we address the difficulties of handling \emph{time} in computing systems by re-examining the lower levels of abstraction. 
+In particular, we focus on the instruction set architecture (ISA) layer and its affects on microarchitecture design.
 The ISA defines the contract between software instructions and hardware implementations. 
 Modern ISAs do not constrain timing properties of instructions as part of the contract. 
 Thus, architecture designs have largely implemented techniques that improve average performance at the expense of execution time variability.
@@ -19,19 +20,20 @@ This brings control over timing to the software and allows programs to contain t
 In addition, we present the Precision Timed ARM (PTARM) architecture, a realization of Precision Timed (PRET) machines~\cite{edwards2007case} that provides timing predictability and composability without sacrificing performance. 
 PTARM employs a predictable thread-interleaved pipeline with an exposed memory hierarchy that uses scratchpads and a predictable DRAM controller. 
 This removes timing interference among the hardware threads, enabling timing composability in the architecture, and provides deterministic execution times for instructions within the architecture, enabling timing predictability in the architecture.  
-We show that the predictable thread-interleaved pipeline and DRAM controller design also achieves better throughput compared to conventional architectures when fully utilized, accomplishing our goal to provide both predictability and performance.  
+We show that the predictable thread-interleaved pipeline and DRAM controller design also achieve better throughput compared to conventional architectures when fully utilized, accomplishing our goal to provide both predictability and performance.  
 
-To show the applicability of the architecture, we present two applications implemented with the PRET architecture that utilize the predictable execution time and the timing extended ISA to achieve its design requirements. 
+To show the applicability of the architecture, we present two applications implemented with the PRET architecture that utilize the predictable execution time and the extended ISA to achieve their design requirements. 
 The first application is a real-time fuel rail simulator that implements a one dimensional computational fluid dynamics (1D-CFD) solver on a multicore PRET architecture.
-The implementation leverages the timing instruction extensions to synchronize the communication of multiple PRET core with low overhead. 
-The predictable nature and the improved throughput of the architecture allows us to optimize the resource usage while statically ensuring the timing requirements are met.
-This provides a scalable solution that enables more precise fuel injection, which leads to more efficient engines.     
+The implementation leverages the timing instructions to synchronize the communication of multiple PRET cores with low overhead. 
+The predictable nature and the improved throughput of the architecture allow us to optimize the resource usage while statically ensuring that the timing requirements are met.
+This provides a scalable solution to close the loop of fuel delivery, allowing for more precise fuel injections that lead to a cleaner and more efficient engine.
 The second application presents a case study that uses PRET to remove the vulnerability of timing side-channel attacks on encryption algorithms.
 Encryption algorithms are vulnerable to side-channel attacks that measure the execution time of the encryption to derive the encryption key. 
-The uncontrollable execution time variance can stem from the unpredictable sharing of architecture features that allow the attacker to effect the execution time of the encryption thread, or from the various control paths of the encryption algorithm. 
-We implement the RSA and DSA~\cite{dss} encryption algorithms on PRET and show that by using the timing extended ISA and a predictable architecture, we can completely remove the vulnerabilities that are exploited to create the attack.
+The uncontrollable execution time variance can stem from the unpredictable sharing of architecture features or from the various control paths of the encryption algorithm. 
+We implement the RSA and DSA~\cite{dss} encryption algorithms on PRET and show that by using the timing extended ISA and a predictable architecture, we can completely remove the vulnerabilities that are exploited for the attacks.
 
 By providing a predictable architecture, we provide simpler and more accurate timing analysis of the software.  
 With the instruction extensions to the ISA, we provide timing control and allow architecture independent timing properties to be specified in the software. 
-Through these contributions, we aim to introduce a timing deterministic foundation in the lower levels of the abstraction layers, which enables more precise and efficient control over timing in the design of CPS.      
+Through these contributions, we aim to introduce a timing deterministic foundation to the lower levels of computing abstractions, which enables more precise and efficient control over timing for the design of CPS.
+
 

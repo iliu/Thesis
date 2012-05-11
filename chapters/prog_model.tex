@@ -1,6 +1,6 @@
 
 % explain that modern ISAs dont have timing semantics, that's why we provide assembly level instructions to help programmers control timing in the ISA
-The Instruction-set architecture (ISA) serve as the contract between the software and the hardware.
+The instruction-set architecture (ISA) serves as the contract between the software and the hardware.
 The programmer understands the semantics of each instruction and uses it to construct programs.
 Computer architects ensure that the implementation of each instruction abides by the semantics specified in the ISA.
 The semantics of the instructions in modern ISAs often do not specify temporal properties for the instructions.   
@@ -21,15 +21,15 @@ A \emph{constant time} ISA would allow the reasoning of temporal properties inde
 However, the major limitation of the \emph{constant time} ISA is that it prevents performance improvements at the micro-architectural level, as instruction execution time must conform to the constant time specified in the ISA.
 Modern ISAs allow computer architects to freely innovate in architectural techniques to speed up execution time of instructions while still conforming to the semantics of the ISA.  
 The program performance improves as the architecture performance improves, without any effort from the programmer. 
-By associating a constant execution time for each instruction, the \emph{constant time} ISA over constrains the performance of programs, and limits the innovation of architecture implementations.    
+By associating a constant execution time for each instruction, the \emph{constant time} ISA over-constrains the timing semantics of the ISA, and limits the innovation of architecture implementations.    
 
 Instead of associating with all instructions a constant execution time, we extend the ISA by adding assembly level instructions that allow us to control the timing behavior of programs. 
-Ip and Edwards~\cite{ip2006processor} proposed a simple extension to the processor which implemented the \emph{deadline} instruction, an instruction that allows the programmer to specify a minimum execution time of code blocks.
+Ip and Edwards~\cite{ip2006processor} propose a simple extension to the processor which implements the \emph{deadline} instruction, an instruction that allows the programmer to specify a minimum execution time of code blocks.
 They show an implementation of a VGA controller in software by using the deadline instructions to control the output horizontal and vertical sync signals.
 Such functions are typically implemented in hardware because the timing precision required is hard to achieve in software.
 However, the deadline instruction provides the precise timing control needed, which enables a software implementation.  
-We further expand on this concept of controlling execution time in software, and introduce a set of assembly timing instructions that allows us to 
-control not only the minimum execution time, but also to handle cases where the execution time exceeds a specified deadline.
+We further expand on this concept of controlling execution time in software, and introduce a set of assembly timing instructions that allow us to 
+control not only the minimum execution time, but to also handle cases where the execution time exceeds a specified deadline.
 
 It is currently already possible to manipulate external timers and set interrupts in most modern embedded platforms.
 However, the procedure for setting timing interrupts highly varies depending on platform implementation.
@@ -44,26 +44,26 @@ In section~\ref{sec:ptarm_instructions} we will present the implementation and t
 
 \subsection{Timing Instructions}
 Our extension of the ISA assumes a \emph{platform clock} that is synchronous with the execution of instructions.
-This \emph{platform clock} is used by all timing instructions to specify and manipulate the execution time of code blocks.
+This platform clock is used by all timing instructions to specify and manipulate the execution time of code blocks.
 The representation of \emph{time} in the ISA is in itself an interesting topic of research.
 For example, IEEE 1588~\cite{Lee02ieee-1588standard} timestamps use 32 bits of nanoseconds and 48 bits of seconds to represent time.    
-Our current implementation uses 64 bits of nanoseconds in the \emph{platform clock} to represent time. 
+Our current implementation uses 64 bits of nanoseconds in the platform clock to represent time. 
 We choose this representation for several reasons. 
 First, with our timing instructions, timestamps are obtained by the programmer and can be manipulated throughout the program with data operating instructions.
 Typical datapaths and registers are 32 bits. 
-By using 64 bits of nanoseconds to represent time, programmers can use \emph{add with carry} instructions to manage with overflow of 64 bit additions without extra overhead. 
+By using 64 bits of nanoseconds to represent time, programmers can use \emph{add with carry} instructions to manage the overflow of 64 bit additions without extra overhead. 
 On the other hand, if we used the IEEE 1588 timestamp format to represent time, then any manipulation of time through the software would require explicit checking of the nanoseconds overflowing to the seconds register.
-Second, the 64 bit nanoseconds simplifies the hardware implementation and comparisons of the \emph{platform clock} and timestamp values.
-In chapter~\ref{chapter:ptarm} we will show our implementation, which utilizes the existing datapath and integrates the \emph{platform clock} deeply into the architecture. 
+Second, the 64 bit nanoseconds simplifies the hardware implementation and comparisons of the platform clock and timestamp values.
+In chapter~\ref{chapter:ptarm} we will show our implementation, which utilizes the existing datapath and integrates the platform clock deeply into the architecture. 
 
-Unsigned 64 bits of nanoseconds can only represent time up to a little more than 584 years, so the \emph{platform clock} in our ISA is meant for a local representation of time. 
-The \emph{platform clock} is reset to zero on processor reset. 
+Unsigned 64 bits of nanoseconds can only represent time up to a little more than 584 years, so the platform clock in our ISA is meant for a local representation of time.
+The platform clock is reset to zero on processor reset. 
 Even though the timing instructions operate on the exact 64 bit value of time, they are used to control offsets of time. 
-The actual value of the timestamp is merely used to calculate the elapsed time of code blocks.
+The actual value of the timestamps are merely used to calculate the elapsed time of code blocks.
 For distributed systems that require communication of timestamps across platforms, the consistent view of time across platforms must be obtained~\cite{ZhaoLiuLee07_ProgrammingModelForTimeSynchronizedDistributedRealTime}.
 This can occur during system initialization, where the global time is obtained and kept in the system.  
 This initial global time can be appended to the current platform time to obtain the current global time. 
-For systems designed run longer than 584 years each reset, the overflow of the 65th bit must be managed in software to ensure a consistent view of time.
+For systems designed run longer than 584 years, the overflow of the 65th bit must be managed in software to ensure a consistent view of time.
 
 
 \begin{table}[h]
@@ -92,21 +92,22 @@ Table~\ref{table:timing_instructions} shows the timing instructions and a brief 
 Our current implementation extends the ARM~\cite{armrefman} instruction set, so here we will present our timing instruction extensions in the context of the ARM ISA.
 However, the concepts and extensions could easily be applied to other ISAs. 
 The ARM ISA sets aside an instruction encoding space to allow additions to the architecture with co-processor extensions. 
-Our timing instructions are currently implemented using the co-processor instruction encoding, which also enables us to use conventional ARM cross-compilers to compile programs and test our architecture.     
+Our timing instructions are currently implemented using the co-processor instruction encoding, which also enables us to use conventional ARM cross-compilers to compile programs that use our extensions.     
 
 \subsubsection{Get\_Time}
-The \gettime\ instruction is mainly used to obtain the time on the \emph{platform clock}.
+The \gettime\ instruction is mainly used to obtain the time on the platform clock.
 This instruction interfaces the program with the current platform time by loading the 64 bit timestamp of the current platform time in general purpose registers. 
 The timestamps are stored in general purpose registers to make them accessible to programmers. 
 The programmer can manipulate the timestamps by using conventional data-processing instructions like add or subtract.
-However, because the timestamp is 64 bits, architectures with 32 bit registers store the value in 2 separate registers. 
-Thus, any manipulation of timestamps must handle the overflow properly with 32 bits operations. 
+However, because the timestamps are 64 bits, architectures with 32 bit registers store the value in 2 separate registers. 
+Thus, any manipulation of timestamps must handle the overflow caused by 32 bits operations properly. 
 Several ISAs provide an \emph{add with carry} instruction that can be used, or else the programmer must explicitly do so in software.
-The timestamp is used as inputs to other timing instructions which we will introduce below.   
+The timestamps are used as inputs to other timing instructions which we will introduce below.   
 
-If the \emph{platform clock} is memory mapped to two 32 bit memory locations, then the functionality of this instruction could technically be implemented by the reading of memory mapped addresses. 
+We can technically implement the functionality of this instruction by memory mapping the platform clock to two 32 bit memory locations. 
+%If the platform clock is memory mapped to two 32 bit memory locations, then the functionality of this instruction could technically be implemented by the reading of memory mapped addresses. 
 This would be similar to conventional methods of accessing timers. 
-However, loading a 64 bit time value would require 2 consecutive loads.
+However, loading a 64 bit time value would require 2 separate load instructions.
 Without care, the programmer could easily read 2 inconsistent 32 bit values of time, because the platform time continues to elapse in between the 2 reads.     
 Even if a 64 bit load instruction is present in the ISA, the ISA makes no guarantee that a loaded 64 bit value from main memory would contain a consistent timestamp value from the same point in time. 
 Thus, to make explicit the nature of the operation, we use a separate instruction that ensures the programmer will get a consistent 64 bit timestamp from a single point in time.    
@@ -118,8 +119,8 @@ The effect is similar to the one presented by Ip and Edwards~\cite{ip2006process
 The difference is, in our ISA, the unit of time is represented by nanoseconds, instead of processor cycles.
 The \delayuntil\ instruction takes as input a timestamp, usually derived from the timestamp obtained from \gettime, and compares it to the current platform time to determine whether delays are needed.
 Listing~\ref{lst:delay-until-sample} shows an example of how \delayuntil\ and \gettime\ are used together to control a minimum execution time a code block.
-The assembly code is written using the ARM instruction set.
-The ARM instruction allows extra functionality to be added to the instruction set by providing 16 co-processor instruction spaces.  
+The assembly code is written using the ARM ISA.
+The ARM ISA allows extra functionality to be added to the instruction set by providing 16 co-processor instruction spaces.  
 The timing instructions are implemented as co-processor 13 instructions, so all timing instructions are in the format \textbf{\textit{cdp, p13, $<$opcode$>$ rd, rn, rm, 0}}.
 \Gettime\ has an opcode of 8, and \delayuntil\ has an opcode of 4.
 
@@ -166,11 +167,12 @@ In chapter~\ref{chapter:app} we will also show applications that use this mechan
 
 \subsubsection{Exception\_on\_Expire and Deactivate\_Exception}
 \label{sec:exception_in_expire_definition}
-\Delayuntil\ and \delayandset\ are only used to specify minimum execution times, and cannot express a desired maximum execution time for code blocks.
-The \exceptiononexpire\ instruction is introduced to for this purpose, to specify a desired maximum execution time for code blocks.
-A new exception is added to the ARM exception vector table which represents a timer expired exception. 
+The \delayuntil\ instruction is only used to specify minimum execution times, and cannot express a desired maximum execution time for code blocks.
+The \exceptiononexpire\ instruction is introduced to for this purpose; to specify a desired maximum execution time for code blocks.
+A new exception is added to the ARM exception vector table that represents a timer expired exception. 
 \Exceptiononexpire\ takes as input a 64 bit timestamp.
-When \exceptiononexpire\ is decoded, the timestamp is registered as the timeout value. 
+When \exceptiononexpire\ is decoded, the timestamp is registered as the timeout value.
+This timeout value is checked in hardware as the program continues execution. 
 When platform time exceeds the timeout value, the timer expired exception is thrown in hardware, and the corresponding entry in the exception vector table is executed.
 The \deactivateexception\ instruction takes no input, and is simply used to deactivate the timeout value in hardware before an exception is thrown.
 When \deactivateexception\ is decoded, any timeout value that is currently registered by \exceptiononexpire\ is deactivated, and no timer expired exception will be thrown. 
@@ -189,7 +191,7 @@ Listing~\ref{lst:exception-sample} shows the sample assembly code of using \exce
   b end
 \end{lstlisting}
 
-In the code sample, line 1 to 3 is used to setup the timestamp that is passed into \exceptiononexpire.
+In the code sample, lines 1 to 3 are used to setup the timestamp passed into \exceptiononexpire.
 It uses \gettime\ and then adds an offset to the timestamp obtained. 
 Line 4 passes the timestamp to \exceptiononexpire, which stores it to be checked in hardware. 
 If the platform time were to exceed the the timestamp during execution of lines 6 and 7, which signifies a missed deadline, then a timer expired exception would trigger in hardware, and the control flow would jump to the exception handler. 
@@ -202,27 +204,28 @@ Multiple timeout slots can be implemented and checked in hardware at the cost of
 
 \bigskip
 
-Similar to \delayandset\ and \delayuntil, \exceptiononexpire\ and \deactivateexception\ merely create a mechanism to specify desired timing constraints. 
+Similar to \delayuntil, \exceptiononexpire\ and \deactivateexception\ merely create a mechanism to specify desired timing constraints. 
 None of the timing instructions enforces execution time behavior, they merely provide a method for users to monitor, detect, and interact with the timing variability in software.     
 This is in line with our original goal, to introduce timing semantics to the ISA without over-constraining the temporal properties of the ISA.
 These instructions do not limit the improvement of performance in the architecture for other instructions, as long as the timing properties of the timing instructions are faithfully implemented.  
 With the introduction of these timing instructions, programmers can reason about and control temporal properties of the program with timing instructions, independently of the architecture. 
 At the same time, these instructions by themselves do not provide guarantees on the execution time of programs.
-An underlying architecture must still provide predictable execution times in order to for static analysis to guarantee a worst-case execution time.     
+An underlying architecture must still provide predictable execution times in order for static analysis to obtain a tight worst-case execution time bound.     
 
 \subsection{Example Usage}
 \label{sec:timing_instruction_usage_notes}
 In this section we show different use cases for the timing instructions introduced.  
-We demonstrate different timing behaviors that can be built with the timing instructions to show how the assembly level instructions can be used by higher level languages to synthesize different timing behaviors.
+We demonstrate different timing behaviors that can be built with the timing instructions to show how these assembly level instructions can be used by higher level languages to synthesize different timing behaviors.
 
 \subsubsection{Constructing Different Timing Behaviors}
-First we show various methods for constructing different timing behaviors from a code block.
-The code block can be a task, a function, or any piece of code that might exhibit timing variability.
+Figure~\ref{fig:timing_behaviors} shows four possible timing behaviors that we can construct for a code block using the assembly level timing instructions.  
+%First we show the different timing behaviors for a code block can be constructed with our timing instructions.  
+The code block in this case can be a task, a function, or any piece of code that might exhibit timing variability.
 Here we simply refer to this code block as a task.    
-We assume there is a desired execution time for this code block. 
+We assume there is a desired execution time for the task. 
 The desired execution time could be from a specification of the application, or a synthesized timing requirement from a higher level model.
 We will call this desired execution time the deadline of the task.
-Figure~\ref{fig:timing_behaviors} shows four possible timing behaviors that we can construct for this task using the assembly level instructions.  
+
 
 \begin{figure}
   \vspace{-15pt}
@@ -235,18 +238,18 @@ Figure~\ref{fig:timing_behaviors} shows four possible timing behaviors that we c
 \end{figure}
 
 If the actual execution time of the task is longer than the specified deadline, the deadline is missed. 
-Two possible timing behaviors can be used to handle this situation, which we show in scenario A and B in figure~\ref{fig:timing_behaviors}. 
+Two possible timing behaviors can be used to handle this situation, which we show with scenario A and B in figure~\ref{fig:timing_behaviors}. 
 Scenario A is used if the execution of task needs to completed. 
 It could be that the task modifies external I/O states that cannot afford to be left in an unknown state.
-In this case, the task is first completed, then a miss handler is executed, and then the next task continues execution.
+In this scenario, the task must first complete, then execute the miss handler before the next task continues execution.
 This is also known as a \emph{late miss detection}.  
 Listing~\ref{lst:timing_behavior_A} shows how this is implemented using our timing instructions.
-Lines 1 to 3 of the listing is used to setup the deadline timestamp, which is stored in r2 and r3.  
+Lines 1 to 3 of the listing are used to set up the deadline timestamp, which is stored in r2 and r3.  
 Line 5 branches to the task and returns when the task completes.
-Lines 7 to 10 is where the miss detection occurs. 
+Lines 7 to 10 are where the miss detection occur. 
 We simply use another \gettime\ instruction to obtain the current platform time and compare it with the deadline timestamp.
 The \emph{blmi} instruction is a \emph{branch with link} instruction that is conditionally executed only if the \emph{[N]egative} condition code is set.
-Thus, the branch to \emph{miss\_handler} is only executed if the deadline timestamp is less than the current platform time, which means the deadline was missed.
+Thus, the branch to \emph{miss\_handler} only occurs if the deadline timestamp is less than the current platform time, which means the deadline was missed.
 
 \begin{lstlisting}[float=h, label=lst:timing_behavior_A,caption=Assembly code to implement scenario A]
   cdp p13, 8, c2, c0, c0, 0  ; get_time, current timestamp stored in [c2, c3]
@@ -269,9 +272,9 @@ The \exceptiononexpire\ and \deactivateexception\ instructions are then used to 
 This is shown as scenario B in figure~\ref{fig:timing_behaviors}.
 Listing~\ref{lst:timing_behavior_BC} shows the usage of \exceptiononexpire\ and \deactivateexception\ to achieve this timing behavior.
 The code is similar the one showed in listing~\ref{lst:exception-sample} for the example usage of \exceptiononexpire\ and \deactivateexception.
-In this case, if the \deactivateexception\ is not executed before platform time exceeds the deadline timestamp, then the deadline is missed and the timer expired exception is thrown in hardware.
+In this case, if \deactivateexception\ is not executed before platform time exceeds the deadline timestamp, then the deadline is missed and the timer expired exception is thrown in hardware.
 In the listing we assume that \emph{miss\_handler} has been registered as the exception handler, and will be executed when the timer expired exception is thrown.
-The \emph{miss\_handler} can directly abort the finishing of task 1 and directly start task 2, or it could return to the program point where the exception was thrown and continue execution after the \emph{miss\_handler}. 
+The \emph{miss\_handler} can directly abort task 1 to start task 2, or it could return to the program point where the exception was thrown after \emph{miss\_handler} completes. 
 This is application dependent, and both can be supported in software.   
 
 \begin{lstlisting}[float=h, label=lst:timing_behavior_BC,caption=Assembly code to implement scenario B and C]
@@ -345,14 +348,15 @@ loop:
   b loop
 \end{lstlisting}
 
-The period of each loop iteration is specified by the calculations of line 2 and 3 in listing~\ref{lst:timed_loop_new_dead}, with the small additional time to execute the \gettime\ and \delayuntil\ instruction. 
+The period of each loop iteration is specified by the calculations of lines 2 and 3 in listing~\ref{lst:timed_loop_new_dead}.
+% with the small additional time to execute the \gettime\ and \delayuntil\ instruction. 
 Ideally, the execution time of the task never exceeds the period of the loop, and the timing behavior shown in scenario A from figure~\ref{fig:timed_loop_differences} is observed. 
 In this scenario, each iteration exhibits slightly different execution times, but the \delayuntil\ instruction ensures each iteration takes the whole period to execute.
-However, if one iteration misses the deadline its execution time exceeds the period, then scenario B in figure~\ref{fig:timed_loop_differences} would be observed in our current implementation.
+However, if one iteration misses the deadline, and its execution time exceeds the period, then scenario B in figure~\ref{fig:timed_loop_differences} would be observed in our current implementation.
 We see that iteration 1 is the only iteration that misses its deadline, but because \gettime\ is called in the beginning of each loop iteration, our next deadline for iteration 2 will be shifted due to the overrun in execution time. 
 Even though iteration 2 executes in less time, all future iterations are still shifted after one missed deadline.
 
-The timestamps are stored in general purpose registers and can be manipulated using data-processing instructions, so we can modify slightly the implementation of the timed loop to account for that missed deadline. 
+The timestamps are stored in general purpose registers and can be manipulated using data-processing instructions, so we can slightly modify the implementation of the timed loop to account for that missed deadline. 
 Listing~\ref{lst:timed_loop_same_dead} shows a different implementation of timed loops.
 In this implementation, we only call \gettime\ once outside of the loop, and within the loop the deadline timestamps are incremented directly by arithmetic operations, shown on lines 3 and 4.    
 
@@ -373,10 +377,10 @@ Although iteration 1 misses its deadline, but the execution time of iteration 2 
 Future iterations are not effected by the missed deadline from iteration 1, and continue to execute as desired.
 By placing \gettime\ outside of the loop, the increments to the deadline timestamp are purely the period of the loop, since we do not call \gettime\ again to obtain the current time.
 Of course, both implementations are susceptible to the effects of multiple missed deadlines in a row, as shown in scenario D and E.
-In this case, both iterations 1 and 2 overrun their deadline, and the timing error is compounded.
+In both scenarios, iterations 1 and 2 overrun their deadline, and the timing error is compounded.
 With our first implementation of timed loops, the error jitter continues to increase, because the new deadline is set according to the late execution of each iteration, as shown in scenario D. 
 The error jitter never recovers, even though the execution time of iteration 3 is short enough to allow recovery. 
-As shown in scenario E, our second iteration recovers the period on the 3rd iteration, and the 4th iteration is not effected. 
+As shown in scenario E, our second implementation recovers the period by the 3rd iteration, and the 4th iteration is not effected. 
 
 Furthermore, we can construct a timed loop that self compensates whenever it detects that an iteration overran its deadline. 
 We do so by using the late miss detection mechanism shown previously in our timed loop to run a shorter version of the task whenever a previous deadline is missed.
@@ -416,7 +420,7 @@ The timing behavior that is created is shown in figure~\ref{fig:timed_loop_diffe
 Other combinations of timing instructions can further be explored.
 For example, the use of \exceptiononexpire\ and \deactivateexception\ to handle cases where loop iterations exceed the period.
 In these examples, we are not claiming that a particular implementation of timed loops is the ``correct'' implementation.
-We mainly show different possible ways to implement a timed loop construct with our timing extensions, and point out some subtleties when doing so.
+We mainly show different possible ways to implement a timed loop with our timing extensions to point out the subtleties when doing so.
 
 
 

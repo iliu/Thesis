@@ -1,15 +1,15 @@
-The Precision Timed ARM (PTARM) architecture is a realization of the PRET principles on the ARM instruction set architecture~\cite{armrefman}. 
+In this chapter we introduce the Precision Timed ARM (PTARM).
+The PTARM is a realization of the PRET principles on the ARM instruction set architecture~\cite{armrefman}. 
 In this chapter we describe in detail the implementation of the timing-predictable ARM processor and the timing analysis on the architecture.
 We show that with the architectural design principles of PRET, the PTARM architecture is easily analyzable and has repeatable timing.
   
-The architecture of PTARM follows the design principles discussed in chapter~\ref{chapter:pret}.
-This includes a thread-interleaved pipeline and an exposed memory hierarchy with scratchpads and a timing predictable DRAM controller.
-The ARM ISA is chosen not only because of its popularity in the embedded community, but also because it is a \emph{Reduced Instruction Set Computer} (RISC), which contains simpler instructions that allow more precise timing analysis. 
+Following the design principles discussed in chapter~\ref{chapter:pret}, PTARM employs a thread-interleaved pipeline and an exposed memory hierarchy with scratchpads and a timing predictable DRAM controller.
+The ARM ISA is chosen not only because of its popularity in the embedded community, but also because it is a \emph{Reduced Instruction Set Computer} (RISC), which contains simpler instructions that allow for more precise timing analysis. 
 \emph{Complex Instruction Set Computers} (CSIC), such as Intel's x86 ISA, add complexity to the instructions, hardware, and timing analysis.
 RISC architectures typically feature a large uniform register file, use a load/store architecture, and use fixed-length instructions.
 In addition, the ARM ISA contains several unique features. 
 Here we list of a few.  
-First, the ARM ISA does not contain explicit shifting instructions.
+First, the ARM ISA does not contain explicit shift instructions.
 Instead, data-processing instructions can shift their operands before the data operation. 
 This requires a separate hardware shifter in addition to the arithmetic logic unit (ALU) in the hardware.  
 Second, ARM's load/store instructions contain auto-increment capabilities that can increment or decrement the value stored in the base address register.
@@ -33,9 +33,9 @@ They can often be customized with different feature sets and configurations befo
 The PTARM implements a 32 bit datapath with a five stage thread-interleaved pipeline.
 Thread-interleaved pipelines remove pipeline hazards by interleaving multiple threads, improving throughput and predictability. 
 Conventional thread-interleaved pipelines have at least as many threads as pipeline stages to keep the pipeline design simple and maximize the clock speed.
-However, Lee and Messerschmitt~\cite{lee1987pip} showed that hazards can also be removed in the pipeline even if the number of threads is one less than the number of pipeline stages.  
+However, Lee and Messerschmitt~\cite{lee1987pip} show that hazards can also be removed in the pipeline even if the number of threads is one less than the number of pipeline stages.  
 Increasing the number of threads in the pipeline increases each thread's latency, because threads are time-sharing the pipeline resource. 
-Thus, PTARM implements a five stage thread-interleaved pipeline with four threads.
+Thus, PTARM implements a five stage thread-interleaved pipeline with four threads to slightly improve thread latencies.
 
 \begin{figure}[b]
   \vspace{-20pt}
@@ -49,12 +49,13 @@ Thus, PTARM implements a five stage thread-interleaved pipeline with four thread
 
 Figure~\ref{fig:ptarm_pipeline_five_stage} shows a block diagram view of the pipeline. 
 Some multiplexers within the pipeline have been omitted for a clearer view of the hardware components that make up the pipeline.
-It contins four copies of the Program Counter(PC), Thread States, and Register File.
+It contins four copies of the program counter (PC), thread states, and register file.
 The register file has 3 read ports and 1 write port.
 Most of the pipeline design follows the five stage pipeline described in Hennessey and Patterson~\cite{Hennessey2007CompArch}, with the five stages in the pipeline being \emph{Fetch}, \emph{Decode}, \emph{Execute}, \emph{Memory}, and \emph{Writeback}.
 We briefly describe the functionality of each stage, and leave more details to section~\ref{sec:ptarm_instructions}, where the instruction implementations are presented.
 
-The \emph{fetch stage} of the pipeline fetches the PC from different threads in a round robin fashion every cycle, and passes the address to instruction memory. 
+The \emph{fetch stage} of the pipeline fetches the PC from different threads in a round robin fashion every cycle.
+%, and passes the address to instruction memory. 
 A simple 2 bit up-counter is used to keep track of which thread to fetch.
 This reduces the time and space overhead of context switching close to zero. 
 The PC forward path is used when an instruction loads to R15, which causes a branch to the value loaded from main memory.  
@@ -65,8 +66,8 @@ A 64 bit timestamp, representing the time in nanoseconds, is associated with eac
 This 64 bit timestamp is latched from the \emph{timer} in the fetch stage, and is kept with the instruction for the duration of its execution. 
 
 The \emph{decode stage} contains the \emph{pipeline controller} that decodes instructions and determines the pipeline control signals to be propagated down the pipeline.
-Most of ARM instructions are conditionally executed, so the pipeline controller also checks the condition bits against the processor state condition codes to determine whether the instruction is to be executed or not.  
-Typically, \emph{pipeline controllers} need to keep track of all instructions currently executing in the pipeline, to detect the possibility of pipeline hazards and handle them accordingly.
+Most of the ARM instructions are conditionally executed, so the pipeline controller also checks the condition bits against the processor state condition codes to determine whether the instruction is to be executed or not.  
+Conventional pipeline controllers need to keep track of all instructions currently executing in the pipeline, to detect the possibility of pipeline hazards and handle them accordingly.
 However, from the \emph{decode} stage of our thread-interleaved pipeline, other instructions executing in the pipeline are instructions from other threads.
 Thus, the controller logic is greatly simplified because no hazard checking for in-flight instructions is required.  
 A small decoding logic, the \emph{register address decoder}, is inserted in parallel with the controller to decode the register addresses from the instruction bits.  
@@ -83,23 +84,25 @@ For thread-interleaved pipelines, the next PC from the current thread is not nee
 In addition to outputting the current PC incremented by 4, the \emph{PC Adder} also outputs the value of the current PC incremented by 8.
 In the ARM ISA, instructions that use R15 as an operand actually read the instruction PC plus 8, instead of the instruction PC, as the value of the operand.
 This feature is meant to simplify architecture implementations of the ARM ISA.  
-Typically in pipelines, instructions take 2 cycles (fetch and decode) before they enter the execute stage, so for single-threaded pipelines, the program counter has likely been incremented by 8.
+Typically in pipelines, instructions take 2 cycles (fetch and decode) before they enter the execute stage. 
+Thus, for single-threaded pipelines, the program counter has likely been incremented by 8.
 By using $instruction\_pc+8$ as the operand value, the hardware implementation can directly use the PC without compensating for the two increments that occurred. 
-However, for thread-interleaved pipelines, we need to explicitly calculate $instruction\_pc+8$ because the PC for each thread is not incremented every processor cycle, but only incremented once every round-robin thread fetching cycle.
-Since $instruction\_pc+8$ could be used as a data operand needed in the execute stage, the \emph{PC Adder} in placed in the \emph{decode} stage.  
+However, for thread-interleaved pipelines, we need to explicitly calculate $instruction\_pc+8$ because the PC for each thread is not incremented every processor cycle, but only incremented once every round robin cycle.
+Since $instruction\_pc+8$ can be used as a data operand in the execute stage, the \emph{PC Adder} in placed in the decode stage.  
 
-The \emph{execute stage} contains execution units and multiplexers that select the correct operand and feed it to the ALU.  
+The \emph{execute stage} contains the execution units and the multiplexers that select the correct operands to be fed into the ALU.  
 The ARM ISA assumes an additional shifter to shift the operands before data operations, so a 32 bit \emph{Shifter} is included.
 The 32 bit \emph{ALU} performs most of the logical and arithmetic operations, including data-processing operations and branch address calculations.
 The \emph{Load/Store Multiple Offset} logic block calculates the offset for load/store multiple instructions.
 Load/store multiple instructions use a 16 bit vector to represent each of the 16 general purpose registers.
-Memory operations are done only on the registers whose corresponding bit value is set in the bit vector.
+Memory operations are done only on the registers whose corresponding bit values are set in the bit vector.
 The memory addresses of each memory operation are derived from the base register and an offset. 
 %The an offset is added to the base memory address for the instruction, and that offset depends on how many bits are set.
 The \emph{Load/Store Multiple Offset} logic block calculates this offset according to the bit count of the remaining bit vector during load/store multiple instructions.
 The \emph{Timer Adder} is a 32 bit add/subtract unit used with the \emph{ALU} to compare 64 bit timestamps for timing instructions. 
-Specifically, \delayuntil\ requires the comparison of two 64 bit timestamps every thread cycle, thus the additional \emph{Timer Adder} is added to accomplish that.  
-The implementation detail of \delayuntil\ is described in section~\ref{sec:timing_inst_implementation}.
+Specifically, \delayuntil\ requires the comparison of two 64 bit timestamps every thread cycle.
+Thus, the additional \emph{Timer Adder} is added to accomplish that.  
+The implementation details of \delayuntil\ is described in section~\ref{sec:timing_inst_implementation}.
 
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace{-20pt}
@@ -113,8 +116,8 @@ The implementation detail of \delayuntil\ is described in section~\ref{sec:timin
 \end{wrapfigure}      
      
 The \emph{memory stage} issues the memory operations and writes back the PC and thread states.
-The PC and thread states are written back a stage early to allow us to interleave four threads in our five stage pipeline, instead of five.
-This improves the latency of individual threads. 
+The PC and thread states are written back a stage early to allow us to interleave four threads in our five stage pipeline and still remove pipeline hazards. 
+This improves the latency of the individual threads. 
 When four threads are interleaved through a five stage pipeline, if the PC is written back in the \emph{writeback stage}, then the next instruction fetch for the thread would not see the updated PC in time for its instruction fetch. 
 Figure~\ref{fig:four_thread_pipeline} illustrates this by showing an execution sequence of the four thread five stage thread-interleaved pipeline in PTARM.
 Each cycle, the instructions in the \emph{fetch} and \emph{writeback} stages belong to the same thread.
@@ -129,7 +132,7 @@ Data processing instructions that write to R15 have their results computed by th
 However, a load instruction that loads to R15 will not know the branch target until after the memory read.
 Thus, a PC forwarding path is added to forward the results back from memory as the fetched PC if a load instruction loads to R15.  
 The forwarding path does not cause any timing analysis difficulties because the forwarding path is always used when a load instruction loads to R15.
-Also, this causes no stall in the pipeline, and does not effect the timing of any following instructions.
+This does not stall the pipeline, and does not effect the timing of any following instructions.
 We describe the implementation details in section~\ref{sec:load_to_pc}. 
 
 The \emph{writeback stage} simply writes back the results from memory or the \emph{ALU} to the correct registers.
@@ -158,12 +161,12 @@ Both the boot code and scratchpads are synthesized to dual-ported block RAMs on 
 The \emph{boot code} region contains initialization and setup code for PTARM. 
 This includes the exception vector table, which stores entries used jump to specific exception handlers for the different exceptions.
 The specific table entries and layout are explained in section~\ref{subsec:exception_handling_in_ptarm}. 
-Non-user registered exception handlers and the exception setup code are also part of the boot code .
+Non-user registered exception handlers and the exception setup code are also part of the boot code.
 When PTARM resets, all threads begin execution at address 0x0, which is the \emph{reset} exception entry in the exception vector table.
 The \emph{reset} exception handler will set up each thread's execution state, including the stack, which is allocated on the data scratchpad.
 Then the handler transfers control flow to the user compiled code for each thread.  
 Dedicated locations in the boot code are reserved for user-registered exception handlers; these entries can be modified programmatically. 
-For example, a location is reserved to store the location of a user registered \emph{timer\_expired} exception handler.
+For example, a location is reserved to store the address of a user registered \emph{timer\_expired} exception handler.
 
 \subsection{Scratchpads}
 Scratchpads replace caches as the fast-access memory in our memory hierarchy.   
@@ -171,18 +174,19 @@ The partition of instruction and data scratchpads between threads can be configu
 For embedded security applications, such as encryption algorithms, partitioning the scratchpads into private regions in hardware for each thread might be desired to prevent cross-thread attacks.
 In section~\ref{sec:app_side_channel_attack} we discuss the security implications and how partitioning the scratchpad can defend against timing side-channel attacks that exploit underlying shared resources.
 On the other hand, on applications with collaborative hardware threads, sharing the scratchpad could provide flexibility for the memory allocation scheme~\cite{Suhendra:2010:SAC:1734206.1734210} of scratchpads and communication between hardware threads.
-This opens opportunities to optimize system performance, instead of just individual thread performance.  
-Hybrid schemes can also be used that privatize a hardware thread for security, and allows other threads to collaborate.  
+This opens up opportunities to optimize system performance, instead of just individual thread performance.  
+Hybrid schemes can also be used that privatize a hardware thread for security, and allow other threads to collaborate.  
 
 \subsection{DRAM}
 \label{sec:ptarm_dram_integration}
 The PTARM interfaces with a $512MB$ DDR2 $667MHZ$ DRAM memory module (Hynix HYMP564S64CP6-Y5). 
-All access to the DRAM goes through the predictable DRAM controller described in section~\ref{sec:pret_dram_controller}.
+All accesses to the DRAM go through the predictable DRAM controller described in section~\ref{sec:pret_dram_controller}.
 The DRAM controller privatizes the DRAM banks into four resources, which we assign to each thread in our pipeline. 
 This removes bank access conflicts and gives us predictable memory access latencies to the DRAM.
-The pipeline interacts with the frontend of the DRAM controller, which routes requests to the correct request buffer in the backend, and manages the insertion of row-access refreshes to ensure the refresh constraint is met.   
-In conventional memory architectures where the hierarchy is hidden, the processor interacts with DRAM indirectly by the filling and writing back of cache lines.
-In our memory system, the processor can directly access the DRAM through load and store instructions to the distinct memory regions of the DRAM.
+The pipeline interacts with the frontend of the DRAM controller, which routes requests to the correct request buffer in the backend.
+The frontend of the DRAM controller also manages the insertion of row-access refreshes to ensure the refresh constraint is met.   
+In conventional memory architectures where the hierarchy is hidden, the processor interacts with the DRAM indirectly by the filling and writing back of cache lines.
+In our memory system, the processor can directly access the DRAM through load and store instructions that address the distinct memory regions of the DRAM.
 In addition, each hardware thread is also equipped with a direct memory access (DMA) unit, which can perform bulk transfers between the scratchpads and the DRAM.
 Figure~\ref{fig:pretintegration} shows the integration of PTARM with the DMA units, memory controller and DRAM.  
 
@@ -208,29 +212,35 @@ Figure~\ref{fig:pretintegration} shows the integration of PTARM with the DMA uni
 }
 \end{figure}
 
-When DRAM is accessed through load (read) and store (write) instructions, the memory requests are issued directly from the memory stage of pipeline.
+When the DRAM is accessed through load (read) and store (write) instructions, the memory requests are issued directly from the memory stage of pipeline.
 Each request is received from the frontend of the memory controller, and placed in the correct request buffer. 
 Depending on the alignment of the pipeline and the backend, it takes a varying number of cycles until the backend generates corresponding commands to be sent to the DRAM module.
 After the read has been performed by the DRAM and has been put into the response buffer, again, depending on the alignment of the pipeline and the backend, it takes a varying number of cycles for the corresponding hardware thread to pick up the response.
 Figure~\ref{fig:readlatencyderivation}, illustrates the stages of the execution of an example read instruction in the pipeline.
-In~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability} we derive the access latencies from the alignment and show that they are either 3 or 4 thread cycles.    
-We leverage this misalignment of the pipeline and backend to hide the refresh latency from the front end. 
+In~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability} we derive the access latencies from the alignment and show that even though memory access latencies can dependent on the alignment of the pipeline and the backend, they still exhibit only a small range of execution time.
+They are either 3 or 4 thread cycles. 
+This is because the thread-interleaved pipeline hides the full memory latency with the interleaving of threads.   
+We also leverage the misalignment of the pipeline and backend to hide the refresh latency from the front end. 
 When a refresh is scheduled for the DRAM resource, if no memory request is in the request buffer, the refresh is serviced.
 As mentioned in section~\ref{sec:pret_dram_controller}, if a refresh conflicts with a pipeline load or store, we push back the refresh until after the load or store. 
-In this case, the pushed back refreshes become invisible;   
-as the pipeline is waiting for the data to be returned and takes some time to reach the memory stage of the next instruction, it is not able to use successive access slots of the backend, and thus it does not observe the refresh.
+In this case, the pushed back refreshes become invisible.
+Because the pipeline only reads back the data in the memory stage of the next instruction, it is not able to use successive access slots of the backend.
+Even if the the data is ready from the DRAM and put in the response buffer, it still needs to wait for the pipeline to reach the correct stage. 
+Thus, the refreshes can be hidden in the successive unused access slot, and the frontend does not observe the refresh latency.   
 
-Whenever a DMA transfer is initiated, the DMA unit uses the thread's request buffer slot to service DMA requests to/from the scratchpad. 
-Thus, while a DMA transfer is initiated, the thread gives up access to the DRAM to the DMA unit.
+%As the pipeline is waiting for the data to be returned, there some time to reach the memory stage of the next instruction, 
+
+Whenever a DMA transfer is initiated, the DMA unit uses the thread's request buffer slot to service the DMA request to or from the scratchpad. 
+Thus, while a DMA transfer is initiated, the thread gives up access of the DRAM to the DMA unit.
 During this time, the thread can continue to execute and access the scratchpad regions that are not being serviced by the DMA request. 
 This is possible because scratchpads are dual-ported, allowing a DMA unit to access the scratchpads simultaneously with its corresponding hardware thread.
 If at any point the thread tries to access the DRAM, it will be blocked until the DMA transfer completes.
-Similarly, accesses to the region of the scratchpad being serviced by the DMA will also stall the hardware thread\footnote{This does not affect the execution of any of the other hardware threads.}.
-The DMA units can fully utilize the bandwidth provided by the backend because unlike accesses from the pipeline, they suffer no alignment losses.
-When refreshes conflict with a DMA transfer, we push back the first refresh and schedule one at the end of the DMA transfer. 
+Similarly, accesses to regions of the scratchpad being serviced by the DMA will also stall the hardware thread\footnote{This does not affect the execution of any of the other hardware threads.}.
+The DMA units can fully utilize the bandwidth provided by the backend because unlike the accesses from the pipeline, they suffer no alignment losses.
+When a refresh conflicts with a DMA transfer, we push back the first refresh and schedule one at the end of the DMA transfer. 
 This can be seen as shifting all refreshes, during the DMA transfer, back by $63$ slots or to the end of the transfer.
 More sophisticated schemes would be possible, however, we believe their benefit would be slim.
-With this scheme, refreshes scheduled within DMA transfers are predictable so the latency effects of the refresh can be easily analyzed, which we do in~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.
+With this scheme, refreshes scheduled in between DMA transfers are predictable, so the latency effects of the refresh can be easily analyzed, which we do in~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}.
 
 \paragraph{Store Buffer}
 \label{sec:ptarm_dram_store_buffer}
@@ -238,12 +248,12 @@ Stores are fundamentally different from loads in that a hardware thread does not
 By adding a single-place store buffer to the frontend, we can usually hide the store latency from the pipeline.
 Using the store buffer, stores to DRAM that are not preceded by other memory operations to DRAM can appear to execute in a single thread cycle.
 %By \emph{thread cycle}, we denote the time it takes for an instruction to pass through the thread-interleaved pipeline.
-Otherwise, the store will observe the full two thread cycle latency to store to DRAM.
-A bigger store buffer would be able to hide latencies of more successive stores at the expense of slightly increasing the complexity of timing analysis.
+Otherwise, the store will observe the full two thread cycle latency to store to the DRAM.
+A bigger store buffer can hide the latencies of more successive stores at the expense of increasing the complexity of timing analysis.
 
 \subsection{Memory Mapped I/O}
 %talk about the I/O memory region, and how the protocol is implemented to determine if memory access is completed yet
-Currently PTARM implements a primitive I/O bus for communicating with external inputs and outputs.
+Currently, PTARM implements a primitive I/O bus for communicating with external input and output devices.
 Access to the bus occurs in the memory stage of the pipeline, by accessing the memory mapped I/O region with memory instructions.
 I/O devices snoop the address bus to determine whether the pipeline is communicating with them.
 The I/O bus is shared by all threads in the thread-interleaved pipeline, thus, in addition to address and data, a thread ID is also sent out for potential thread-aware I/O devices. 
@@ -260,7 +270,8 @@ When exceptions occur in a single threaded pipeline, the whole pipeline must be 
 The existing instructions in the pipeline immediately become invalid, and the pipeline fetches instructions from an entry in the exception vector table. 
 The exception vector table stores entries that direct the control flow to the correct exception handling code.  
 The table is part of the boot code, and its contents are shown in table~\ref{tab:exception_vector_table}.
-The timer expired exception entry is added with our timing extensions to the ISA, and is triggered when a user registered timestamp with \exceptiononexpire\ expires.  
+The timer expired exception entry is added to the ARM ISA with our timing extensions.
+It is triggered when a user registered timestamp with \exceptiononexpire\ expires.  
 \begin{table}[h]
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | l | l | p{6cm} | }
@@ -278,10 +289,10 @@ The timer expired exception entry is added with our timing extensions to the ISA
 \end{table}
 
 In the PTARM thread-interleaved pipeline, exceptions are separately managed for each hardware thread.  
-All threads are designed to be temporally isolated in the PTARM thread-interleaved pipeline.  
+All threads are designed to be temporally isolated.
 Thus, an exception that triggers on one thread must not effect the execution of other threads in the pipeline.
-In PTARM, any exceptions that occur during execution propagate down the pipeline with the instruction.
-The exception is checked and handled before modifying any states, such as the PC, CPSR, register, or memory of the thread.  
+In PTARM, any exception that occurs during instruction execution propagates down the pipeline with the instruction.
+The exception is checked and handled before modifying any pipeline states, such as the PC, CPSR, register, or memory of the thread.  
 When an exception is detected, the current instruction execution is ignored, and the PC and thread states are updated to handle the exception.   
 %The program state register bits are updated to reflect an exception occurrence.  
 According to the exception type, the PC is redirected to the corresponding entry in the exception vector table. 
@@ -302,18 +313,18 @@ The current PC is stored in the link register (R14), so the program can re-execu
 \end{wrapfigure}
 
 None of the other instructions executing in the pipeline are flushed when an exception occurs. 
-As shown in figure~\ref{fig:exception_handling_pipeline}, the instructions executing in other pipeline stages belong to other threads, so no flushing of the pipeline is required because no instruction was speculatively executed.
-This limits the timing affects of exceptions to only one thread, as the timing behavior of other threads in the pipeline is unaffected.
+As shown in figure~\ref{fig:exception_handling_pipeline}, the instructions executing in other pipeline stages belong to other threads, so no flushing of the pipeline is required because no instruction is speculatively executed.
+This limits the timing effects of exceptions to only one thread, as the timing behavior of other threads in the pipeline are unaffected.
 From the hardware, only a one thread cycle overhead is induced. 
-In this thread cycle, the current instruction does not complete its execution, but instead the pipeline updates the thread states to reflect the exception.   
+In this thread cycle, the current instruction does not complete its execution, but instead, the pipeline updates the thread states to reflect the exception.   
 In the next thread cycle, the thread will already be executing instructions to handle the exception.
 
 For longer latency instructions that modify the program state, exceptions can cause an inconsistent view of the program state.
-For example, a \timerexpired\ exception could occur in the middle of a memory instruction to the DRAM region.
+For example, a \timerexpired\ exception could occur in the middle of a memory instruction to the DRAM.
 In this case, we cannot cancel the memory request abruptly because the memory request is handled by the external DRAM controller, and possibly already being serviced by the DRAM.
 If the memory instruction is a load, the results can be simply disregard.
-But if the instruction is a store instruction, we cannot cancel the store request that is writing data to the memory.
-The programmer must disable the \timerexpired\ exception before writing to critical memory locations that require a consistent program state.
+But if the instruction is a store instruction, we cannot cancel the store request that is already writing data to the DRAM.
+In this case, the programmer must disable the \timerexpired\ exception before writing to critical memory locations that require a consistent program state.
 
 Besides an inconsistent program state, interrupting a memory instruction can also complicate the interaction between the pipeline and DRAM controller.
 The DRAM controller, with a request buffer of size one, does not queue up memory requests.
@@ -324,7 +335,7 @@ The new memory request would then need to be queued until the previous ``cancele
 This creates timing variability for exception handlers, because the latency of initial load instructions would vary depending on the instruction interrupted by the exception. 
 Because it is very difficult to statically analyze the exact instruction an exception would interrupt, it will be difficult to predict when this timing variance would occur.    
 
-To achieve predictable and repeatable timing for exception handlers, we leverage the exposed memory hierarchy to ensure sufficient time has elapsed for the DRAM controller to finish servicing any potential memory requests, before any instructions in the exception handlers access the DRAM.
+To achieve predictable and repeatable timing for exception handlers, we leverage the exposed memory hierarchy to ensure sufficient time has elapsed for the DRAM controller to finish servicing any potential memory requests. % before any instructions in the exception handlers access the DRAM.
 In PTARM, we ensure that the instructions executed before the worst-case memory latency in any exception handler does not access the DRAM.  
 %the worst-case memory latency for the DRAM backend is 4 thread cycles, so we need to ensure that the instructions executed during the first 3 thread cycles after an exception does not access the DRAM.
 The exception vector table and the exception handler setup code are all part of the boot code synthesized to dual-ported BRAMs, thus instruction fetching is guaranteed to avoid the DRAM.
@@ -342,7 +353,7 @@ Thus, we envision a thread-aware interrupt controller that allows each thread to
 
 \section{Instruction Details}
 \label{sec:ptarm_instructions}
-In this section we present details on how each instruction type is implemented to show how each hardware block in the pipeline shown in figure~\ref{fig:ptarm_pipeline_five_stage} is used.
+In this section we present the details on each instruction type implementation to show how each hardware block in the pipeline, shown in figure~\ref{fig:ptarm_pipeline_five_stage}, is used.
 We will go through different instruction types and discuss the timing implications of each instruction in our implementation.
    
 \subsection{Data-Processing}
@@ -383,7 +394,7 @@ So all data-processing instructions take only one thread cycle to execute.
 Branch instructions in the ARM can conditionally branch forward or backwards by up to 32MB.
 There is no explicit conditional branch instruction in ARM.
 Conditional branches are implemented using the ARM predicated instruction mechanism.
-Thus, the condition code flags determine whether a conditional branch is taken or not 
+Thus, the condition code flags determine whether a conditional branch is taken or not. 
 Figure~\ref{fig:branch_pipeline_implementation} shows how branch instructions are executed in our thread-interleaved pipeline.
 
 \begin{figure}[h]
@@ -429,7 +440,7 @@ Figure~\ref{fig:ldstr_pipeline_implementation} describes how the load/store regi
     \includegraphics[scale=.54]{figs/ldstr_pipeline_implementation}
   \end{center}
   \vspace{-3mm}
-  \caption{Load/Store Instruction Execution in the Ptarm Pipeline}
+  \caption{Load/Store Instruction Execution in the PTARM Pipeline}
   \label{fig:ldstr_pipeline_implementation}
 \end{figure}
 
@@ -437,21 +448,21 @@ Accesses to different memory regions yield different latencies for memory instru
 When the memory address accesses the scratchpad or boot code memory region, memory operations are completed in a single processor cycle.
 Thus, the data is ready in the following (\emph{writeback}) stage to be written back to the registers.
 However, if the DRAM is accessed, the request must go through the DRAM memory controller, which takes either three or four thread cycles to complete.
-Our thread-interleaved pipeline implementation does not dynamically switch threads in and out of execution when they are stalled waiting for memory access to complete. 
-Thus, when a memory instruction is waiting for the DRAM, the same instruction is replayed by withholding the update for the next PC, until the data from DRAM arrives and is ready to be written back in the next stage.
+Our thread-interleaved pipeline implementation does not dynamically switch threads in and out of execution when they are stalled waiting for a memory access to complete. 
+Thus, when a memory instruction is waiting for the DRAM, the same instruction is replayed by withholding the update for the next PC, until the data from the DRAM arrives and is ready to be written back in the next stage.
 The memory access latencies to the I/O region is device dependent.   
-Currently, all I/O devices connected to PTARM all interface with PTARM through single cycle memory mapped control registers.
+Currently, all I/O devices connected to PTARM interface with PTARM through single cycle memory mapped control registers.
 So memory instructions accessing I/O regions currently also take only one thread cycle.  
 
 Load/store instructions in ARM have the ability to update the base register after any memory operation. 
-This compacts code that reads arrays, as a load or store instruction can access memory and updates the base register so the next memory access is done on the updated base register.
+This compacts code that reads arrays, as a load or store instruction can access memory and update the base register so the next memory access is done on the updated base register.
 The addressing mode of the instruction dictates how the base address register is updated. 
-Pre-indexed addressing mode calculates the memory address by first using the value of the base register and offset, then updates the base register after the memory operation. 
+Pre-indexed addressing mode calculates the memory address by first using the value of the base register and offset, then updating the base register after the memory operation. 
 Post-indexed addressing mode first updates the base register, then uses the updated base register value along with the offset to form the memory address.
 Offset addressing mode simply calculates the address from the base register and offset, and does not update the base register. 
 When pre and post-indexed addressing modes are used, load operations require an additional thread cycle to complete.
 This results from the contention of the single write port in the register file. 
-Because the register only has one write port, we cannot simultaneously write back a loaded result and update the base register in the same cycle.
+We cannot simultaneously write back a loaded result and update the base register in the same cycle.
 Thus, an extra pass through the pipeline is required to resolve the contention and update the base register. 
 %In the hardware implementation, for memory instructions that access the DRAM or I/O region, it is possible to update the base register earlier during the cycles where the instruction is waiting for access to complete.
 %However, the current PTARM implementation uses the same logic and datapath for all memory accesses (scratchpad, DRAM, I/O etc) to minimize hardware resources, so an additional cycle is used to update the base register for all memory accesses regardless of the address region they are accessing.
@@ -486,10 +497,10 @@ The offset is added to the base register to form the memory address fed into mem
 Each cycle, the register that is operated on is cleared from the remaining register list. 
 The instruction completes execution when all registers have been operated on, which occurs when all bits in the register list are cleared. 
 
-The execution time of this instruction depends on the number of registers specified in the register list and the memory region that is being accessed. 
+The execution time of this instruction depends on the number of registers specified in the register list and the memory region being accessed. 
 For accesses to the scratchpad or boot code, each register load or store takes only a single cycle. 
-However, if memory accesses are to the DRAM region, then each register load/store will take multiple cycles.
-Load/store multiple instruction can also update the base register after all the register operations completes. 
+However, if memory accesses are to the DRAM, then each register load/store will take multiple cycles.
+Load/store multiple instructions can also update the base register after all the register operations complete. 
 Similar to the load/store register instruction, an additional thread cycle will be used to update the base register for load multiple instructions.
 Although the execution time of this instruction seems to be dynamic depending on the number of registers specified in the register list, but this number can be determined statically from the instruction binary. 
 Thus, the execution time of this instruction can easily be statically analyzed.   
@@ -497,7 +508,7 @@ Thus, the execution time of this instruction can easily be statically analyzed.
 \subsubsection{Load to PC}
 \label{sec:load_to_pc}    
 When a load instruction loads to R15, a branch is triggered in the pipeline.
-This is also the case for load multiple instructions when bit 15 is set in the register list bit-vector.
+This is also the case for load multiple instructions when bit 15 is set in the register list.
 In our five stage pipeline, the PC is updated in the memory stage to prepare for the next instruction fetch for the thread.   
 However, if the branch target address is loaded from memory, the address is not yet present in the memory stage to be committed; only at the writeback stage will it be present. 
 Thus, we introduce a forwarding path that forwards the PC straight from the writeback stage to instruction fetch if the next PC comes from memory. 
@@ -514,7 +525,7 @@ Figure~\ref{fig:ld_to_pc_pipeline_implementation} shows how this is implemented 
 \end{figure}
 
 An extra multiplexer is placed in the fetch stage before the instruction fetch to select the forward path.
-When a load to R15 is detected, it will signal the thread state to use the forwarded PC on the next instruction fetch, instead of the one stored in next PC.
+When a load to R15 is detected, it will signal the thread to use the forwarded PC on the next instruction fetch, instead of the one stored in next PC.
 We show in figure~\ref{fig:four_thread_pipeline} that for the same hardware thread, the fetch and writeback stage overlap in execution.  
 As the memory load will be completed by the writeback stage, the correct branch target address will be selected and used in the fetch stage.
 
@@ -532,13 +543,13 @@ This timing behavior conforms to a typical load instruction that updates its bas
 
 \subsection{Timing Instructions}
 \label{sec:timing_inst_implementation}
-Section~\ref{sec:programming_models} gives the instruction extensions to the ARM ISA to bring timing semantics to the ISA level.
+Section~\ref{sec:programming_models} gives the instruction extensions to the ARM ISA that bring timing semantics to the ISA level.
 These instructions are added using the co-processor instruction slots in the ARM instruction space. 
 In particular, the timing instructions are implemented using co-processor 13.
 Table~\ref{table_deadline_insts} summarizes the instructions, their op codes, and their operations.
 All instructions have the assembly syntax ``\textbf{\textit{cdp, p13, $<$opcode$>$ rd, rn, rm, 0}}'', with $<$opcode$>$ differentiating the instruction type.
    
-\begin{table}[h]
+\begin{table}[b]
 \noindent\makebox[\textwidth]{%
 \begin{smalltabular}{ | l | l | p{6cm} | }
   \hline                        
@@ -567,29 +578,30 @@ deactivate\_exception();
 \end{table}
 
 All timing instructions use the \emph{platform clock} to obtain and compare deadlines.
-Instead of using an external timer that is accessed through the I/O bus, the \emph{platform clock} is implemented as a core hardware unit in the pipeline.  
-The deterministic single cycle access latency to the clock value increases the precision of and predictability of timing operations on our processor.  
-The \emph{platform clock} is implemented in the \emph{timer} hardware block shown in figure~\ref{fig:ptarm_pipeline_five_stage}.   
+Instead of using an external timer that is accessed through the I/O bus, the platform clock is implemented as a core hardware unit in the pipeline.  
+The deterministic single cycle access latency to the clock value increases the precision and predictability of the timing operations on our processor.  
+The platform clock is implemented in the \emph{timer} hardware block shown in figure~\ref{fig:ptarm_pipeline_five_stage}.   
 An unsigned 64 bit value represents time in nanoseconds, and resets to zero when PTARM is reset.
 Unsigned 64 bits of nanoseconds covers approximately 584 years. 
-The \emph{platform clock} is implemented with a simple 64 bit adder increments to the current time value each processor clock cycle. 
+The platform clock is implemented with a simple 64 bit adder increments to the current time value each processor clock cycle. 
 We clock PTARM at 100$MHz$, so the timer value is incremented by 10 nanoseconds every processor cycle.
 If the processor clock speed is modified, then the timer increment must be modified to reflect the correct clock speed. 
-For architectures that allow the processor frequency to be scaled, the \emph{platform clock} must also be adjusted when the frequency is scaled.  
+For architectures that allow the processor frequency to be scaled, the platform clock must also be adjusted when the frequency is scaled.  
 For the purposes of clock synchronization, the time increment is stored in a programmable register that can adjust the timer increment to synchronize with external clocks. 
-The timer increment value can only be modified through a privileged \emph{set\_time\_increment} instruction, to protect the programmer from accidentally speeding up or slowing down the \emph{platform clock}.
+The timer increment value can only be modified through a privileged \emph{set\_time\_increment} instruction, to protect the programmer from accidentally speeding up or slowing down the platform clock.
+This privileged instruction simply modifies the timer increment, thus we omit the implementation details due to its trivial implementation.
 
 The timestamp associated with each instruction execution is latched during the fetch stage of the pipeline.
 In other words, the \emph{time of execution} for each instruction is the precise moment when the instruction begins execution in the pipeline.
 Timestamps are 64 bits, so they require two 32 bit registers to store.
-The timestamps are loaded into general purpose registers with the \gettime\ instruction, so standard register-to-register instructions can be used to manipulate the timestamps. 
+The timestamps are loaded into general purpose registers with the \gettime\ instruction, so standard register-to-register operations can be used to manipulate the timestamps. 
 PTARM does not currently provide 64 bit arithmetic operations, so programmers must handle the arithmetic overflow in software.
 The timing effects from the timing instructions are thread specific.   
-Each thread operates on its own timestamps, and are not affected by the timing instructions from other threads.
-With 4 hardware threads interleaved through the pipeline, each hardware thread observes the time change once every 4 processor clock cycles.
+Each thread operates on its own timestamps, and is not affected by the timing instructions from other threads.
+With 4 hardware threads interleaving through the pipeline, each hardware thread observes the time change once every 4 processor clock cycles.
 So the minimum observable interval of time for our implementation is $40 ns$. 
 The timing implications of this is discussed in section~\ref{subsec:precision_timing_inst_ptarm}.
-We now describe how the pipeline executes each timing instruction.  
+We now describe how the pipeline implements each timing instruction.  
 	
 \subsubsection{Get\_Time}    
 The \gettime\ instruction is used to obtain the current clock value.
@@ -611,8 +623,8 @@ This instruction will not write to R15 (PC), and it will not cause a branch.
 If R14 or R15 is specified as rd, causing a potential write to R15, then this instruction will simply act as a NOP.
 
 \subsubsection{Delay\_Until}    
-\emph{Delay\_until} is used to delay the execution of a thread until the \emph{platform clock} exceeds an input timestamp.
-It takes in 2 source operands that form the 64 bit timestamp that is checked against the \emph{platform clock} every thread cycle.
+\emph{Delay\_until} is used to delay the execution of a thread until the platform clock exceeds an input timestamp.
+It takes in 2 source operands that form the 64 bit timestamp checked against the platform clock every thread cycle.
 As described in section~\ref{sec:programming_models}, the \emph{delay\_until} instruction can be used to specify a lower bound execution time for code blocks.
 This could be useful for synchronization between tasks or communicating with external devices.
 Figure~\ref{fig:delay_until_pipeline_implementation} shows the execution of the \emph{delay\_until} instruction in the PTARM pipeline.       
@@ -626,13 +638,13 @@ Figure~\ref{fig:delay_until_pipeline_implementation} shows the execution of the 
 \end{figure}
 
 The \emph{delay\_until} instruction highlights the reason \emph{timer adder} is added into the pipeline.
-During the execution of \delayuntil\, the clock value is compared every thread cycle to the input timestamp.
+During the execution of \delayuntil, the platform clock value is compared every thread cycle to the input timestamp.
 However, the input timestamp and clock value are both 64 bit values.
 Without the additional \emph{timer adder} in the pipeline, comparing 64 bits would require two thread cycles using our 32 bit ALU. 
 This increases the jitter of this instruction by a factor of two, because now the two timestamps can only be compared every two thread cycles. 
-The added \emph{timer adder} allows \emph{delay\_until} to compare the timestamps every thread cycle, and ensures that no additional threads cycles elapse after the input timestamp is reached. 
+The added \emph{timer adder} allows \emph{delay\_until} to compare the timestamps every thread cycle, and ensures that no additional thread cycles elapse after the input timestamp is reached. 
 To delay program execution, the PC is only updated when the clock value is greater then or equal to the input timestamp.
-No thread states is modified by \delayuntil.
+No thread states are modified by \delayuntil.
 If the clock value already exceeds the input timestamp when the instruction is first decoded, then this instruction acts as a NOP. 
 The PC is simply updated and the program execution continues.
 We detail the jitter effects of \delayuntil\ in section~\ref{sec:jitter_of_timing_instructions}.
@@ -642,7 +654,7 @@ We detail the jitter effects of \delayuntil\ in section~\ref{sec:jitter_of_timin
 \emph{Exception\_on\_expire} registers a timestamp to be actively checked against the \emph{platform clock} in hardware.
 When the \emph{platform clock} exceeds the registered timestamp value, a \timerexpired\ exception is thrown.
 \emph{Deactivate\_exception} deactivates the timestamp that is actively being checked, so no exception will be thrown.
-The idea is similar to setting of timer interrupts on embedded platforms, which are typically controlled through memory mapped registers.
+The idea is similar to the setting of timer interrupts on embedded platforms, which is typically controlled through memory mapped registers.
 
 \begin{wrapfigure}{r}{0.4\textwidth}
   \vspace{-20pt}
@@ -668,7 +680,7 @@ The implementation of the \emph{timer} unit is shown in figure~\ref{fig:timer_un
 
 \Exceptiononexpire\ and \deactivateexception\ instructions are thread specific; each thread has its own dedicated deadline slot.
 The handling of \timerexpired\ exceptions, described in section~\ref{subsec:exception_handling_in_ptarm}, preserves temporal isolation for the hardware threads in the pipeline.
-So the timing effects of \exceptiononexpire\ and \deactivateexception\ can only affect the specific thread they are executed on.
+So the timing effects of \exceptiononexpire\ and \deactivateexception\ can only affect the specific thread they are executing in.
 The timing details and jitter introduced with this mechanism are detailed in section~\ref{sec:jitter_of_timing_instructions}.
 
 Each thread currently can only check for one timestamp in hardware. 
@@ -683,7 +695,7 @@ The instructions \exceptiononexpire\ and \deactivateexception\ can easily be mod
 \label{sec:ptarm_vhdl_soft_core}
   
 The PTARM soft core is written in VHDL.
-It includes the pipeline, scratchpad memories predictable memory controller and connects to several I/O devices on the FPGA.
+It includes the pipeline, scratchpad memories, predictable memory controller and connects to several I/O devices on the FPGA.
 We synthesize the PTARM on the Xilinx ML505~\cite{xilinx-ml505} evaluation board, which includes the Virtex-5 XC5VLX110T FPGA~\cite{xilinx-v5-overview} and several I/O interfaces on the board. 
 PTARM connects to the on board LEDS, RS232 connector, DVI transmitter device and the DDRII DRAM.
 All I/O devices are connected through the I/O bus, while the DDRII DRAM is connected directly to the DRAM controller.
@@ -772,15 +784,15 @@ The BRAMs used for scratchpads vs caches were the same because we configured the
 Thus, even though the MicroBlaze implements a more optimized ALU and shifter compared to PTARM, the PTARM pipeline still uses fewer resources.
 The critical path of our pipeline is at the execute stage, which includs a serial connection of the 32 bit barrel shifter and the ALU.
 To further improve the clock frequency, we can split up this stage into 2 stages, one for the shifter and one for the ALU, at the cost of one additional hardware thread. 
-We show this in chapter~\ref{chapter:app} for an engine fuel rail simulation application, which we clock a six thread six stage thread-interleaved pipeline at $150MHz$.
+We show this in chapter~\ref{chapter:app} for an engine fuel rail simulation application, in which we clock a six thread six stage thread-interleaved pipeline at $150MHz$.
 
-The PTARM DRAM Interface is based on the Xilinx core generated~\cite{xilinx_coregen} DRAM Interface, which is what is used in the MicroBlaze architecture. 
+The PTARM DRAM Interface is based on the Xilinx core generated~\cite{xilinx_coregen} DRAM Interface, which is also what is used in the MicroBlaze architecture. 
 We replace the queuing and reordering logic in the generated DRAM controller with our own front and back end implementation of bank privatization. 
 The slice consumption is shown in the table labeled ``controller'' under the DRAM interface.
 It shows that our predictable DRAM interface uses fewer logic slices and BRAMs than the original DRAM controller.
 
 Although these results may vary slightly depending on the synthesis toolchains, settings, and versions used, it gives us a general estimate of the resources consumed by our predictable architecture. 
-The resource comparisons confirm our conjecture that a predictable thread-interleaved pipeline, scratchpads and memory controller can lead to similar resources compared to conventional architectures that use hardware techniques to optimize average case performance. 	 
+The resource comparisons confirm our conjecture that a predictable thread-interleaved pipeline, scratchpads and memory controller can lead to similar or less resources compared to conventional architectures that use hardware techniques to optimize average case performance. 	 
   
 \subsection{PTARM Simulator}
 \label{sec:ptarm_sim}
@@ -791,8 +803,8 @@ The DMA units described in section~\ref{sec:ptarm_dram_integration} are currentl
 The timing instructions are also implemented in the simulator to allow for software experimentation of the ISA with timing semantics.
 
 To evaluate the performance of our architecture, we used the Malardalen WCET benchmarks~\cite{Gustafsson:WCET2010:Benchmarks} and compare our simulator against the SimIT-ARM~\cite{Qin:2003:FFM:789083.1022785} cycle-accurate simulator.
-The SimIT-ARM simulator simulates a StrongARM 1100~\cite{intel-sa-1100}, which contains a five stage pipeline, branch delay slots without branch prediction, and 16kb instruction cache with 8kb data cache.
-We configured our PTARM simulator to use similar sizes for the instruction and data scratchpad.
+The SimIT-ARM simulator simulates a StrongARM 1100~\cite{intel-sa-1100}, which contains a five stage pipeline, branch delay slots without branch prediction, a 16kb instruction cache and a 8kb data cache.
+We configure our PTARM simulator to use similar sizes for the instruction and data scratchpad.
 The StrongARM1100 is implemented with 0.35$um$ process technology, and can be clocked from 133 MHz to up to 220 MHz, 
 Although we currently clock PTARM at 100MHz, it is implemented on an FPGA, and not silicon. 
 Thus, we use clock cycles as our unit of measurement in our experiments.     
@@ -803,7 +815,7 @@ This way, the total number of instructions executed on both architectures are ro
 
 Most of the benchmarks we choose fit entirely within the scratchpad/cache of the architectures.
 This is intentional, as a full system evaluation of scratchpads vs caches involves several factors including the scratchpad allocation scheme, and is beyond the scope of the thesis.
-We thus mainly measure the effects of the thread-interleaved pipeline compared to the StrongARM1100 five stage pipeline. 
+We thus mainly measure the effects of the thread-interleaved pipeline compared to the StrongARM1100's single threaded five stage pipeline. 
 For the benchmarks that do not fit entirely within the scratchpad for PTARM, we profile and statically compile the most frequently used memory locations onto the scratchpad.
 Because the StrongARM1100 uses instruction and data caches, it suffers from a cache cold start, so the initial run of the benchmarks suffers more cache misses to load the instructions and data onto the caches. 
 ``SA1100 cold'' denotes the measurement of four runs including the cold start.  
@@ -835,16 +847,18 @@ We obtained the cycle counts for both architectures, and compare the instruction
 
 Several observations can be made from these measurements. 
 First, we observe from figure~\ref{fig:wcet_throughput} that PTARM achieves almost an one instruction/cycle throughput for all benchmarks.
-The thread-interleaved pipeline removes the control and data hazards from within the pipeline, thus the pipeline almost never stalls.
-On the contrary, with the single threaded StrongARM1100, the effects of pipeline hazards reduce the throughput of instructions, as the pipeline needs to stall for control and data hazards that can arise within the pipeline. 
+The thread-interleaved pipeline removes the control and data hazards from within the pipeline. 
+Thus, the pipeline almost never stalls.
+On the contrary, with the single threaded StrongARM1100, the effects of pipeline hazards reduce the throughput of instructions, as the pipeline needs to stall for control and data hazards that can arise. 
 With the higher instruction throughput, PTARM observes a smaller latency in terms of clock cycles for all benchmarks executed, as shown in figure~\ref{fig:wcet_latency}.
   
 Second, we observe the effects of caches on the execution time variance by comparing the throughput and latency of ``SA1100 cold'' and ``SA1100 warm.'' 
 The greatest execution time variance can be observed from \emph{binsearch}, which performs a binary search on an array of 15 elements. 
 In this particular benchmark, the throughput and latency difference is a factor of two between the warmed up cache and the cold started cache.
-By comparing the throughput of ``SA1100 warm'' and ``SA1100 all cache,'' we can observe that most benchmarks fit entirely in the cache, as they were roughly the same. 
+By comparing the throughput of ``SA1100 warm'' and ``SA1100 all cache,'' we can observe that most benchmarks fit entirely in the cache, as the throughputs are roughly the same. 
 Because the memory hierarchy is hidden by caches, even though most benchmarks fit entirely in the cache, we cannot avoid the cold start because the programmer has no control over the cache. 
-With an exposed memory hierarchy in PTARM, we statically compile the benchmarks on the scratchpad, and are able to benefit from the smaller code size without suffering the effects of cold starts, and maintain a deterministic execution time. 
+With an exposed memory hierarchy in PTARM, we statically compile the benchmarks on the scratchpad, and are able to benefit from the smaller code size without suffering the effects of cold starts.
+We also maintain a deterministic execution time. 
 
 The higher instruction throughput achieved by interleaving hardware threads in the pipeline comes from trading off single thread latency.   
 The thread-interleaved pipeline time-shares the pipeline resources between the hardware threads, so the latency of a single thread is slower compared to a single threaded pipeline. 
@@ -852,7 +866,7 @@ But for applications with enough parallelism to fully utilize the pipeline, the 
 We show one such application in section~\ref{sec:1dCFD} that models, in real time, an engine fuel rail to enable more precise fuel injection for combustion engines.     
 A thread-interleaved pipeline also allows us to clock the pipeline at a higher frequency, because the data hazard handling logic can be stripped out of the pipeline, providing less logic within each pipeline stage.
 Thus, with a higher instruction throughput and higher clock speed, timing predictability and composability can be achieved without sacrificing performance.
-We also highlight the uncontrollable execution time variance with a hidden memory hierarchy using caches.
+We also highlight the uncontrollable execution time variance of a hidden memory hierarchy using caches.
 We do not claim that scratchpads will always provide better average case performance, as a full performance comparison between scratchpads and caches is outside of the scope of this thesis. 
 However, with an exposed memory hierarchy, we are able to control and remove the execution time variance by statically compiling instructions and data onto scratchpads, providing timing determinism for memory accesses.
 For the predictable DRAM controller, Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability} show that bank privatization of DRAMs not only achieves predictable DRAM access latencies, but also lowers worst case access latency, and improves throughput and average case memory latency under high contention. 
@@ -864,8 +878,8 @@ These results demonstrate that one does not need to forgo performance in order t
 
 \bigskip
 
-In this chapter, we present the PTARM, a full implementation of a precision timed machine utilizing the principles described in chapter~\ref{chapter:pret}. 
-Along with a full description of the architecture and instruction implementation, we show that each instruction in the PTARM exhibits deterministic execution times, and the hardware threads in the PTARM are temporally isolated.
+In this chapter, we present the PTARM, an implementation of a precision timed machine utilizing the principles described in chapter~\ref{chapter:pret}. 
+Along with a full description of the architecture, we show that each instruction in the PTARM exhibits deterministic execution times, and the hardware threads in the PTARM are temporally isolated.
 Our benchmarks show that when the architecture is fully utilized, the PTARM achieves higher instruction throughput compared to the single threaded ARMv4 StrongARM1100 architecture, proving competitive performance with timing predictability.
 We demonstrate the predictable execution time behavior and simplified timing analysis through several examples that use the timing extensions to the ISA.
 These also demonstrate the use and possibilities of the timing extended ISA. 

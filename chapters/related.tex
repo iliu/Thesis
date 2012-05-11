@@ -312,7 +312,7 @@ Schoeberl~\cite{jop:jtres_cache} propose to use method caches for the instructio
 Conventional caches use a cache line as its basic unit of replacement. 
 Method caches use \emph{methods} as its unit of replacement. 
 A cache can contain different block sizes that are used to store methods. 
-There exists a trade-off between performance and predictability for the block sizes of the method cache. 
+There exists a tradeoff between performance and predictability for the block sizes of the method cache. 
 Methods can occupy more than one block, depending on the method size. 
 When a method is called, the cache loads the whole method into the cache, occupying any number of blocks it needs.
 The LRU replacement policy is used, since the end of a method usually returns to its parent method. 

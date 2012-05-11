@@ -4,11 +4,11 @@ Common memory technologies used in embedded systems contain a significant tradeo
 Static Random-Access Memories (SRAM) provide a shorter latency that allows single cycle memory access from the pipeline.
 However, the hardware cost to implement each memory cell prevents SRAM blocks from being implemented with high capacity.
 On the other hand, Dynamic Random-Access Memories (DRAM) use a more compact memory cell design that can easily be combined into larger capacity memory blocks.
-But the memory cell of DRAMs must be constantly refreshed due to charge leakage, and the large capacity memory blocks often prohibits faster access latencies.
+But the memory cell of DRAMs must be constantly refreshed due to charge leakage, and the large capacity memory blocks often prohibit faster access latencies.
 %TODO: talk about about embedded systems seldom need disk?
 To bridge the latency gap between the pipeline and memory, smaller memories are placed in between the pipeline and larger memories to act as a buffer, forming a memory hierarchy.
 The smaller memories give faster access latencies at the cost of lower capacity, while larger memories make up for that with larger capacity but slower access latencies. 
-The goal is to speed up program performance by placing commonly accessed values closer to the pipeline, while less accessed values are placed farther away.
+The goal is to speed up program performance by placing commonly accessed values closer to the pipeline and placing less accessed values farther away.
 
 \subsection{Memory Hierarchy}
 \subsubsection{Caches}
@@ -25,7 +25,7 @@ The goal is to speed up program performance by placing commonly accessed values 
 A \emph{CPU Cache} (or cache) is commonly used in the memory hierarchy to manage the smaller fast access memory made of SRAMs.
 The cache manages the contents of the fast access memory in hardware by leveraging the spatial and temporal locality of data accesses. 
 The main benefits of the cache is that it abstracts away the memory hierarchy from the programmer.
-When a cache is used, all memory accesses is routed through the cache. 
+When a cache is used, all memory accesses are routed through the cache. 
 If the data from the memory access is in the cache, then a cache hit occurs, and the data is returned right away.
 However, if data is not in the cache, then a cache miss occurs, and the cache controller fetches the data from the larger memory and adjusts the memory contents in the cache. 
 The replacement policy of the cache is used to determine which cache line, the unit of memory replacement on caches, to replace. 
@@ -69,7 +69,7 @@ This technique is called \emph{Blocking}~\cite{Lam91thecache}, and is very well-
 %\todo{talk about LAPACK? Libraries that tune programs to caching}.
 %In this case, we see that the hidden memory hierarchy actually could degrade program performance.    
 
-Multithreaded threaded architectures with shared caches amongst the hardware threads can suffer from \emph{cache thrashing}, an effect where different threads' memory accesses evict the cached lines of others.
+Multithreaded threaded architectures with shared caches among the hardware threads can suffer from \emph{cache thrashing}, an effect where different threads' memory accesses evict the cached lines of others.
 With multiple hardware threads, it is extremely difficult for threads have any knowledge on the state of the cache, because it is simultaneously being modified by other threads in the system. 
 As a result, the hardware threads have no control over which level in the memory hierarchy they are accessing, and the performance highly varies depending on what is running on other hardware threads. 
 
@@ -85,8 +85,8 @@ However, instead of abstracting away the memory hierarchy, we propose to \emph{e
 
 \emph{Scratchpads} were initially proposed for their power saving benefits over caches~\cite{Banakar2002}.
 Scratchpads can be found in the Cell processor~\cite{cellproc}, which is used in Sony PlayStation 3 consoles, and NVIDIA's 8800 GPU, which provides 16KB of SPM per thread-bundle~\cite{8800gpu}.
-Scratchpads uses the same memory technology (SRAMs) as caches, but does not implement the hardware controller to manage its memory contents.
-Without the hardware controller, scratchpads do not manage its memory contents in hardware.
+Scratchpads use the same memory technology (SRAMs) as caches, but do not implement the hardware controller to manage their memory contents.
+%Without the hardware controller, scratchpads do not manage its memory contents in hardware.
 Instead, scratchpads occupy a distinct address space in memory when they are used as fast access memory.
 Memory accesses that access the specific scratchpad address space will go to the scratchpad, and other accesses will go to main memory. 
 Because in hardware scratchpads do not need to check whether the data is on the scratchpad or not, they have a reduced access latency, area and power consumption compared to caches~\cite{Banakar2002}. 
@@ -105,41 +105,43 @@ Unlike caches, which overlay their address space with main memory to hide the hi
 The exposed memory hierarchy gives software full control over the management of memory contents in the hierarchy.
 Data allocated on the scratchpad will have single cycle access latencies, while other data will take the full DRAM access latency. 
 The memory access latency for each request now depends only on the access address, and not that state of another hardware controller. 
-This drastically improves the predictability of memory access times, and reduces the variability of execution time introduced with caches.
+This drastically improves the predictability of memory access times, and removes the variability of execution time introduced with caches.
 However, this places the burden of memory management on the programmer or compiler toolchains.  
-The Cell processor~\cite{cellproc} is often criticized for being difficult to program, and one of the main reasons is the use of scratchpads. 
+The Cell processor~\cite{cellproc} is often criticized for being difficult to program, and one of the main reason is its use of scratchpads. 
 Programmers have become accustomed to a uniform memory space, making it difficult to adjust to the non uniform memory space that must be explicitly managed.
 
 Embedded system designs inherently need to deal with limited resources and other design constraints, such as limited memory or hard timing deadlines.    
 Thus, the design of such systems often requires analysis of memory usage and latency to ensure that the constraints are met.
-These analysis results can be used to generate automatic allocation schemes for scratchpads, lessening the burden on the programmer.
+These analysis results can be used to generate automatic allocation schemes for scratchpads, lessening the burden on programmers.
 Two allocation schemes are commonly employed to manage the contents of scratchpads in software.
 \emph{Static allocation schemes} allocate data on the scratchpad during compile time, and the contents allocated on the scratchpad do not change throughout program execution. 
-Static scratchpad allocation schemes~\cite{Suhendra2005WCETSPM, Patel2008PRETSPM} often use heuristics or a compiler-based static analysis of the program to find the most commonly executed instructions or data structures, and allocate them statically on the scratchpad to improve program performance. 
+Static scratchpad allocation schemes~\cite{Suhendra2005WCETSPM, Patel2008PRETSPM} often use heuristics or a compiler-based static analysis of the program to find the most commonly executed instructions or data structures.
+These are allocated statically on the scratchpad to improve program performance. 
 \emph{Dynamic allocation schemes} modify the data on the scratchpad during run time in software through DMA mechanisms.
 The allocation could either be automatically generated and inserted by the compiler, or explicitly specified by the user programmatically.
-Higher level models of computation, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto} expose more structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
+Higher level models of computation, such as Synchronous Dataflow (SDF)~\cite{lee_sdf} or Giotto~\cite{henzinger_giotto}, expose more structure and semantics of the model for better analysis, which can be used to optimize scratchpad allocation dynamically.
 Bandyopadhyay~\cite{Bandyopadhyay06_AutomatedMemoryAllocationOfActorCodeDataBufferInHeterochronous} presents an automated memory allocation of scratchpads for the execution of Heterochronous Dataflow models.
 The Heterochronous Dataflow (HDF) model is an extension to the Synchronous Dataflow (SDF) model with finite state machines (FCM). 
-The HDF models contain different program states, each state executing a SDF model that contains actors communicating with each other. 
-Bandyopadhyay analyzed the actor code and the data that was being communicated in each HDF state.
-The dynamic scratchpad allocation is inserted during state transitions, and the memory allocated is optimized for each HDF state. 
-This allocation not only shows roughly a 17\% performance improvement compared to executions using LRU caches, but also more predictable program performance.
+The HDF models contain different program states.
+Each state executes a SDF model that contains actors communicating with each other. 
+Bandyopadhyay analyzes the actor code and the data that is communicated in each HDF state, and derives an optimized scratchpad allocation for each state. 
+The scratchpad allocation code is automatically inserted into the code to dynamically change the scratchpad contents during state transitions, so the memory allocation is optimized for the execution of each HDF state. 
+This allocation not only shows roughly a 17\% performance improvement compared to executions using LRU caches, but also a more predictable program performance.
 
 The underlying memory technology that is used to make both scratchpads and caches is not inherently unpredictable, as SRAMs provide constant low-latency access time. 
-However, caches manage the contents of the SRAM in hardware. 
-By using caches in the memory hierarchy, the hierarchy is hidden from the programmer, and hardware managed memory contents create highly variable execution times with unpredictable access latencies. 
-Scratchpads on the other hand expose the memory hierarchy to the programmer, allowing more predictable and repeatable memory access performances.
-Although the allocation of scratchpads requires more effort, it also provides opportunity for high efficiency, as it can be tailored to specific applications.   
+%However, caches manage the contents of the SRAM in hardware. 
+However, by using caches in the memory hierarchy, the hierarchy is hidden from the programmer, and the hardware managed memory contents create highly variable execution times with unpredictable access latencies. 
+Scratchpads on the other hand expose the memory hierarchy to the programmer, allowing for more predictable and repeatable memory access performances.
+Although the allocation of scratchpads requires more programming effort, it also provides opportunity for high efficiency, as it can be tailored to specific applications.   
 Thus, in our time-predictable architecture, scratchpads are employed as our fast-access memory. 
 
 \subsection{DRAM Memory Controller}
 Because of its high capacity, DRAMs are often employed in modern embedded systems to cope with the increasing code and data sizes.  
 However, bank conflicts and refreshes within the DRAM can cause memory accesses to stall, further increasing the memory latency. 
-Modern memory controllers are designed to optimize average-case performance by queueing and reordering memory requests to improve throughput of memory requests. 
+Modern memory controllers are designed to optimize average-case performance by queueing and reordering memory requests to improve the throughput of memory requests. 
 This results in unpredictable and varying access times along with an increased worst-case access time for each memory request.
-In this section we will present a DRAM memory controller that privatizes DRAM banks with scheduled memory refreshes to provide improved worst-case latency and predictable access time.    
-The contributions from this section are research done jointly with several co-authors from Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
+In this section we will present a DRAM memory controller that privatizes DRAM banks with scheduled memory refreshes to provide improved worst-case latency and predictable access times.    
+The contributions from this section are research done jointly with the several co-authors from Reineke et. al~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}. 
 We do not claim sole credit for this work, and the summary is included in this thesis only for completeness. 
 We will first give some basic background on DRAM memories, then present the predictable DRAM controller designed.
 
@@ -170,7 +172,7 @@ Columns can be read and written to quickly after the row is in the row buffer.
 The \textbf{\emph{DRAM device}} consists of banks formed of DRAM arrays. 
 Modern DRAM devices have multiple banks, control logic, and I/O mechanisms to read from and write to the data bus, as shown in the center of figure \ref{fig:dram_basics}.
 Banks can be accessed concurrently, but the data, command and address busses, which is what the memory controller uses to send commands to the DRAM device, are shared within the device. 
-The following table\footnotemark lists the four most important commands and their function:
+The following table\footnotemark\ lists the four most important commands and their function:
 \footnotetext{This table is as shown in ~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}
 %\begin{table}
 \begin{center}
@@ -179,7 +181,7 @@ Command 				& Abbr. & Description\\\hline
 Precharge    			& PRE   & Stores back the contents of the row buffer into the DRAM array, and prepares the sense amplifiers for the next row access.\\
 Row\hspace{13mm} access & RAS	& Moves a row from the DRAM array through the sense amplifiers into the row buffer.\\
 Column access 			& CAS   & Overwrites a column in the row buffer or reads a column from the row buffer.\\
-Refresh					& REF	& Refreshes several\footnotemark rows of the DRAM array. This uses the internal refresh counter to determine which rows to refresh.\\
+Refresh					& REF	& Refreshes several\footnotemark\ rows of the DRAM array. This uses the internal refresh counter to determine which rows to refresh.\\
 \end{smalltabular}
 %\caption{Overview of DDR2 Commands~\cite{ReinekeLiuPatelKimLee11_PRETDRAMControllerBankPrivatizationForPredictability}}
 \label{tab:ddr2-commands}
@@ -217,10 +219,10 @@ Table~\ref{table:ddr2-constraints} gives an overview of timing parameters for a 
 These timing constraints come from the internal structure of DRAM modules and DRAM cells.
 For example, $t_{RCD}, t_{RP}$, and $t_{RFC}$ are from the structure of DRAM banks that are accessed through sense amplifiers that need to be precharged.
 $t_{CL}, t_{WR}, t_{WTR}$, and $t_{WL}$ result from the structure of DRAM banks and DRAM devices.
-The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks that would result in too high a current draw.
+The four-bank activation window constraint $t_{FAW}$ constrains rapid activation of multiple banks that would result in too high of a current draw.
 The memory controller must conform to these timing constraints when sending commands to the DDR2 module.  
 %The additive latency, $t_{AL}$, can be set by the user and determines how many cycles after a posted-CAS a CAS is executed.
-Here we only gave a quick overview of DRAMs, we refer more interested readers to Jacob et al.~\cite{JaNgWa07} for more details.
+Here we only give a quick overview of DRAMs, we refer more interested readers to Jacob et al.~\cite{JaNgWa07} for more details.
 
 \begin{table}[h]
 \begin{center}
@@ -252,12 +254,12 @@ $t_{AL}$			& set by user			& \textbf{Additive latency}: determines how long post
 \label{sec:pret_dram_controller}
 We will split the discussion of the predictable DRAM controller into its backend and frontend. 
 The backend translates memory requests into DRAM commands that are sent to the DRAM module.
-The frontend manages the interface to the pipeline along with the responsibility of scheduling the refreshes.
+The frontend manages the interface to the pipeline along with the responsibility of scheduling refreshes.
 Here we specifically refer to a DDR2 667MHz/PC2-5300 memory module operating at 200Mhz, which has a total size of 512MB over two ranks with four banks on each rank.
 While our discussion of the design of this DRAM controller is specific to our DDR2 memory module, the key design features are applicable to other modern memory modules.
 
 \paragraph{Backend}
-Conventional DRAM memory controllers view the entire memory device as one resource, and any memory requests can access the whole DRAM device. 
+Conventional DRAM memory controllers view the entire memory device as one resource, and any memory request can access the whole DRAM device. 
 Subsequent memory accesses can target the same bank within the DRAM, which results in the need for memory requests to be queued and serviced sequentially, without exploiting bank parallelism.
 Our controller views the memory devices as independent resources partitioned by banks. 
 Specifically, we partition our memory module into four \emph{resources}, each consisting of two banks within the same rank. 
@@ -284,11 +286,11 @@ The RAS command moves a row into the row buffer, and the CAS command accesses th
 CAS commands can be either reads or writes, causing a burst transfer of $8 \cdot 4 = 32$ bytes that occupies the data bus for two cycles (as two transfers occur in every cycle).
 We send a posted-CAS instead of a normal CAS in order to meet the row to column latency shown in table~\ref{table:ddr2-constraints}.
 This latency specifies that the RAS command and the first CAS command need to be 3 cycles apart.  
-However, figure~\ref{fig:backend} shows that manually issuing a CAS command to the first resource 3 cycles after its RAS command would cause a command bus conflict with the RAS command for the second resource.
+However, manually issuing a CAS command to the first resource 3 cycles after its RAS command would cause a command bus conflict with the RAS command for the second resource.
 Thus, we instead set the additive latency $t_{AL}$ to 2 and use the posted-CAS that offsets the CAS command to conform to the row to column latency.
 This allows our memory controller to preserve our pipelined access scheme while meeting the latency requirements of the DRAM.   
 We use a closed-page policy (also known as auto-precharge policy), which causes the accessed row to be immediately precharged after performing the column access (CAS), preparing it for the next row access.
-If there are no requests for a resource, the backend does not send any commands to the memory module, as is the case for resource 3 in \ref{fig:backend}.
+If there are no requests for a resource, the backend does not send any commands to the memory module, as is the case for resource 3 in figure~\ref{fig:backend}.
 
 Our memory design conforms to all the timing constraints listed in table~\ref{table:ddr2-constraints}.
 The write-to-read timing constraint $t_{WTR}$, incurred by the sharing of I/O gating within ranks, is satisfied by alternating accesses between ranks. 
@@ -319,7 +321,7 @@ Instead, it relies on the frontend to refresh the DRAM cells using regular row a
 A high level block view of our backend implementation is shown in figure~\ref{fig:dram-backend-implementation}.
 Each resource has a single request buffer and a respond buffer.
 These buffers are used to interface with the frontend.   
-A request is made of an access type (read or write), a logical address, the data to be written for write requests. 
+A request is made of an access type (read or write), a logical address, and the data to be written for write requests. 
 Requests are serviced at the granularity of bursts, i.e. 32 bytes in case of burst length 4 and 64 bytes in case of burst length 8.
 A modulo-13 counter is used to implement the 13 cycle periodic access scheme in our controller.   
 The ``resource'' and ``command" blocks are combinational circuits that are used to select the correct request buffer and generate the DRAM commands to be sent out. 
@@ -328,9 +330,9 @@ The data for read requests are latched into the response buffers to be read by t
 
 \paragraph{Frontend}
 The frontend of our memory controller manages the interfacing to our backend, and the refreshing of the DRAM device.
-The privatization of DRAM banks creates four independent resources that is to be accessed separately from the front end.
+The privatization of DRAM banks creates four independent resources that are accessed separately from the front end.
 Thus, our memory controller is designed to be used by multicore or multithreaded architectures that contain multiple requesters which need access to the main memory.
-Several recent projects strive to develop predictable multi-core architectures, such as those proposed by the MERASA~\cite{Ungerer10}, PREDATOR~\cite{Wilhelm09}, JOP~\cite{Schoeberl2008265}, or CoMPSoC~\cite{Hansson09} projects, which require predictable and composable memory performance.
+Several recent projects, such as MERASA~\cite{Ungerer10}, PREDATOR~\cite{Akesson2007CODES}, JOP~\cite{Schoeberl2008265}, or CoMPSoC~\cite{Hansson09}, strive to develop predictable multi-core architectures that require predictable and composable memory performance.
 These could potentially profit from using the proposed DRAM controller.
 
 Specifically, we designed this memory controller to interface with the thread-interleaved pipeline discussed previously in section~\ref{section:pret_thread_pipeline}.
@@ -356,13 +358,13 @@ This sharing of DRAM resources comes at a cost of increased memory access latenc
 The frontend of our memory controller also manages the refreshing of DRAM cells. 
 DRAM cells need to be refreshed at least every 64 ms.
 Conventionally this is done by issuing a hardware refresh command that refreshes several rows of a device at once\footnote{Internally, this still results in several consecutive row accesses.}.
-Hardware refresh commands have longer refresh latencies each time a refresh is issued, but requires fewer refresh commands to meet the refresh constraints posed by the DRAM.
+Hardware refresh commands have longer refresh latencies each time a refresh is issued, but require fewer refresh commands to meet the refresh constraints posed by the DRAM.
 However, when the hardware refresh command is issued, all banks in the target DRAM device are refreshed, prohibiting any other memory access to the device.
 In our backend, this would extend across multiple resources, causing multiple resources to be blocked for memory accesses. 
 Memory access latencies now need to account for potential refresh command latencies, which vary depending on the refresh progress.  
 Instead, we use the distributed, RAS-only refresh~\cite{spec:micronddr2} to each bank separately.
-Memory refreshes is in this case is equivalent to a row accesses to a bank, and each resource can be refreshed without effecting others.
-Manually accessing rows on the other have much shorter latencies each time, but incurs a slight bandwidth hit because more accesses need to be performed to meet the refresh constraints.
+Memory refreshes in this case are equivalent to row accesses to a bank; each resource can be refreshed without effecting others.
+Manually accessing rows on the other give much shorter latencies each time, but incur a slight bandwidth hit because more accesses need to be performed to meet the refresh constraints.
 The shorter latencies however improve the worst-case access latency, because the refresh latency is shorter.
 
 %When a refresh is required can be statically analyzed. 
@@ -372,14 +374,14 @@ Since each resource contains two banks, we need to perform two refreshes every $
 One round of access is $13$ cycles at burst length 4, and includes the access slots to each resource plus a nop command. 
 So in the frontend we schedule a refresh every $\lfloor 781.25/13 \rfloor^{th} = 60^{th}$ round of the backend.
 If no memory access is in the request buffer for the resource being scheduled for refresh, then the row refresh can be directly be issued. 
-Typically when a contention between a memory request and a refresh occurs, the refresh gets priority so the data can be retained in the DRAM cell. 
+Conventionally, when a contention between a memory request and a refresh occurs, the refresh gets priority so the data can be retained in the DRAM cell. 
 However, our refresh schedule schedules refreshes slightly more often than necessary.   
 Scheduling a refresh every $60 \cdot 13$ cycles means that every row, and thus every DRAM cell, is refreshed every $60\cdot 13 \textit{ cycles}\cdot 8192\cdot 2/(200000~\textit{cycles}/\textit{ms}) \leq 63.90\textit{ms}$.
 We can thus push back any of these refreshes individually by up to $0.1\textit{ms} = 20000$ cycles without violating the refreshing requirement.
 So in our frontend, the memory request is serviced first (which takes 13 cycles), then the refresh is issued in the next access slot. 
 
-In section~\ref{sec:ptarm_memory} when we detail the interaction between our thread-interleaved pipeline and the memory controller, we will show that the synchronization of the thread-interleaved pipeline to our controller backend allow us to completely hide memory refreshes in some unusable access slots lost in the synchronization.
-Thus, providing predictable access latencies for all load/store instructions to the DRAM through our DRAM controller.
+In section~\ref{sec:ptarm_memory} when we detail the interaction between our thread-interleaved pipeline and the memory controller, we will show that the synchronization of the thread-interleaved pipeline to our controller backend allows us to completely hide memory refreshes in some unusable access slots lost in the synchronization.
+This provides predictable access latencies for all load/store instructions to the DRAM through our DRAM controller.
 
 %\todo{discuss DMA?}
 %We will also discuss interactions with DMA units    
