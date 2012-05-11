@@ -13,7 +13,7 @@ It was generally conceived that this ``noise'' effectively masked the ``signal,'
 However, practical implementations of the attack have since been presented~\cite{remoteattackspracticle,DKLMQW98,SCAsurvey} that clearly indicate the ``noise'' by itself is insufficient protection. 
 In fact, the architectural unpredictability that was initially believed to prevent timing attacks was discovered to enable even more attacks.
 Computer architects use caches, branch predictors and complex pipelines to improve the average-case performance while keeping these optimizations invisible to the programmer.
-These enhancements, however, result in unpredictable and uncontrollable timing behaviors, which  were all shown to be vulnerabilities that led to side-channel attacks~\cite{2004-bernstein-cachetiming,Percival05cachemissing,Onur07predictingsecret,2009-x86timing}.
+These enhancements, however, result in unpredictable and uncontrollable timing behaviors, which are all shown to be vulnerabilities that lead to side-channel attacks~\cite{2004-bernstein-cachetiming,Percival05cachemissing,Onur07predictingsecret,2009-x86timing}.
 
 In order to not be confused with Kocher's~\cite{Kocher96timingattacks} terminology of \textit{timing attacks} on algorithmic timing differences, we classify all above attacks that exploit the timing variability of software implementation \textit{or} hardware architectures as \textit{time-exploiting attacks}. 
 In our case, a \textit{timing attack} is only one possible \textit{time-exploiting attack}.
@@ -25,7 +25,7 @@ Examples of other side-channel attacks are power attacks~\cite{Messerges99invest
 
 In recent years, we have seen a tremendous effort to discover and counteract side-channel attacks on encryption systems~\cite{biham97differential,2009-x86timing,99designprinciples,fbscc,branchpredict,Kelsey98sidechannel,blindingrsa,cachepartition,sidechannelprocarch}.
 However, it is difficult to be fully assured that all possible vulnerabilities  have been discovered.
-The plethora of research on side-channel exploits~\cite{2009-x86timing,biham97differential,99designprinciples,fbscc,branchpredict,Kelsey98sidechannel,blindingrsa,cachepartition,sidechannelprocarch} indicates that we do not have the complete set of solutions as more and more vulnerabilities are still being discovered and exploited.
+The plethora of research on side-channel exploits~\cite{2009-x86timing,biham97differential,99designprinciples,fbscc,branchpredict,Kelsey98sidechannel,blindingrsa,cachepartition,sidechannelprocarch} indicate that we do not have the complete set of solutions, as more vulnerabilities are still being discovered and exploited.
 Just recently, Coppens et al.~\cite{2009-x86timing} discovered two previously unknown time-exploiting attacks on modern x86 processors caused by the out-of-order execution and the variable latency instructions.
 This suggests that while current prevention methods are effective at \textit{defending} against their particular attacks, they do not \textit{prevent} other attacks from occurring.
 This, we believe, is because they do not address the root cause of time-exploiting attacks, which is that run time variability \textit{cannot be controlled} by the programmer.
@@ -53,28 +53,28 @@ And in order to guarantee the execution of the timing specifications, the archit
 Our approach does not attempt to increase the difficulty in performing time-exploiting attacks, but to eliminate them completely. 
 %As such, we argue that only by providing a timing predictable architecture, can we allow controllable timing behaviors, which removes the source of time-exploiting attacks. 
 
-For this application, we present PRET in the context of embedded cryptosystems, and show that an architecture designed for predictability and controllability effectively eliminates all time-exploiting attacks.
+For this application, we present the PRET architecture in the context of embedded cryptosystems, and show that an architecture designed for predictability and controllability effectively eliminates all time-exploiting attacks.
 %The PREcision Timed architecture~\cite{pret_cases08} (PRET) allows for precision timing control, and was originally proposed for real-time embedded systems.
 %Originally proposed by Lickly et al~\cite{pret_cases08}, PRET provides instruction-set architecture (ISA) extensions that allow programmers to control an algorithm's temporal properties at the software level.
 %To guarantee that the timing specifications are honored, PRET provides a predictable architecture that replaces complex pipelines and speculation units with multithread-interleaved pipelines, and replaces caches with software-managed fast access memories.  
 %This allows PRET to maintain predictability without sacrificing performance.
-We target embedded applications such as smartcard readers~\cite{99designprinciples}, key-card gates~\cite{rfidcrypto}, set-top boxes~\cite{99designprinciples}, and thumbpods~\cite{schaumont2003tts}, which are a good fit for PRET's embedded nature.
-We demonstrate the effectiveness of our approach by running both the RSA and DSA~\cite{dss} encryption algorithms on PRET, and show its immunity against time-exploiting attacks.
+We target embedded applications such as smartcard readers~\cite{99designprinciples}, key-card gates~\cite{rfidcrypto}, set-top boxes~\cite{99designprinciples}, and thumbpods~\cite{schaumont2003tts}, which are a good fit for the PRET architecture's embedded nature.
+We demonstrate the effectiveness of our approach by running both the RSA and DSA~\cite{dss} encryption algorithms on the PRET architecture, and show its immunity against time-exploiting attacks.
 %The combination of ISA extensions and architectural design decision ensures that PRET can provide controllable timing semantics in software, which eliminate the vulnerability of time-exploiting attacks. 
 %This makes it an appropriate match for cryptosystems.
 This work shows that a disciplined defense against time-exploiting attacks requires a combination of software and hardware techniques that ensure controllability and predictability.
 
 \subsection{Background}
 % 1 - 1.5 page
-Kocher outlined a notion of timing attacks~\cite{Kocher96timingattacks} on encryption algorithms such as RSA and DSS that require a large number of plaintext-ciphertext pairs and a detailed knowledge of the target implementation.  
-By simulating the target system with predicted keys, and measuring the run time to perform the private key operations, the actual key could be derived one bit at a time.
+Kocher outlines a notion of timing attacks~\cite{Kocher96timingattacks} on encryption algorithms such as RSA and DSS that require a large number of plaintext-ciphertext pairs and a detailed knowledge of the target implementation.  
+By simulating the target system with predicted keys, and measuring the run time to perform the private key operations, the actual key can be derived one bit at a time.
 Kocher also introduced power attacks~\cite{Messerges99investigationsof,Kocher99differentialpower}, which use the varying power consumption of the processor to infer the activity of the encryption software over time. 
 These played a large role in stimulating research in side-channel cryptanalysis~\cite{mmthesis,Kelsey98sidechannel}, which also found side-channel attacks against IDEA, RC5 and blowfish~\cite{Kelsey98sidechannel}. 
 Fault-based attacks~\cite{biham97differential,fbscc,Feng_efficientcomb} were introduced by Bihan et al.~\cite{biham97differential}.
 These attacks attempt to extract keys by observing the system behavior to generated faults.
 For the side-channel attacks that we have missed, Zhou~\cite{SCAsurvey} presents a survey on a wide range of side-channel attacks.
 
-Dhem et al.~\cite{DKLMQW98} demonstrated a practical implementation of timing attacks on RSA for smart cards and the ability to obtain a 512-bit key in a reasonable amount of time.
+Dhem et al.~\cite{DKLMQW98} demonstrate a practical implementation of timing attacks on RSA for smart cards and the ability to obtain a 512-bit key in a reasonable amount of time.
 Several software solutions such as RSA blinding~\cite{Kocher96timingattacks,blindingrsa}, execution time padding~\cite{Kocher96timingattacks}, and adding random delays~\cite{Kocher96timingattacks} have been proposed as possible defenses against this attack. 
 However, these solutions were not widely adopted by the general public until Brumley et al.~\cite{remoteattackspracticle} orchestrated a successful timing attack over the local network on an OpenSSL-based web server.
 This motivated further research on timing attacks for other encryption algorithms such as ECC~\cite{Feng_efficientcomb} and AES~\cite{2004-bernstein-cachetiming}.
@@ -128,7 +128,7 @@ These architecture improvements are hidden to the software behind the abstractio
 %The difference in execution time for different paths of the program are often a result of optimizations to the program performance.
 This proves to be costly in terms of security, because it uncontrollably leaks timing information which can correlate to the secret key.
 
-In section~\ref{sec:programming_models} we introduced several ISA extensions that add time controlling behaviors to software. 
+In section~\ref{sec:programming_models} we introduce several ISA extensions that add time controlling behaviors to software. 
 The extensions provide timing instructions that enable a programmer to have more control of execution time in software.
 These instructions do not physically alter processor speed, or modify the execution time of instructions on the architecture.
 Instead, they are meant to aid the programmer in dealing with timing variability from data-dependent control flow paths by allowing the programmer to interact with various execution time behaviors in software. 
@@ -140,7 +140,7 @@ The algorithm follows different execution paths if a particular bit in the key i
 By using the timing instructions provided by the PRET architecture, we can mitigate the effects of this, eliminating the exploit causing this timing  attack.  
 
 At the expense of more programming effort, other solutions have been proposed to alter and pad the execution time of different execution paths~\cite{Kocher96timingattacks} to shield against the timing variability of the algorithm. 
-At a glance it might seem that the timing instruction are a similar solution to these proposals, however, the principles are inherently different. 
+At a glance it might seem that the timing instructions are a similar solution to these proposals, however, the principles are inherently different. 
 While effective against certain time-exploiting attacks, existing solutions alter the underlying algorithm implementation in attempt to manually pad or distort the execution time. 
 These solutions are not only algorithmically specific, but could lead to unnecessarily degrading of the performance of the encryption algorithms. 
 The timing instructions, on the other hand, allow for a separation of concerns between the functionality and timing behavior of the code. 
@@ -182,7 +182,7 @@ We argue that a \textit{predictable} architecture is also required to eliminate 
 Modern processor architectures often use speculation techniques such as caches and branch predictors to improve average performance.
 These create \textit{timing variations} in the program execution.  
 Depending on the outcome of its speculation, the processor might need to discard the wrongly speculated work, and re-execute the correct instructions. 
-Since these units are shared by all software processes concurrently running on the processor, the states of speculation units are heavily dependent on the different interleaving of processes. 
+Since these units are shared by all software processes concurrently running on the processor, the states of the speculation units are heavily dependent on the different interleaving of processes. 
 This means that a process can unknowingly be affected by other processes, since the speculation state is shared between them~\cite{leethreads}.
 This makes these units \textit{unpredictable}.
 Because the goal of these speculation techniques is to improve program performance without effort from the programmer, the controls of these speculation units are concealed from the programmer, and cannot be directly accessed in software. 
@@ -195,13 +195,13 @@ The announcement of this vulnerability caused Hyper-Threading, Intel's implement
 For general purpose applications, these side effects pose insignificant threats, but for security applications, the consequences are uncontrollable sources of side-channel information leakages.
 
 %The PREcision Timed (PRET) architecture is a timing predictable architecture proposed for real-time embedded systems.
-As discussed in chapter~\ref{section:pret_thread_pipeline}, PRET employs a thread-interleaved pipeline, a multithreaded pipeline that employs a predictable round-robin thread scheduling policy between the hardware threads every cycle.
-The thread interleaved pipeline eliminates the need for any data forwarding/bypassing logic, along with the need for hardware speculation units such as branch predictors.
+As discussed in chapter~\ref{section:pret_thread_pipeline}, PRET employs a thread-interleaved pipeline, a multithreaded pipeline that uses a predictable round-robin thread scheduling policy between the hardware threads every cycle.
+The thread-interleaved pipeline eliminates the need for any data forwarding/bypassing logic, along with the need for hardware speculation units such as branch predictors.
 Each individual hardware thread maintains their own copy of the processor state (program counter, general purpose registers, stack pointer, etc.), and each hardware thread runs independently with no shared state in the pipeline. 
 Because of the simple and transparent thread-scheduling policy, each hardware thread gets dispatched in a predictable way that cannot be affected by other hardware threads. 
 Thread-interleaved pipelines allow us to gain higher instruction throughput without the harmful side effects.
 Most importantly, the hardware threads are temporally isolated, meaning that no threads can affect each others timing behavior. 
-This prevents attackers from exploit shared resources from the pipeline to initiate timing side-channel attacks.    
+This prevents attackers from exploiting shared resources from the pipeline to initiate timing side-channel attacks.    
 
 \paragraph{Memory System}
 The memory system presents another opportunity for attackers to gain side-channel information.
@@ -210,8 +210,8 @@ On-chip fast access memories are used to bridge this access latency, creating a 
 Caches are \textit{hardware-controlled} fast-access memories that predict and prefetch data from main memory based on temporal and spatial locality of data accesses from the processor.
 If the cache control speculation is accurate, then access to data can complete in one cycle, and no stall in the pipeline is required.
 However, when a misprediction occurs, data needs to be fetched from the main memory, causing a drastic difference in the access time~\cite{thiele:04:predictable}.
-Caches abstract away this memory hierarchy and access latency variation from the programmer by managing the cache contents in the hardware.  
-Because threads and processes share the same memory system, attackers can probe the memory access patterns of the encryption process by evicting shared cache lines and observing the timing variation it causes~\cite{Percival05cachemissing}.
+Caches abstract away the memory hierarchy and the access latency variation from the programmer by managing the cache contents in hardware.  
+Because threads and processes share the same memory system, attackers can probe the memory access patterns of the encryption process by evicting shared cache lines and observing the timing variation the eviction causes~\cite{Percival05cachemissing}.
 This is possible because the memory hierarchy is abstracted away from the programmer, resulting in \emph{uncontrollable} timing behaviors. 
 %The cache states are manged in hardware, and shared by all threads and processes.   
 
@@ -230,11 +230,12 @@ For security purposes, the scratchpad on PRET is configured to provide each hard
 This prevents shared resource time-exploiting attacks on the fast access memory across hardware threads.
 Even if an encryption process is sharing a hardware thread with another process, the contents of the scratchpad is controlled in software or statically compiled in by the compiler.
 The thread managing supervisor code can manage the contents on the scratchpad before the processes are scheduled and unscheduled, preventing a spy process from affecting the execution time of the encryption process. 
-Clearly, the edge that SPMs give over conventional caches is their \emph{controllability} in software, thus preventing unwanted timing side-effects from attackers and spy threads, even though the SPM is shared by software processes.
+Clearly, the edge that SPMs give over conventional caches is their \emph{controllability} in software.
+This prevents unwanted timing side-effects from attackers and spy threads, even if the SPM is shared by software processes.
 %If caches must be used, hardware additions to the cache
 %Partition locked caches, which allows software processes to to lock cache lines which have proven successful against cache attacks~\cite{cachepartition}, can be implemented. 
 
-Although no known attacks have exploited main memory access, typical DRAM controllers also result in variable memory access latencies, and are shared amongst all threads and processes within the system. 
+Although no known attacks have exploited main memory access, typical DRAM controllers also result in variable memory access latencies, and are shared among all threads and processes within the system. 
 A predictable DRAM controller is designed and interfaced with the thread-interleaved pipeline of PRET to provide predictable memory access latencies to all threads. 
 The DRAM controller privatizes DRAM bank resources to remove bank conflicts and fully utilize bank level parallelism on the DRAM.  
 Each hardware thread in the thread-interleaved pipeline is mapped to a privatized DRAM bank resource.
@@ -244,25 +245,25 @@ The DRAM memory access latencies are decoupled from the data access patterns, th
 More details on the PRET DRAM controller is presented in section~\ref{sec:pret_dram_controller}.
 
 We acknowledge the many efforts to counteract timing attacks with algorithm rewrites to control and balance the run time of the algorithm. 
-These efforts while successful, are ad-hoc, counteracting specific attacks without prevention of others.
+These efforts, while successful, are ad-hoc, counteracting specific attacks without prevention of others.
 Without tackling the origin of time-exploiting attacks, we believe that more exploits will eventually be discovered, attacking the \emph{uncontrollable} execution time variation caused by the shared resources of hardware or software control flow.  
-The PRET architecture is designed to ensure repeatable and predictable timing behavior of programs by providing control of timing properties in software and a predictable architecture that provides temporal isolation for hardware threads and processes.
+The PRET architecture provides control of timing properties in software and a predictable architecture that with temporal isolation for its hardware threads.
 PRET is impenetrable known attacks such as branch predictor attacks~\cite{Onur07predictingsecret}, cache attacks~\cite{Percival05cachemissing} or other attacks on the pipeline~\cite{2009-x86timing}.
-The more importantly, the predictable architecture design removes the root cause of time-exploiting attacks---the \emph{uncontrollable} timing variations caused by unpredictable hardware components or software control flows.     
+More importantly, the predictable architecture design removes the root cause of time-exploiting attacks---the \emph{uncontrollable} timing variations caused by unpredictable hardware components or software control flows.     
 
 \subsection{Case Studies}
 \label{sec:rtencrypt-results}
-In the following section we will show results of two encryption algorithms running on the cycle accurate simulator of the PRET architecture described in lickly et al~\cite{pret_cases08}.
+In the following section we show the results of two encryption algorithms running on the cycle accurate simulator of the PRET architecture described in lickly et al~\cite{pret_cases08}.
 Lickly et al.\cite{pret_cases08} introduced the first realization of the PRET architecture that implements the SPARC v8 instruction set.
-It employs six threads on a six stage thread-interleaved pipeline, and also use scratchpads for an expose memory hierarchy.
+It employs six threads on a six stage thread-interleaved pipeline, and also uses scratchpads for an expose memory hierarchy.
 Programs are written in C and compiled using a standard gcc cross compiler from Gaisler research labs~\cite{GAISLER}.
-Because the results of these experiments have yet to be ported to the newer PTARM, we present the original measurements obtained on the SPARC realization of a PRET architecture.  
+Because the results of these experiments have yet to be ported to the newer PTARM, we present the original measurements obtained on the SPARC realization of the PRET architecture.  
 
-The SPARC PRET architecture implements a simple processor extension inspired by Ip and Edwards~\cite{ip2006processor} that adds timing instructions to the ISA.
+The precision timed SPARC architecture implements a simple processor extension inspired by Ip and Edwards~\cite{ip2006processor} that adds timing instructions to the ISA.
 To be consistent with the terminology used in~\cite{ip2006processor}, we call this instruction the \textit{deadline instruction}.
 This deadline instruction has similar semantics to the \emph{delay\_and\_set} macro introduced in section~\ref{sec:programming_models}. 
 It first ensures the previous deadline specified is met, then sets the deadline for the next instruction sequence.
-The deadline instruction specifies time in units of thread cycle, which is a thread's perceived cycle.
+The deadline instruction specifies time in the units of thread cycles, which are a thread's perceived cycle.
   
 % The deadline instruction is used to load values into a special set of registers, called the \textit{deadline registers}. 
 % In ~\cite{ip2006processor}, these registers are decremented each clock cycle in hardware, and act as hardware cycle counters. 
@@ -363,7 +364,7 @@ S $\leftarrow$ S $\cdot$ M mod N
 
 
 %Our analysis of the algorithm demonstrated that a significant portion of the variation in the algorithm's execution time could be attributed to the branch in the loop above.  
-When the reference implementation of RSA (RSAREF 2.0) was ported to the PRET architecture, single iterations of the loop varied in execution time almost exclusively due to the value of d$_{j}$, which is the j$^{th}$ bit of the key. 
+When the reference implementation of RSA (RSAREF 2.0) was ported to the precision timed SPARC architecture, single iterations of the loop varied in execution time almost exclusively due to the value of d$_{j}$, which is the j$^{th}$ bit of the key. 
 The triangle points in figure \ref{fig:modexp} show the measured run time of each iteration in the for loop (lines 2--6) in algorithm \ref{alg:rsa}. 
 Each iteration took approximately either 440 or 660 kilocycles, with very little deviation from the two means.
 As a simple illustration, we can fix the execution time of each iteration in software  by adding deadline instructions in the body of the loop as shown in algorithm~\ref{alg:rsa_w_dead}. 
@@ -406,8 +407,8 @@ From figure ~\ref{fig:rsa} we can see that this small variation  is not signific
 
 %Although this method makes RSA secure against timing attacks, it does incur a notable performance penalty because we always run the algorithm near its worst-case execution time.
 Without explicit control over timing, any attempt to make an algorithm run at constant time in software would involve manual padding of conditional branches.
-This forces the algorithm to run at the worst-case execution time, similar to what we've showed.
-As a result, although this makes the encryption algorithm completely secure against time-exploiting attacks, they are not adopted in practice because of this overhead.
+This forces the algorithm to run at the worst-case execution time, similar to what we have showed.
+Although this makes the encryption algorithm completely secure against time-exploiting attacks, this method is not adopted in practice because of the overhead.
 Nevertheless, with control over execution time, we will show that running encryption algorithms in constant time does not necessarily require it to run at the absolute worst-case execution time.
 
 %smarter techniques with deadline instructions can be used to achieve better performance while still being secure.
@@ -419,15 +420,6 @@ Nevertheless, with control over execution time, we will show that running encryp
 % That is the overhead we see in figure~\ref{fig:rsa}. 
 % This solution is effectively the same as timing equalization \textcolor{red}{(FIXME: add citation [do we really need one? or is this where a paper that talks about what timing equalization is would go?])} of algorithms, which now require little effort because timing can be controlled in software. 
 \subsubsection{An Improved Technique of using Deadline Instructions} 
-\begin{wrapfigure}[16]{r}{.45\textwidth}
-%\begin{SCfigure}
-\vspace{-5mm}
-  \centering
-  \includegraphics[scale=.60]{./figs/RTencrypt/Distro.pdf}
-  \caption{Run time distribution of 1000 randomly generated keys for RSA}
-  \label{fig:distro}
-%\end{SCfigure}
-\end{wrapfigure}
 
 It is expected that the distribution of RSA run times will be normal over the set of all possible keys~\cite{Kocher96timingattacks}. 
 Figure~\ref{fig:distro} shows the run time distribution measured for one thousand randomly generated keys. 
@@ -440,10 +432,19 @@ First, instead of enclosing the loop iterations of the modular exponentiation op
 Now the deadline instructions are used to control the overall execution time of the RSA operation.
 Note that we could have done this for the previous example as well to fix the execution time to be \textit{exactly} the worst-case, always. 
 
+\begin{wrapfigure}[16]{r}{.45\textwidth}
+%\begin{SCfigure}
+  \centering
+  \includegraphics[scale=.60]{./figs/RTencrypt/Distro.pdf}
+  \caption{Run time distribution of 1000 randomly generated keys for RSA}
+  \label{fig:distro}
+%\end{SCfigure}
+\end{wrapfigure}
+
 For RSA, key lengths typically need to be longer than $512$ bits to be considered cryptographically strong~\cite{redhatadminguide}. 
 This gives roughly $2^{512}$ possible keys, which is far more than needed for most applications.
 Suppose we are able reduce the key space the application covers---instead of using $100\%$ of the keys, we refine our encryption system to only assign $97\%$ of all possible keys. Namely, the subset of keys whose RSA execution times fall on the left of the $+2$ standard deviation line on the curve.
-Statistically, the keys that lie outside of $\pm 2$ standard deviation are the least secure keys anyway, since it is easier for time-exploiting attacks to distinguish those keys. 
+Statistically, the keys that lie outside of $\pm 2$ standard deviation are the least secure keys, since it is easier for time-exploiting attacks to distinguish those keys. 
 %Then, we can reduce the value specified in the deadline instruction enclosing the whole RSA operation instead of using the absolute worst-case execution time pushed up by the far right outlier.
 By doing so, we reduce the execution time of the encryption algorithm because we know that keys that are right-side outliers will not be used. 
 
@@ -451,7 +452,7 @@ With timing control in software, we can take advantage of this information by si
 The square points in figure~\ref{fig:rsa} show the results of using deadline instructions in this way. 
 We re-ran the same fifty keys from the previous section, and enclosed the whole operation with deadline instructions that specified the run time at +2 standard deviations from the bell curve we obtained.
 We can see that, compared to the previous results that fixed the execution time of each key to take  the worst-case time (circle points), we clearly reduced the overhead while still running in constant time. 
-By taking the run time difference between executions with and without deadline instructions, we obtained the overhead introduced for each of the keys with run time below 2 standard deviations (97.9\% of keys in our case) within the one thousand key set in our experiment. 
+By taking the run time difference between executions with and without deadline instructions, we obtain the overhead introduced for each of the keys with run time below 2 standard deviations (97.9\% of keys in our case). % within the one thousand key set in our experiment. 
 This calculation reveals that by merely reducing the key space by 3\%, running the encryption with optimized deadline instructions only introduced an average overhead of $2.3\%$ over all the keys we measured. 
 All this while still being completely immune to time-exploiting attacks.
 This is virtually impossible to achieve without explicit timing control, which illustrates the value of decoupling timing control and functional properties of software. 
@@ -474,12 +475,12 @@ This is virtually impossible to achieve without explicit timing control, which i
 \end{figure*}
 
 \subsubsection{Digital Signature Algorithm}
-Kocher's~\cite{Kocher96timingattacks} original paper mentioned that Digital Signature Standard~\cite{dss} is also susceptible to timing attacks. 
-Thus, to further illustrate our case, we ported the Digital Signature Algorithm from the current OpenSSL library (0.9.8j) onto PRET.
-We used the same method mentioned above to secure this implementation on PRET.
+Kocher's~\cite{Kocher96timingattacks} original paper mentioned that the Digital Signature Standard~\cite{dss} is also susceptible to timing attacks. 
+Thus, to further illustrate our case, we port the Digital Signature Algorithm from the current OpenSSL library (0.9.8j) onto the precision timed SPARC architecture.
+We use the same method mentioned above to secure this implementation on PRET.
 Figure~\ref{fig:dsamodexp} shows the distribution of DSA run time for one thousand keys. It also shows a normal distribution.
-Then, we randomly generated another one hundred keys, and measured the run time with and without deadline instructions, which we show in figure~\ref{fig:dsa}.
-We can see clearly that the run time with deadline instructions is constant, and any time-exploiting attack is not possible. 
+Then, we randomly generate another one hundred keys, and measure the run time with and without deadline instructions, which we show in figure~\ref{fig:dsa}.
+We can clearly observe that the run time with deadline instructions is constant, and any time-exploiting attack is not possible. 
 
 %we can set different values for the deadline instruction depending on the application's needs to yield a balance between security and performance. 
 % Another possible use of deadline instructions is to implement execution time blinding. 
@@ -520,16 +521,16 @@ In particular, this work targets time-exploiting attacks, and lays out a means o
 % Some stopgap measures are implementable in software, but rarely are they a guaranteed fix.
 %that originate from the \textit{unpredictability} of the underlying hardware architecture.
 As an architecture founded on predictable timing behaviors, PRET provides timing instructions to allow timing specifications in software. 
-In addition, PRET is a predictable architecture that guarantees removes timing interference through a thread-interleaved pipeline with scratchpad memories for each hardware thread, and a predictable DRAM memory controller.
-This eliminates the shared states in the architecture that create uncontrollable timing interference, exploited by attackers. 
+In addition, PRET is a predictable architecture that removes timing interference between threads through a thread-interleaved pipeline, scratchpad memories, and a predictable DRAM memory controller.
+This eliminates the shared states in the architecture that create uncontrollable timing interference, exploited by the attackers. 
 Through a combination of hardware and software techniques, PRET gives control over the timing properties of programs, which effectively eliminates time-exploiting attacks. 
 
 We demonstrate the application of these principles to known-vulnerable implementations of RSA and DSA, and show that PRET successfully defends against time-exploiting attacks with low overhead. 
 Our work does not undermine the significance of any related work, which have mostly been specific to certain attacks.
-PRET does not target a specific encryption algorithm, because it can be used in combination with these partial solutions on specific encryption algorithms, as well as provide a complete defense for other encryption algorithms which are less researched upon.
+PRET does not target a specific encryption algorithm, because it can be used in combination with these partial solutions on specific encryption algorithms, as well as provide a complete defense for other encryption algorithms that are less researched upon.
 
-Besides time-exploiting attacks, there are other side-channel attacks that are legitimate threats to encryption algorithms such as power, and fault attacks.
-We plan to continue to investigate PRET's effectiveness in defending against them. 
-We conjecture that the thread-interleaved pipeline used in PRET can potentially help defend against power attacks because the power measured from the processor now includes significant interference from the execution of other hardware threads in the architecture.  
+% Besides time-exploiting attacks, there are other side-channel attacks that are legitimate threats to encryption algorithms such as power, and fault attacks.
+% We plan to continue to investigate PRET's effectiveness in defending against them. 
+% We conjecture that the thread-interleaved pipeline used in PRET can potentially help defend against power attacks because the power measured from the processor now includes significant interference from the execution of other hardware threads in the architecture.  
 %Currently, PRET is only implemented as a software simulator, but as PRET moves to FPGA implementations, we can further evaluate its effectiveness in defending against power attacks.
 %If our conjecture is correct, then PRET with fault tolerant techniques could potentially be a complete solution against several major side-channel attacks.  

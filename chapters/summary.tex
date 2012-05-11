@@ -1,4 +1,4 @@
-In order to improve the efficiency and scalability of the design of CPS and safety critical systems, we contend that changes must be made to conventional abstraction layers to introduce \emph{time} as a first class citizen.
+In order to improve the efficiency and scalability of handing \emph{time} in CPS and safety critical systems, we contend that changes must be made to conventional abstraction layers to introduce \emph{time} as a first class citizen.
 In this thesis we focus on doing so for the ISA abstraction layer and below.  
 We explore instruction extensions to the ARM ISA to bring temporal semantics to the program, independent of architecture implementation.  
 We also present the precision timed ARM (PTARM), an implementation of a PRET machine, in order to provide a timing predictable and composable platform for deterministic execution times.  
@@ -21,8 +21,8 @@ To simulate an engine fuel rail in real time, we implement a platform that uses 
 The predictable timing of PTARM allows us to statically verify that the timing constraints are met.  
 The timing control provided by the extended ISA enables us to implement a software based low overhead time synchronized communication protocol between the hardware threads, saving the resources required to implement a full hardware interconnection system.
 These features of PTARM enable us to implement a scalable solution that can simulate, in real time, a 237 node common fuel rail systems in a single Xinlinx Virtex 6 FPGA. 
-In the context of embedded security, the underlying architecture implementing encryption algorithms is susceptible to timing side-channel attacks.
-Attackers can exploit the uncontrollable execution time variances caused by the architecture or algorithm to derive the key. 
+In the context of embedded security, the underlying architectures implementing encryption algorithms are susceptible to timing side-channel attacks.
+Attackers can exploit the uncontrollable execution time variances caused by the architecture or algorithm to derive the secret key. 
 We implement the RSA and DSA encryption algorithms on a PRET architecture, and show that a predictable architecture with controllable timing properties in the ISA not only defends against all timing related side-channel attacks, but eliminates the root cause of them. 
 
 We continue to investigate the several challenges and questions mentioned in this thesis.
@@ -31,15 +31,15 @@ The introduction of temporal semantics in the ISA should be platform independent
 Nailing down the formal semantics of each instruction extension is key to a consistent meaning of ``time'' that is independent of the underlying hardware implementation. 
 Second, we continue to experiment with how a predictable pipeline and memory controller handles external interrupts and I/O devices.     
 With the plethora of complex interfaces and protocols for modern high speed I/O interactions, typical I/O controllers are implemented in hardware.
-However, we envision a predictable architecture with precise timing control can enable software implementations of protocols typically implemented in hardware due to the lack of precise control over timing in software.
-A software implementation can enable flexibility for different protocols and reduce design effort, leading to faster time-to-market and more feature rich designs.        
+However, we envision that a predictable architecture with precise timing control can enable software implementations of protocols typically implemented in hardware, due to the lack of precise control over timing in software.
+A software implementation can enable flexibility for different protocols and reduce design efforts, leading to faster time-to-market and more feature rich designs.        
 Third, we continue to explore the interfacing with a timing predictable bus or interconnect, which can be used in timing predictable multicore systems.
 In our real-time engine fuel rail simulator, we show a multicore implementation with PRET architectures that uses local shared memories for communication and  a timing based synchronization communication protocol implemented in software.  
-However, as communication schemes and applications get more complex, the interconnect or bus will play a more integral role in the connection and communication of multiple PRET cores.
+However, as communication schemes and applications become more complex, the interconnect or bus will play a more integral role in the connection and communication of multiple PRET cores.
 Thus, our future work also includes predictable communication protocols across interconnects and shared buses that leverage the predictable timing of the PRET architecture.     
 
 It is important to understand that we are not proclaiming that all dynamic behavior in systems are harmful.
-However, the dynamic behavior must be controllable and predictable. 
+However, the dynamic behavior must be controllable. 
 For example, dynamically scheduling hardware threads in the architecture causes uncontrollable timing interference because the triggering of thread switches is hidden from, and cannot be explicitly controlled by, the programmer.
 We argue that only by achieving predictability in the architecture and platforms can we begin to reason about more dynamic behavior in software.
 With a predictable architecture and the introduction of temporal semantics in the ISA, we hope to provide a timing deterministic foundation in the lower levels of abstraction.

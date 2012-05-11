@@ -1,5 +1,5 @@
 %\todo{Talk about other potential PRET applications, and that PRET can be used to more tightly integrate software and hardware.}
-In this chapter we will present two applications that have been implemented with our precision timed architecture.
+In this chapter we present two applications that have been implemented with our precision timed architecture.
 The first application is a real-time one dimensional computational fluid dynamics (1D-CFD) simulator.
 This simulator runs in real-time to simulate the fuel rail pressure and flow rate for an improved engine efficiently when injecting fuel.
 The application makes use of the lightweight hardware threads in our thread-interleaved pipeline to implement a massively parallel simulator with hundreds of computational nodes communicating to their neighbors.
@@ -7,7 +7,7 @@ The timing predictable architecture allows us to statically analyze the executio
 A time based communication scheme is used to reduce communication overhead.
 The communication synchronization is enforced in software with timing instructions.
 This minimizes overhead and ensures that the communication of all nodes are in sync.  
-We present the synthesis results to show that by using the PRET architecture we can successfully simulate a common fuel rail configuration of up to 234 nodes on a Xilinx Virtex-6 FPGA, and enable a real-time engine fuel rail simulation.
+We present the synthesis results to show that by using the PRET architecture we can successfully simulate a common fuel rail configuration of up to 234 nodes on a Xilinx Virtex-6 FPGA, and enable real-time engine fuel rail simulation.
 This work is joint research in collaboration with Guoqiang Gerald Wang and Hugo Andrade, from National Instruments Corp., and Matthew Viele, from Drivven Inc.
 The results are also published in ~\cite{Liu121dcfd}.
 
@@ -174,7 +174,7 @@ With these requirements in mind, we will detail the implementation of the 1D-CFD
 \subsubsection{Hardware Architecture}
 \label{sec:1dcfd-hardware_architecture}  
 \paragraph{PTARM Cores}
-Our hardware implementation synthesizes multiple PTARM cores connected through point-to-point connections on an FPGA.
+Our hardware implementation synthesizes multiple PTARM cores connected through shared local memories on an FPGA.
 Computational nodes are mapped to hardware threads on the PTARM cores.
 The PTARM cores used for this application are a slightly modified version of the one presented in chapter~\ref{chapter:ptarm}.
 In order to improve the throughput and clock frequency of our pipeline, we implement a six-stage thread-interleaved pipeline shown in figure~\ref{fig:ptarm_pipeline_six_stage}.
@@ -197,12 +197,12 @@ The floating point operations supported are: add, subtract, multiply, float-to-f
 
 Our pipeline design supports configurations which exclude certain floating point units, since not all computational nodes require all floating point operations.   
 For example, square root is only used by the valve node, and divide is only used by the ``T'' node, as shown in table~\ref{tab:1dcfd-inst-count}. 
-The floating point divide and square root are the most resource intensive hardware units, but the valve and ``T'' nodes usually represent only a few percent of the overall system.
-The common fuel rail system we will present later contains 234 nodes, but only 5 nodes are ``T'' nodes and only 4 nodes are valves.
+Even though the floating point divide and square root are the most resource intensive hardware units, there are usually only a few valve and ``T'' nodes in the overall system.
+The common fuel rail system we present later contains 234 nodes, but only 5 nodes are ``T'' nodes and only 4 nodes are valves.
 To save on hardware resources, we could use software emulation for the complex operations at the cost of increasing the execution time of the ``T'' nodes and valve nodes.
 However, the overall performance of our system is bounded by the slowest computational element, because all nodes synchronize communication points at the end of each time step.   
 As a result, the performance hit from using software emulation for these small percent of nodes would limit the overall performance. 
-Instead, by allowing different configurations of the PTARM cores within the system, we can include the extra hardware units only on cores that require them, getting the performance boost from hardware without a huge resource overhead.   
+Instead, by allowing different configurations of the PTARM core, we can include the extra hardware units only on cores that require them, getting the performance boost from hardware without a huge resource overhead.   
 This results in substantial resource savings, which we show in section~\ref{sec:1dcfd-results}.
 
 The real-time, highly parallel, yet heterogeneous nature of this application makes it a perfect match for our precision timed architecture.
@@ -284,7 +284,7 @@ It first enforces a previously specified timing constraint, then it sets a new t
 The \delayuntil\ instruction enforces a minimum execution time within the code, which we use to enforce the synchronized execution of time steps for all nodes.  
 Fig.~\ref{fig:1dcfd-software_model} shows the program synchronization points that our timing instruction enforces.
 The hatched area in the figure denotes slack time that is generated by the timing instructions.
-Each \delayuntil\ macro takes at least 2 thread cycles because it manipulates a 64-bit value representing time. 
+Each \emph{delay\_and\_set} macro takes at least 2 thread cycles because it manipulates a 64-bit value representing time. 
 For our computational nodes, 3 timing macros are used each time step, thus 6 thread cycles of overhead are introduced per time step.
 %The overhead is already included in our execution time analysis presented in table~\ref{tab:1dcfd-inst-count}.
 
@@ -302,7 +302,7 @@ In a system with heterogeneous nodes that each have different execution times, t
 The \emph{delay\_and\_set} macro only enforces a minimum execution time on the computational nodes.
 %, but does not guarantee that the worst-case execution time of all computational nodes meet the timing constraints imposed from the application.
 Thus, static timing analysis is still required to verify that the worst-case execution time of all nodes meet the imposed timing constraints set by the application parameters.
-However, as soon as the timing constraints are met, there are no additional benefits to continue improving the execution speed of the computational nodes, as the system time steps are synchronized with sensors that interface with the physical world and execution is real-time along the engine. 
+However, as soon as the timing constraints are met, there are no additional benefits to continue improving the execution speed of the computational nodes; the system time steps are synchronized with sensors that interface with the physical world and execution is real-time along the engine. 
 In this case, precise execution time analysis can help us optimize other system resources, such as power and area, improving the scalability of the approach.
 On the other hand, over estimation of execution time could lead to over-provisioning of hardware resources.    
 In this application, the computation code on the nodes within each time step contains only a single path of execution, voiding the need for complex software analysis.
@@ -339,7 +339,7 @@ Each PRET core is clocked at 150 $MHz$ and has 6 threads.
 All floating point units are generated from the Xilinx Coregen tool~\cite{xilinx_coregen}, and are configured to maximize DSP slice usage and minimize logic slice usage as much as possible.
 We use the logic slices to synthesize as many cores as possible.
  %PTARM, uses an ARM-based ISA, thus our C code is compiled using the GNU ARM cross compiler~\cite{gnu-arm} with the optimization compiler flag set to level 3.  
-For these examples, we used a mapping heuristic that grouped nodes requiring the same computations onto the same core. 
+For these examples, we use a mapping heuristic that groups nodes requiring the same computations onto the same core. 
 In the sections below we will show that this heuristic allows us to save hardware resources by synthesizing less floating point hardware units. 
 
 \subsubsection{Timing Requirements Validation}
@@ -348,7 +348,7 @@ As discussed in section~\ref{sec:1dcfd-software_architecture}, the computation c
 The thread-interleaved pipeline provides temporal isolation for all hardware threads, so no timing interference occurs between the threads.
 We can safely use the timing analysis done separately for each computational node even as they are executed simultaneously in the architecture.
 Because all code, data, and communication channels reside on the BRAMs of the FPGA, the memory access latency is all deterministically one cycle.
-The PTARM architecture provides deterministic execution time for each instruction implemented, and the full list of instruction execution cycles are listed in table~\ref{table:ptarm_instruction_timing}.
+The PTARM architecture provides deterministic execution times for each instruction implemented, and the full list of instruction execution cycles are listed in table~\ref{table:ptarm_instruction_timing}.
 Most floating point instructions take only a single thread cycle, as the latency is fully hidden by interleaving the hardware threads in the pipeline.
 The more complex floating point square root and divide operations take four thread cycles.
 Using the deterministic instruction execution cycles and the compiled code, we are able to obtain the exact thread cycles required for each computational node, which are shown in table~\ref{tab:1dcfd-inst-count}.  
@@ -393,7 +393,7 @@ This validates that we can safely meet the timing requirements, ensuring the cor
 
 Table~\ref{tab:1cfd-Cores_vs_features} shows the resource usage in logic slices for different configurations of a PTARM core.
 Each core uses 7 BRAMs: 3 for the integer unit register set (3 read and 1 write port), 2 for the floating point register set (2 read and 1 write port), 1 for the scratchpad, and 1 for the global broadcast receiving memory.
-We include the fixed point configuration for reference purposes only; it doesn't contain any floating point units.
+We include the fixed point configuration for reference purposes only; it does not contain any floating point units, and it is not used in our implementation.
 The baseline configuration used in our implementation is the ``basic float'', which contains a floating point add/subtracter, a floating point multiplier, and floating point to fixed point conversion units.
 The ``sqrt'', ``div'' and ``sqrt \& div'' configurations add the corresponding hardware units onto the ``basic float'' configuration. 
 Besides the effect of hardware units, we also show the area impact of adjusting the thread count on a single core.
@@ -419,8 +419,8 @@ Two important observations are made from the results of table~\ref{tab:1cfd-Core
 First, the area increase associated with adding more threads to the core is proportional only to the number of bits required to encode the number of threads.  
 For example, running 6 threads or 8 threads (both requiring three bits to encode the thread number) on the processor yields similar area usage.
 But once a 9th thread is introduced, the used area noticeably increases, but remains similar for up to 16 threads. 
-This can be explained by the architecture of multi-threaded processors. 
-Multi-threaded processors maintain independent register sets and processor states for each thread while sharing the datapath and ALU units amongst all threads.
+This can be explained by the architecture of multithreaded processors. 
+Multithreaded processors maintain independent register sets and processor states for each thread while sharing the datapath and ALU units amongst all threads.
 The register sets are synthesized onto BRAMs, so the number of bits used to encode thread IDs will determine the size of the BRAM used for the register sets. 
 The size of the multiplexers used to select thread states and registers are also determined by the number of bits encoding the thread IDs, not the actual number of threads running. 
 Thus, it is possible to increase the number of threads per core with almost negligible impact on area as long as the incremented thread count uses the same number of bits to encode.    
@@ -429,16 +429,16 @@ However, since hardware threads share the processor pipeline, adding threads slo
 Nonetheless, for implementations that have sufficient slack time or require faster performance, adjusting the number of threads can help designs meet the required constraints. 
 Our precise execution time analysis allows us to determine the maximum number of threads, six in our case, we need to support to meet our timing constraints.
 An over estimated execution time in this case could lead to under utilizing the hardware.
-For example, if we were limited to using five threads for each core in order to meet the timing constraint, then additional cores would be needed to fully implement our 237 node fuel rail example.     
+For example, if we were limited to using five threads for each core in order to meet the timing constraint, then additional cores would be needed to fully implement our 234 node fuel rail example.     
 
 The second observation relates to the resource impact of the floating point square root and divide units. 
 Looking at the resource usage for 6 threads on a core, adding a floating point square root unit adds roughly 20.3\% more logic slices than the ``basic float'' configuration.  
 Ading a floating point division unit adds roughly 26.7\% more logic slices than the ``basic float" configuration.  
-A core with both square root and division unit would use roughly 50.8\% more slices.
+A core with both square root and division hardware units will use roughly 50.8\% more slices.
 These are estimates because the slices occupied might vary slightly based on how the synthesis tool maps LUTs and flip flops to logic slices. 
-But they give an intuition to the resource difference used for each configuration.
+But they give an intuition to the resource difference of each configuration.
 
-The actual resource impact can be seen from Table~\ref{table:1dcfd-example_results}, which shows the total slices occupied of the three examples after place and route.
+The actual resource impact can be seen from Table~\ref{table:1dcfd-example_results}, which shows the total slices occupied for the three examples after place and route.
 In the homogeneous (hom. suffix) configuration, all the cores contain the square root and divide hardware.
 In the heterogeneous (het. suffix) configuration, only necessary cores contain square root and divide, the rest use the basic float configuration.  
 
@@ -473,7 +473,7 @@ Rail	& hom.	&	&	& \multicolumn{2}{c|}{N/A} \\
 For the simple waterhammer example, since only 2 cores are used, the savings is less noticeable. 
 But as the application size scales up, the resource savings of a heterogeneous architecture become more apparent.
 The homogeneous approach uses roughly 1.5 times the number of slices our heterogeneous approach uses, which is consistent with the findings in table~\ref{tab:1cfd-Cores_vs_features}.
-This proved to be critical for the 234-node common rail example, as only our heterogeneous architecture could implement the design on the XC6VLX195T FPGA; the homogeneous design did not fit.
+This proves to be critical for the 234-node common rail example, as only our heterogeneous architecture can implement the design on the XC6VLX195T FPGA; the homogeneous design did not fit.
 These results also reflect our decision to use a heuristic that groups nodes with the similar computations together. 
 By doing so, we synthesize less hardware floating point units, saving hardware resources.
 Table~\ref{table:1dcfd-example_results} also shows the BRAM usage for the implemented examples. 

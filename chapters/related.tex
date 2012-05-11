@@ -2,8 +2,7 @@
 We are certainly not the first or only one to tackle the unpredictability of computer architecture designs.
 In this chapter we survey an abundance of related research to our goal of predictable architectures.
 Timing analysis techniques, compiler techniques and architectural techniques all play a role in tackling the unpredictability of computer architectures.
-However, we limit the scope of this survey the mainly focus on architectural techniques, as that is the focus of this thesis. 
-
+However, we limit the scope of this survey to mainly focus on architectural techniques, as that is the focus of this thesis. 
 Adding temporal semantics to programming languages has been the focus of many research proposals, but to the best of our knowledge, we believe this is the first attempt to introduce temporal semantics down at the ISA level. 
 
 %FIXME: Compare to XMOS style handling of interrupts?
@@ -11,18 +10,18 @@ Adding temporal semantics to programming languages has been the focus of many re
 \section{Pipeline-Focused Techniques}
 \subsection{Static Branch Predictors}
 \label{sec:RTBranch}
-Dynamic branch predictors cause timing anomalies~\cite{Engblom2003dynbranch} and are difficult to model is because of the \textit{aliasing} of branch points.   
+Dynamic branch predictors cause timing anomalies~\cite{Engblom2003dynbranch}, and they are difficult to model because of the \textit{aliasing} of branch points.   
 \textit{Aliasing} occurs when two different branches occupy the same branch predictor slot and cause interference.
 Burguiere et al.~\cite{Burguiere2005staticbranchpredict} make a case for \textit{static branch prediction} to be used for real-time systems.
 This can be done in several ways. 
 The simplest form can predict all branches taken or not taken. 
 Improvements can include the \textit{Backward Taken, Forward Not Taken} scheme, to improve performance for loops and if statements.
-This uses the observation that for loop control branches, almost all backwards branches are taken to return to the loop, and only at the end of the loop are forward branches taken. 
+This scheme uses the observation that for loop control branches, almost all backwards branches are taken to return to the loop; only at the end of the loop are forward branches taken. 
 With architecture support for static branch predictions, compilers can analyze code patterns (loops, if-then-else, if then) and insert instruction set constructs to denote the static prediction of each branch.  
 The underlying architecture will use that for its prediction, instead of relying on a dynamic hardware unit.
 This removes \textit{aliasing} and gives better estimated worst case branch mispredicts. 
 
-Bodin et al.~\cite{Bodin2005staticbranch} use this idea of software static branch prediction to improve WCET of programs.
+Bodin et al.~\cite{Bodin2005staticbranch} use this idea of software static branch prediction to improve the WCET of programs.
 Intuitively, they aim to remove all branch mispredict penalties from the worst-case path to improve the WCET. 
 They propose an algorithm that iterates through the control flow graph to find the worst-case execution path (WCEP). 
 Initially, the algorithm finds the worst case path assuming all the branches are mispredicted. 
@@ -30,7 +29,7 @@ Then, the algorithm assigns the static branch prediction of all branches on the 
 The algorithm then iterates again to find the new WCEP until two iterations yield the same WCEP.
 Since the algorithm never reassigns assigned branches, it always converges but is not optimal.
 The presence of caches can easily effect the WCEP, and each branch prediction reassigned can modify the cache state.
-However, the experiments assumed all code and data fit into the caches, thus the effect of caches was not factored into by the algorithm.
+However, the experiments assumed all code and data fit into the caches, thus the effects of caches were not factored into the algorithm.
 
 \subsection{Superscalar Pipelines}
 \label{sec:RTSuperscale}
@@ -126,13 +125,14 @@ Furthermore, depending on how many instructions can be in flight at one time, wa
 % \end{itemize}
 
 
-Whitham et al. \cite{whitham:08:predOOOwithVirtualTraces} combine the techniques of \emph{instruction pre-scheduling} and \emph{static branch predictions} to propose modifications to an out-of-order superscalar pipeline to provide predictability for single thread execution.  
+Whitham et al. \cite{whitham:08:predOOOwithVirtualTraces} combine the techniques of instruction pre-scheduling and static branch predictions to propose modifications to an out-of-order superscalar pipeline to provide predictability for single thread execution.  
 Instead of basic blocks, the superscalar pipeline pre-schedules instructions across \emph{virtual traces}\cite{Whitham2008formvirtualtraces}. 
 \emph{Virtual traces} are program paths with static branch predictions inserted. 
 These are usually formed by predicting along the WCEP, similar to the algorithm introduced by Bodin et al~\cite{Bodin2005staticbranch}. 
 Each virtual trace can contain a fixed number of branches. 
 A VTC (virtual trace controller) is introduced to control the progress of the pipeline.
-The VTC contains a VTR (virtual trace register) which stores the branch predictions, and the pipeline state is reset between traces so the WCET analysis can be limited to within traces.
+The VTC contains a VTR (virtual trace register) which stores the branch predictions.
+The pipeline state is reset between traces so the WCET analysis can be limited to within traces.
 The out-of-order superscalar pipeline is also modified to disallow memory prediction and reordering of branches.
 The architecture employs scratchpads instead of caches.  
 This allows the execution of traces to run predictably for each different exit (branch mispredict) within a trace.
@@ -148,18 +148,18 @@ The architecture shows an improved throughput for most programs when compared to
 \label{sec:RTVLIW}
 VLIW machines, like superscalars, issue multiple instructions at a time to exploit ILP.
 However, unlike superscalars, VLIW machines rely on the compiler to utilize ILP and determine the instructions issued.  
-This helps in the predictability of the software because the hardware does minimum reordering or stalling.
+This helps in the predictability because the hardware does almost no reordering or stalling.
  
 Yan et al.~\cite{Yan2008VLIW} study the predictability of VLIW machines, and propose changes to the architecture and compiler to improve the predictability. 
 They find that although most of the data dependency is scheduled away by the compiler, there are still several factors that limit the predictability on the hardware. 
 First, since statically it is not known whether a memory access is a hit or a miss, the hardware still needs to check for it and stall when needed. 
-Second, data dependency still exists across compilation units, so the hardware still supports basic data dependency checking to handle those dependencies.
+Second, data dependencies still exist across compilation units, so the hardware still needs to support basic data dependency checking to handle those dependencies.
 A compilation unit could be a basic block, a loop, a procedure or a region~\cite{Hank:1995:RCI:225160.225189}. 
-Finally, if the VLIW uses branch prediction, there is still the need for handling of mis-prediction etc.
+Finally, if the VLIW machine uses branch prediction, there is still the need for the handling of mispredictions.
 
-As VLIW machines heavily utilize the compiler to improve performance, they propose several compiler techniques to compile programs that lend themselves to better WCET for VLIW architectures. 
+As VLIW machines heavily utilize the compiler to improve performance, they propose several compiler techniques to compile programs that lend themselves to better WCET. 
 First, they use the single-path paradigm proposed by Puschner and Burns~\cite{Puschner:2002:WTP:882515.885528}, and eliminate all non-loop backwards branches with full if-conversions~\cite{Allen:1983:CCD:567067.567085}.  
-To mitigate the performance penalty of single-path programming with aggressive hyperblock scheduling~\cite{Mahlke:1992:ECS:144953.144998} to exploit the ILP from VLIW architectures. 
+To mitigate the performance penalty of single-path programming, aggressive hyperblock scheduling~\cite{Mahlke:1992:ECS:144953.144998} is used to exploit the ILP from VLIW architectures. 
 For the data dependencies across compilation units, they use code padding to ensure the execution time is consistent across different paths.    
 This will enable easier WCET analysis. 
 This work minimally deals with instruction caches, but does not account for the effects of data cache. 
@@ -168,20 +168,21 @@ This work minimally deals with instruction caches, but does not account for the 
 \subsubsection{Thread Scheduling}
 With explicit hardware multithreading, the scheduling policy plays a huge role in the predictability of the architecture.
 Kreuzinger et al.~\cite{Kreuzinger2000RTmultithread} evaluate the use of different real time scheduling schemes to schedule hardware threads to handle external events. 
-They evaluate fixed priority preemptive (FPP), earliest deadline first (EDF), least laxity first (LLF) and guaranteed percentage (GP), which is essentially time sharing the pipeline. 
+They evaluate fixed priority preemptive (FPP), earliest deadline first (EDF), least laxity first (LLF) and guaranteed percentage (GP), which is similar to time sharing the pipeline. 
 The architecture used for evaluation is a Java multi-threaded superscalar pipeline with four threads~\cite{Kreuzinger2003multithreadeventhandle}. 
 A hardware priority manager is implemented to facilitate the scheduling of threads. 
 All real-time threads register their real-time requirements during initialization with the priority manager. 
 When the external event occurs, the priority manager schedules the corresponding interrupt service thread, and starts assigning priorities based upon the real time requirements. 
 The evaluation criteria to compare scheduling policies is the throughput of the processor. 
 The conclusion of the report is that in order to maximize multiple threads on a superscalar machine, the scheduler should try to keep as many threads active as long as possible to leverage thread level parallelism and hide more latencies of pipeline stalls. 
-Thus GP does the best because it schedules different active threads each cycle until their percentage runs out, thus it keeps threads alive as long as possible. 
+Thus GP does the best because it schedules different active threads each cycle until their percentage runs out.
+Thus, it keeps threads alive as long as possible. 
 The idea of using hardware threads to service interrupts is novel because of the low overhead to switch contexts. 
 By giving the interrupt service routine thread priorities, it may be possible the bound the execution time of higher priority threads. 
 Although the dynamic thread scheduling can cause execution time bounds to be imprecise from the effects of timing interference across threads.  
   
-El-Haj-Mahmoud et al.~\cite{El-Haj-Mahmoud2005VirtualMultiprocessor} propose a statically scheduled multithreaded architecture called the Real-Time Virtual Multiprocessor(RVMP).   
-The idea of a virtual processor is a slice of time on the process. 
+El-Haj-Mahmoud et al.~\cite{El-Haj-Mahmoud2005VirtualMultiprocessor} propose a statically scheduled multithreaded architecture called the Real-Time Virtual Multiprocessor (RVMP).   
+The idea of a virtual processor is a slice of time on the processor. 
 The RVMP extends an in-order 4-way superscalar processor to support the partitioning of the pipeline in \emph{space} and \emph{time}.  
 In the \emph{space} dimension, the resources of the superscalar can be partitioned to different threads. 
 In the \emph{time} dimension, the superscalar resources are time shared, and different threads are scheduled to utilize the resources at different times.  
@@ -194,9 +195,9 @@ The static schedule utilizes the flexibility of the different time and space par
 \subsubsection{Simultaneous Multithreaded Architectures} 
 \label{sec:RTSMT}
 Simultaneous Multithreaded Architectures (SMT) attempt to exploit both instruction-level and thread-level parallelism by dynamically scheduling multiple hardware threads onto a multi-way pipeline. 
-Each cycle, instructions from different threads can be fetched simultaneously to fully utilize the pipeline.
+In each cycle, instructions from different threads can be fetched simultaneously to fully utilize the pipeline.
 The dynamic scheduling and aggressive speculation techniques render SMTs almost impossible to use for real-time systems.  
-However, several proposals involved slight modifications to architecture to create a \emph{WCET-aware} SMT to be used for real-time systems.  
+However, several proposals involve slight modifications to architecture to create a \emph{WCET-aware} SMT to be used for real-time systems.  
 
 Barre et al.~\cite{Barre2008RTSMT} propose to assign one explicit hardware thread with the highest priority. 
 That thread, called the real-time thread, gains access to any resource whenever it is scheduled. 
@@ -207,14 +208,14 @@ Currently the cache effects and branch prediction are listed as future work.
 
 Hily et al.~\cite{Hily1999} show that out-of-order execution may not be as cost effective as in-order execution on SMT machines.
 Thus, Uhrig et al.~\cite{SaschaUhrig2005SMT} propose a similar concept to Barre et al.~\cite{Barre2008RTSMT}, except for an in-order executed superscalar.
-Mische et al.\cite{Mische2008SMT} expand this to allow more than one real-time thread running on the SMT architecture.
-They do so by essentially time-sharing the highest priority thread slot among the real-time threads.  
+Mische et al.\cite{Mische2008SMT} expand this to allow more than one real-time thread to run on the SMT architecture.
+This is done by time-sharing the highest priority thread slot among the real-time threads.  
 The time-sharing schedule is statically constructed to ensure that the real-time threads still provide reasonable WCET guarantees. 
 This architecture uses instruction scratchpads without data scratchpads, and no branch predictors, as the branch penalty can be filled with executions from other threads.   
 Some issues do arise with the contention of memory access, as it is difficult to partition memory accesses between hardware threads.
 Contention between the high priority thread slot and other thread slots are resolved by alerting the memory controller from earlier stages in the pipeline that a high priority thread will issue a memory instruction. 
 This way the memory controller can hold off service to the lower priority memory accesses and wait for the high priority access to come.     
-However, contention between the real-time threads on the high priority thread slot is not resolved. 
+However, it is unclear how contention between the real-time threads on the high priority thread slot is resolved.
  
 % \bigskip
 % Although real time SMT proposals have a lot of compelling features, it
@@ -230,7 +231,7 @@ However, contention between the real-time threads on the high priority thread sl
 % categorize. 
 
 \subsubsection{Thread Interleaved Pipelines}
-Thread-interleaved pipelines have been proposed and employed in various architectures for research and industry. 
+Thread-interleaved pipelines have been proposed and employed in various architectures from research and industry. 
 Besides the CDC6600~\cite{CDC6600}, described in section~\ref{section:pret_thread_pipeline}, Lee and Messerschmitt~\cite{lee1987pip}, the Denelcore HEP~\cite{HEP}, the XMOS XS1 architecture~\cite{xmos_xs1}, the Parallex Propeller chip~\cite{parallex} and the Sandbridge Sandblaster~\cite{Erdem02multi-threadedprocessor} all use fine grained thread interleaving for different applications. 
 In particular, Lee and Messerschmitt~\cite{lee1987pip} and the Sandbridge Sandblaster~\cite{Erdem02multi-threadedprocessor} propose the use of thread-interleaved pipelines for DSP applications. Lee and Messerschmitt~\cite{lee1987pip} also use a round robin thread scheduling policy while the Sandblaster uses a Token Triggered Threading policy. 
 The Token Triggered Threading policy is similar to the round robin scheduling policy in that each hardware thread context can only issue one instruction each in a scheduling cycle. 
@@ -243,15 +244,15 @@ However, the dynamic thread scheduling can cause each thread's execution frequen
 
 \subsection{Others}
 \subsubsection{Virtual Simple Architecture}
-Anantaraman et al.~\cite{Anantaraman2003VISA} propose the virtual simple architectures (VISA), which uses dynamic checking to ensure tasks are meeting the deadlines. 
+Anantaraman et al.~\cite{Anantaraman2003VISA} propose the virtual simple architecture (VISA), which uses dynamic checking to ensure tasks are meeting the deadlines. 
 The microarchitecture is split into two modes. 
 A simple mode, which conforms to the timing of a hypothetical simple pipeline that is amenable to safe and tight WCET analysis. 
 And a high performance mode, in which the architecture can use arbitrary performance-enhancing features.
-A task that executes on the VISA is divided into multiple sub-tasks, to gauge progress on the complex pipeline.
+A task that executes on the VISA is divided into multiple sub-tasks to gauge progress on the complex pipeline.
 Each sub-task is assigned an interim deadline, based on the hypothetical simple pipeline.  
-When tasks are executed on the VISA, they are first speculatively executed in high-performance mode.
+When tasks are executing on the VISA, they are first speculatively executed in high-performance mode.
 If no checkpoints are missed, then the high performance mode has met the timing requirements. 
-If a checkpoint is missed, the architectures switches to a simple mode to bound the remaining task times to attempt at meeting the timing constraints.
+If a checkpoint is missed, the architectures switches to a simple mode to bound the remaining task times in attempt to meet the timing constraints.
 The results show that the high performance mode have average executions times of 3 to 4 times faster than the simple mode.
 The authors also discuss possible power savings by scaling the voltage in high performance mode.
 However, the tasks and programs must have sufficient slack time to allow for dynamic checking of deadlines, and it is unclear whether the simple mode will always be able to make up the time if the high performance mode misses its checkpoint. 
@@ -260,7 +261,7 @@ However, the tasks and programs must have sufficient slack time to allow for dyn
 \label{sec:RTJava}
 Schoeberl presents the Java Optimized Processor (JOP)~\cite{jop:wcet} which uses Java for real time embedded systems. 
 The design of JOP includes a two level stack cache architecture ~\cite{jop:stack}. 
-Instead of using a large register file to store the stack as in PicoJava\cite{McGhan1998PicoJava}, it only uses two registers to store the top two entries of the stack (Register A and Regiser B). 
+Instead of using a large register file to store the stack, like the PicoJava\cite{McGhan1998PicoJava}, it uses only two registers to store the top two entries of the stack (Register A and Register B). 
 Leveraging the stack based architecture of JavaVM, whenever an arithmetic operation occurs, the result is always stored back to the top of the stack (Register A). 
 Any push or pop operation simply results in a shift of values between the two registers and the stack cache, which only requires one read and one write port for the memory. 
 This architecture does not have any data hazards and has very few pipeline stages (no need for an explicit commit/writeback stage). 
@@ -274,7 +275,7 @@ Whitham introduces the Microprogrammed Coarse Grained Reconfigurable Processor (
 The architecture of MCGREP contains multiple execution units, but each operation is implemented in microcode. 
 The pipeline architecture is extremely simple, reassembling a two stage pipeline with a fetch/decode stage and an execute stage.
 No internal state is stored in the pipeline, and instructions do not affect each other's execution time. 
-A fast internal RAM without cache is used to store the program and be used as memory for data.    
+A fast internal RAM without cache is used to store the program and used as memory for data.    
 The microcode operations are predictable in the MCGREP architecture, taking a fixed number of cycles to complete.
 Advanced operations can be dynamically loaded as new microcode, which enables application specific instructions to improve performance.
 All MCGREP instructions take a fixed number of clock cycles to complete and are unaffected by execution history, making MCGREP a predictable processor. 
@@ -302,7 +303,7 @@ This paper also reveals potential for improvement in existing analyses of PLRU a
 
 Puat and Decotigny~\cite{Puaut02} propose to use partitioned and lock caches to eliminate the intra- and inter-task interferences when a cache is used. 
 Intra-task interferences occur when different memory blocks of the same task compete for cache blocks.
-Inter-task interferences occur where a preempting task's memory blocks cause cache reloads in the preempted task.
+Inter-task interferences occur when a preempting task's memory blocks cause cache reloads in the preempted task.
 By using cache partitioning, a part of the cache is reserved for a particular task, and inter-task interference is eliminated.
 To eliminate intra-task interference, cache locking is used to lock the contents of cache.
 The cache contents can be locked statically, which are fixed at system start for the whole run time, or dynamically, where the contents may change.   
@@ -329,7 +330,7 @@ If the thread is stalled when a method is being filled into the scratchpad, othe
 
 \subsection{Scratchpads}
 Scratchpads are known to allow more precise WCET analysis~\cite{Wehmeyer2005SPM} because the contents are managed in software. 
-Puaut et al.~\cite{Puaut2007SPMvsCache} present a comparison of locked caches and scratchpads, and show that were only subtle differences between the two in terms of performance. 
+Puaut et al.~\cite{Puaut2007SPMvsCache} present a comparison of locked caches and scratchpads, and show only subtle differences between the two in terms of performance. 
 Most benchmarks give similar WCET estimates. 
 The difference stems from the granularity of allocation units. 
 For locked caches, the basic allocation unit is a cache line. 
@@ -453,8 +454,8 @@ This simplifies analysis because it eliminates the need for whole-pointer analys
 DRAM cells leak charge and have to be refreshed periodically to retain their state.
 However, the refreshes of DRAMs stall other DRAM accesses, and potentially close DRAM rows, which require additional precharges to reopen them.
 This causes DRAMs to be unpredictable for real-time systems, as the DRAM refreshes are usually controlled in hardware. 
-Bhat and Muller~\cite{Bhat2010PredictableDRAM} tackled this specific issue of DRAM refreshes by scheduling burst refreshes.
-They account for the DRAM refresh requirements in the software, and schedule refresh tasks to handle DRAM refreshes predictably. 
+Bhat and Muller~\cite{Bhat2010PredictableDRAM} tackle this specific issue of DRAM refreshes by scheduling burst refreshes.
+They account for the DRAM refresh requirements in software, and schedule refresh tasks to handle the DRAM refreshes predictably. 
 Two implementations are provided. 
 The first is a pure software implementation, and use RAS-only refreshes to manually refresh the DRAM rows during the refresh task. 
 The second implementation uses a hybrid software-hardware solution, where the software initiates a hardware DRAM refresh. 
@@ -462,7 +463,7 @@ Depending on the application needs, each refresh can contain smaller bursts at t
 By scheduling the DRAM refresh, other DRAM accesses are more predictable because no conflict will arise from refreshes.  
 
 Akesson et al.~\cite{Akesson2007CODES,Akesson2009DSD,Akesson2010} introduce the Predator, a predictable SDRAM memory controller. 
-Here,``predictable'' provides a guaranteed maximum latency and minimum bandwidth to each client, independent of the behavior of each client. 
+It is predictable by providing a guaranteed maximum latency and minimum bandwidth to each client, independent of the behavior of other clients. 
 Standard DDR2 SDRAM memory controllers schedule the requests of the different components dynamically. 
 Predicting the execution time of a particular component in such a system is difficult, because of interference on the shared DRAM resource. 
 Predator is a hybrid between static and dynamic memory controllers.
