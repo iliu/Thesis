@@ -1,1 +1,8 @@
 This is the repsitory of my thesis titled "Precision Timed Machines". It is written in latex. 
+
+To Build:
+[osx] 
+1) type make
+2) open thesis.pdf
+
+

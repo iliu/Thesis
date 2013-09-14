@@ -61,25 +61,25 @@ $(AUX_FILE): $(TEX_FILE)
 
 $(BBL_FILE): $(TEX_FILE) $(AUX_FILE) $(BIB_FILE)
 	@if [ $(BIB_FILE) -nt $(BBL_FILE) ] \
-	      || ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum --status -c $(MD5_FILE)) \
+	      || ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5 | grep -q `cat $(MD5_FILE)`) \
 	      || grep -q "error message" $(BLG_FILE); then \
 	  if ! ($(bibtex)); then \
 	    exit 1; \
 	  fi; \
-	  grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum > $(MD5_FILE); \
+	  grep -E $(AUX_TEXT) $(AUX_FILE) | md5 > $(MD5_FILE); \
 	fi
 
-$(PDF_FILE): $(TEX_FILE) $(BBL_FILE) $(OTHER_FILES)
+$(PDF_FILE): $(TEX_FILE) $(BBL_FILE) 
 	@rerun=1; \
 	count=1; \
 	while [ "$$rerun" != "0" ]; do \
 	  rerun=0; \
-	  if ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum --status -c $(MD5_FILE)) \
+	  if ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5 | grep -q `cat $(MD5_FILE)`) \
 	        || grep -q "error message" $(BLG_FILE); then \
 	    if ! ($(bibtex)); then \
 	      exit 1; \
 	    fi; \
-	    grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum > $(MD5_FILE); \
+	    grep -E $(AUX_TEXT) $(AUX_FILE) | md5 > $(MD5_FILE); \
 	    rerun=1; \
 	  elif [ $(LOG_FILE) -nt $(TEX_FILE) ] \
 	     && grep -q "Rerun to get" $(LOG_FILE); then \
@@ -94,7 +94,7 @@ $(PDF_FILE): $(TEX_FILE) $(BBL_FILE) $(OTHER_FILES)
 	  fi; \
 	  \
 	  if [ "$$rerun" != "0" ]; then \
-	    if ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum --status -c $(MD5_FILE)) \
+	    if ! (grep -E $(AUX_TEXT) $(AUX_FILE) | md5 | grep -q `cat $(MD5_FILE)`) \
 	          && ! ($(MAKE) $(BBL_FILE)); then \
 	      exit 1; \
 	    fi; \
@@ -108,7 +108,7 @@ $(PDF_FILE): $(TEX_FILE) $(BBL_FILE) $(OTHER_FILES)
 		rerun=0; \
 	  fi; \
 	done
-	@if grep -E $(AUX_TEXT) $(AUX_FILE) | md5sum --status -c $(MD5_FILE); then \
+	@if grep -E $(AUX_TEXT) $(AUX_FILE) | md5 | grep -q `cat $(MD5_FILE)`; then \
 	  touch $(BBL_FILE); \
 	  touch $(PDF_FILE); \
 	fi
